@@ -38,6 +38,30 @@
         }
       }
     },
+    "equipment_conditions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "equipment_name": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string",
+            "enum": [
+              "good",
+              "fair",
+              "poor",
+              "critical"
+            ],
+            "default": "good"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "status": {
       "type": "string",
       "enum": [
