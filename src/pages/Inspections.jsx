@@ -1,19 +1,22 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { ClipboardCheck, Plus, Check, Trash2, ChevronDown } from "lucide-react";
+import { ClipboardCheck, Plus, Check, Trash2, ChevronDown, Pencil } from "lucide-react";
 import FormModal from "@/components/FormModal";
 
 const statusStyles = { scheduled: "bg-slate-700 text-slate-300", in_progress: "bg-blue-500/15 text-blue-300", passed: "bg-emerald-500/15 text-emerald-300", failed: "bg-rose-500/15 text-rose-300", needs_correction: "bg-amber-500/15 text-amber-300" };
 const inputCls = "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500";
 const defaultChecklist = ["Equipment calibrated & tested", "Site safety briefing complete", "Data capture coverage verified", "Control points established", "Deliverables checklist reviewed"];
+const emptyForm = () => ({ title: "", job_id: "", inspector_name: "", inspection_date: new Date().toISOString().slice(0, 10), items: defaultChecklist.map((i) => ({ item: i, passed: false })), notes: "" });
 
 export default function Inspections() {
   const [inspections, setInspections] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", job_id: "", inspector_name: "", inspection_date: new Date().toISOString().slice(0, 10), items: defaultChecklist.map((i) => ({ item: i, passed: false })), notes: "" });
+  const [form, setForm] = useState(emptyForm());
   const [openId, setOpenId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [confirmId, setConfirmId] = useState(null);
 
   const load = async () => {
     const [i, j] = await Promise.all([base44.entities.Inspection.list("-inspection_date"), base44.entities.Job.list()]);
@@ -44,16 +47,31 @@ export default function Inspections() {
     await base44.entities.Inspection.update(insp.id, { checklist: items, status });
   };
 
-  const create = async () => {
+  const openNew = () => { setEditingId(null); setForm(emptyForm()); setShowForm(true); };
+  const closeForm = () => { setShowForm(false); setEditingId(null); };
+
+  const editInspection = (x) => {
+    setEditingId(x.id);
+    setForm({ title: x.title || "", job_id: x.job_id || "", inspector_name: x.inspector_name || "", inspection_date: x.inspection_date || new Date().toISOString().slice(0, 10), items: (x.checklist || []).map((i) => ({ item: i.item, passed: !!i.passed })), notes: x.notes || "" });
+    setShowForm(true);
+  };
+
+  const save = async () => {
     if (!form.title) return;
     const job = jobs.find((j) => j.id === form.job_id);
-    await base44.entities.Inspection.create({
+    const payload = {
       title: form.title, job_id: form.job_id || undefined, job_title: job?.title, project_id: job?.project_id, project_name: job?.project_name,
-      inspector_name: form.inspector_name, inspection_date: form.inspection_date,
-      checklist: form.items, status: "scheduled", notes: form.notes,
-    });
-    setForm({ title: "", job_id: "", inspector_name: "", inspection_date: new Date().toISOString().slice(0, 10), items: defaultChecklist.map((i) => ({ item: i, passed: false })), notes: "" });
-    setShowForm(false); load();
+      inspector_name: form.inspector_name, inspection_date: form.inspection_date, checklist: form.items, notes: form.notes,
+    };
+    if (editingId) await base44.entities.Inspection.update(editingId, payload);
+    else await base44.entities.Inspection.create({ ...payload, status: "scheduled" });
+    closeForm(); load();
+  };
+
+  const deleteInspection = async (x) => {
+    if (!x) return;
+    await base44.entities.Inspection.delete(x.id);
+    setConfirmId(null); load();
   };
 
   const addItem = () => setForm((f) => ({ ...f, items: [...f.items, { item: "", passed: false }] }));
@@ -67,7 +85,7 @@ export default function Inspections() {
           <h1 className="text-xl font-semibold flex items-center gap-2"><ClipboardCheck className="w-5 h-5 text-cyan-400" /> Inspections</h1>
           <p className="text-sm text-slate-500">QA checklists and site inspections</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400"><Plus className="w-4 h-4" /> New Inspection</button>
+        <button onClick={openNew} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400"><Plus className="w-4 h-4" /> New Inspection</button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
@@ -85,15 +103,19 @@ export default function Inspections() {
             const open = openId === x.id;
             return (
               <div key={x.id} className="bg-slate-900 border border-slate-800 rounded-xl">
-                <button onClick={() => setOpenId(open ? null : x.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-slate-200 font-medium">{x.title}</div>
-                    <div className="text-xs text-slate-500">{x.job_title || "—"} · {x.inspection_date} · {x.inspector_name || "—"}</div>
-                  </div>
-                  <div className="text-xs text-slate-400 whitespace-nowrap">{passed}/{total} passed</div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded capitalize ${statusStyles[x.status] || statusStyles.scheduled}`}>{x.status.replace("_", " ")}</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
-                </button>
+                <div className="flex items-center gap-3 px-4 py-3 text-left">
+                  <button onClick={() => setOpenId(open ? null : x.id)} className="flex items-center gap-3 text-left flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-slate-200 font-medium">{x.title}</div>
+                      <div className="text-xs text-slate-500">{x.job_title || "—"} · {x.inspection_date} · {x.inspector_name || "—"}</div>
+                    </div>
+                    <div className="text-xs text-slate-400 whitespace-nowrap">{passed}/{total} passed</div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded capitalize ${statusStyles[x.status] || statusStyles.scheduled}`}>{x.status.replace("_", " ")}</span>
+                    <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
+                  </button>
+                  <button onClick={() => editInspection(x)} className="text-slate-500 hover:text-cyan-300 shrink-0" title="Edit"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => setConfirmId(x.id)} className="text-slate-500 hover:text-rose-400 shrink-0" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                </div>
                 {open && (
                   <div className="px-4 pb-4 border-t border-slate-800 pt-3 space-y-2">
                     {(x.checklist || []).map((it, idx) => (
@@ -112,8 +134,21 @@ export default function Inspections() {
         </div>
       )}
 
+      {confirmId && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 max-w-sm w-full">
+            <div className="text-slate-200 font-medium mb-1">Delete inspection?</div>
+            <div className="text-sm text-slate-500 mb-4">This cannot be undone.</div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmId(null)} className="px-3 py-1.5 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
+              <button onClick={() => deleteInspection(inspections.find((i) => i.id === confirmId))} className="px-3 py-1.5 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-400">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showForm && (
-        <FormModal title="New Inspection" onClose={() => setShowForm(false)} onSubmit={create} submitLabel="Create Inspection">
+        <FormModal title={editingId ? "Edit Inspection" : "New Inspection"} onClose={closeForm} onSubmit={save} submitLabel={editingId ? "Save Changes" : "Create Inspection"}>
           <Field label="Title"><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputCls} placeholder="Inspection title" /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Job (optional)"><select value={form.job_id} onChange={(e) => setForm({ ...form, job_id: e.target.value })} className={inputCls}><option value="">— None —</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}</select></Field>

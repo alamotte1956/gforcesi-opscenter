@@ -108,7 +108,7 @@ export default function FieldApp() {
   };
 
   const setJobStatus = async (job, status) => {
-    await base44.entities.Job.update(job.id, { status });
+    await base44.functions.invoke("updateJobStatus", { job_id: job.id, status });
     const map = {
       en_route: { current_status: "en_route" },
       on_site: { current_status: "on_site" },
