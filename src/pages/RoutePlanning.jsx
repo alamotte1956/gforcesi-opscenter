@@ -160,6 +160,67 @@ export default function RoutePlanning() {
     setAssignments(next);
   };
 
+  const generateDailyPlan = () => {
+    const poolJobs = (assignments.pool || []).map(jobById).filter(Boolean);
+    const prio = { urgent: 0, high: 1, medium: 2, low: 3 };
+    poolJobs.sort((a, b) => (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2));
+    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status));
+    const pool = available.length ? available : contractors;
+    const next = { pool: [] };
+    contractors.forEach((c) => { next[c.id] = [...(assignments[c.id] || [])]; });
+    const updates = [];
+    poolJobs.forEach((job) => {
+      let best = null, bestScore = Infinity;
+      pool.forEach((c) => {
+        const load = (next[c.id] || []).length;
+        const mi = haversineMi({ lat: c.current_latitude, lng: c.current_longitude }, { lat: job.latitude, lng: job.longitude });
+        const dist = mi != null ? mi : (load === 0 ? 0 : 50);
+        const score = dist + load * 5;
+        if (score < bestScore) { bestScore = score; best = c; }
+      });
+      if (!best && contractors.length) best = contractors[0];
+      if (best) {
+        next[best.id].push(job.id);
+        updates.push(base44.entities.Job.update(job.id, { assigned_contractor_ids: [best.id], assigned_contractor_names: [best.name] }));
+      } else {
+        next.pool.push(job.id);
+      }
+    });
+    Object.keys(next).forEach((cid) => {
+      if (cid === "pool") return;
+      const c = contractors.find((x) => x.id === cid);
+      const list = (next[cid] || []).map(jobById).filter(Boolean);
+      if (list.length < 2) return;
+      let prev = { lat: c.current_latitude, lng: c.current_longitude };
+      const ordered = [];
+      const remaining = [...list];
+      while (remaining.length) {
+        let bi = 0, bd = Infinity;
+        remaining.forEach((j, i) => {
+          const d = haversineMi(prev, { lat: j.latitude, lng: j.longitude }) ?? Infinity;
+          if (d < bd) { bd = d; bi = i; }
+        });
+        const j = remaining.splice(bi, 1)[0];
+        ordered.push(j);
+        prev = { lat: j.latitude, lng: j.longitude };
+      }
+      next[cid] = ordered.map((j) => j.id);
+    });
+    setAssignments(next);
+    Promise.all(updates);
+  };
+
+  const suggestContractor = (job) => {
+    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status));
+    const pool = available.length ? available : contractors;
+    let best = null, bestMi = Infinity;
+    pool.forEach((c) => {
+      const mi = haversineMi({ lat: c.current_latitude, lng: c.current_longitude }, { lat: job.latitude, lng: job.longitude });
+      if (mi != null && mi < bestMi) { bestMi = mi; best = c; }
+    });
+    return best ? { contractor: best, mi: bestMi } : null;
+  };
+
   const selectedContractor = contractors.find((c) => c.id === selected);
   const selectedStops = (assignments[selected] || []).map(jobById).filter(Boolean);
   const route = useMemo(() => computeRoute(selectedContractor, selectedStops), [selectedContractor, selectedStops]);
@@ -187,6 +248,12 @@ export default function RoutePlanning() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={generateDailyPlan}
+            className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400"
+          >
+            <Wand2 className="w-4 h-4" /> Generate daily plan
+          </button>
+          <button
             onClick={optimizeAll}
             className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700"
           >
@@ -195,9 +262,9 @@ export default function RoutePlanning() {
           <button
             onClick={autoAssign}
             disabled={!(assignments.pool || []).length}
-            className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400 disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-40"
           >
-            <Wand2 className="w-4 h-4" /> Auto-assign nearest
+            <Navigation className="w-4 h-4" /> Auto-assign nearest
           </button>
         </div>
       </div>
@@ -225,6 +292,7 @@ export default function RoutePlanning() {
                                 <div className="min-w-0">
                                   <div className="text-sm font-medium text-slate-200 leading-snug">{job.title}</div>
                                   <div className="text-xs text-slate-500 truncate">{job.site_address}</div>
+                                  {(() => { const s = suggestContractor(job); return s ? <div className="text-[10px] text-cyan-400/80 mt-0.5 flex items-center gap-1"><Navigation className="w-3 h-3" />{s.contractor.name} · {s.mi.toFixed(1)} mi</div> : null; })()}
                                 </div>
                               </div>
                             </div>
