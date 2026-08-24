@@ -78,6 +78,21 @@
       ],
       "default": "scheduled"
     },
+    "status_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "entered_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
     "billable_rate_type": {
       "type": "string",
       "enum": [

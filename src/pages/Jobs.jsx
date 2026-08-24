@@ -66,6 +66,7 @@ export default function Jobs() {
       scheduled_start: form.scheduled_start ? new Date(form.scheduled_start).toISOString() : undefined,
       scheduled_end: form.scheduled_end ? new Date(form.scheduled_end).toISOString() : undefined,
       status: form.status,
+      status_history: [{ status: form.status, entered_at: new Date().toISOString() }],
       billable_rate_type: form.billable_rate_type,
       billable_rate: form.billable_rate ? Number(form.billable_rate) : undefined,
       notes: form.notes || undefined,
