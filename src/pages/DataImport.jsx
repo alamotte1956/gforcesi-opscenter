@@ -33,6 +33,27 @@ const entityDefs = {
       { key: "notes", label: "Notes", type: "text" },
     ],
   },
+  Job: {
+    label: "Job Sites",
+    fields: [
+      { key: "title", label: "Job Title", type: "text", required: true },
+      { key: "project_name", label: "Project Name", type: "text", required: true },
+      { key: "client_name", label: "Client Name", type: "text" },
+      { key: "site_address", label: "Site Address", type: "text", required: true },
+      { key: "latitude", label: "Latitude", type: "number" },
+      { key: "longitude", label: "Longitude", type: "number" },
+      { key: "priority", label: "Priority", type: "enum", options: ["low", "medium", "high", "urgent"] },
+      { key: "scheduled_start", label: "Scheduled Start", type: "datetime" },
+      { key: "scheduled_end", label: "Scheduled End", type: "datetime" },
+      { key: "estimated_duration_hours", label: "Est. Duration (hrs)", type: "number" },
+      { key: "billable_rate_type", label: "Rate Type", type: "enum", options: ["hourly", "per_sqft", "flat", "daily"] },
+      { key: "billable_rate", label: "Billable Rate", type: "number" },
+      { key: "status", label: "Status", type: "enum", options: ["scheduled", "en_route", "on_site", "scanning", "processing", "complete", "invoiced"] },
+      { key: "required_equipment", label: "Required Equipment", type: "list" },
+      { key: "deliverables", label: "Deliverables", type: "text" },
+      { key: "notes", label: "Notes", type: "text" },
+    ],
+  },
 };
 
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -63,6 +84,14 @@ const coerce = (val, field) => {
   if (field.type === "date") {
     const d = new Date(v);
     return isNaN(d) ? undefined : d.toISOString().slice(0, 10);
+  }
+  if (field.type === "datetime") {
+    const d = new Date(v);
+    return isNaN(d) ? undefined : d.toISOString();
+  }
+  if (field.type === "list") {
+    const items = v.split(/[,/]/).map((s) => s.trim()).filter(Boolean);
+    return items.length ? items : undefined;
   }
   return v;
 };
@@ -121,7 +150,12 @@ export default function DataImport() {
 
   const previewRecords = rows.slice(0, 5).map(buildRecord);
   const mappedFields = fields.filter((f) => mapping[f.key]);
-  const validRows = rows.map(buildRecord).filter((r) => r.name && (entity === "Client" || r.client_name));
+  const validRows = rows.map(buildRecord).filter((r) => {
+    if (entity === "Client") return r.name;
+    if (entity === "Project") return r.name && r.client_name;
+    if (entity === "Job") return r.title && r.site_address && r.project_name;
+    return false;
+  });
 
   const doImport = async () => {
     setError("");
@@ -131,7 +165,7 @@ export default function DataImport() {
         const records = rows.map(buildRecord).filter((r) => r.name);
         const created = await base44.entities.Client.bulkCreate(records);
         setResult({ count: records.length, entity: "Client" });
-      } else {
+      } else if (entity === "Project") {
         const clients = await base44.entities.Client.list();
         const byName = {};
         clients.forEach((c) => { byName[norm(c.name)] = c.id; });
@@ -152,6 +186,28 @@ export default function DataImport() {
           .filter((r) => r.client_id);
         const created = await base44.entities.Project.bulkCreate(projects);
         setResult({ count: projects.length, entity: "Project", newClients: missing.size });
+      } else if (entity === "Job") {
+        const [projects, clients] = await Promise.all([base44.entities.Project.list(), base44.entities.Client.list()]);
+        const projByName = {};
+        projects.forEach((p) => { projByName[norm(p.name)] = p; });
+        const cliByName = {};
+        clients.forEach((c) => { cliByName[norm(c.name)] = c.id; });
+        const jobs = [];
+        let skipped = 0;
+        rows.forEach((r) => {
+          const rec = buildRecord(r);
+          if (!rec.title || !rec.site_address || !rec.project_name) { skipped++; return; }
+          const proj = projByName[norm(rec.project_name)];
+          if (!proj) { skipped++; return; }
+          const job = { ...rec, project_id: proj.id, project_name: proj.name };
+          if (rec.client_name) {
+            const cid = cliByName[norm(rec.client_name)];
+            if (cid) job.client_id = cid;
+          }
+          jobs.push(job);
+        });
+        await base44.entities.Job.bulkCreate(jobs);
+        setResult({ count: jobs.length, entity: "Job", skipped });
       }
     } catch (e) {
       setError(e.message || "Import failed.");
@@ -167,7 +223,7 @@ export default function DataImport() {
     <div className="p-4 lg:p-6 max-w-5xl">
       <div className="mb-5">
         <h1 className="text-xl font-semibold flex items-center gap-2"><FileSpreadsheet className="w-5 h-5 text-cyan-400" /> Import from Google Sheets</h1>
-        <p className="text-sm text-slate-500">Map columns from your spreadsheet directly into clients or projects.</p>
+        <p className="text-sm text-slate-500">Map columns from your spreadsheet directly into clients, projects, or job sites.</p>
       </div>
 
       {result ? (
@@ -175,6 +231,7 @@ export default function DataImport() {
           <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
           <div className="text-lg font-semibold">Imported {result.count} {entityDefs[result.entity].label.toLowerCase()}</div>
           {result.newClients > 0 && <div className="text-sm text-slate-400 mt-1">{result.newClients} new clients created for project linking</div>}
+          {result.skipped > 0 && <div className="text-sm text-amber-300 mt-1">{result.skipped} row(s) skipped — missing title, site address, or unmatched project</div>}
           <button onClick={reset} className="mt-4 px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm">Import another sheet</button>
         </div>
       ) : headers.length === 0 ? (
