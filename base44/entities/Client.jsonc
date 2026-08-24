@@ -36,6 +36,18 @@
     "quickbooks_customer_id": {
       "type": "string"
     },
+    "portal_email": {
+      "type": "string"
+    },
+    "portal_access_level": {
+      "type": "string",
+      "enum": [
+        "none",
+        "limited",
+        "full"
+      ],
+      "default": "none"
+    },
     "notes": {
       "type": "string"
     }

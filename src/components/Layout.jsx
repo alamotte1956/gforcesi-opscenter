@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   Map, KanbanSquare, FolderKanban, Users, Building2, FileText,
-  Clock, Boxes, BarChart3, Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck
+  Clock, Boxes, BarChart3, Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe
 } from "lucide-react";
 
 const navItems = [
@@ -18,11 +18,26 @@ const navItems = [
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/settings", label: "QB Settings", icon: Settings },
   { to: "/compliance", label: "Compliance", icon: ShieldCheck },
+  { to: "/portal", label: "Client Portal", icon: Globe },
 ];
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = await base44.auth.me();
+        if (me && me.role !== "admin" && me.email) {
+          const linked = await base44.entities.Client.filter({ portal_email: me.email });
+          if (linked.length && linked[0].portal_access_level !== "none") {
+            navigate("/portal", { replace: true });
+          }
+        }
+      } catch {}
+    })();
+  }, [navigate]);
 
   const handleLogout = async () => {
     await base44.auth.logout();

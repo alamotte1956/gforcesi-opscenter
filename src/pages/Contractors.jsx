@@ -27,6 +27,11 @@ export default function Contractors() {
   };
   useEffect(() => { load(); }, []);
 
+  const changeRole = async (c, role) => {
+    await base44.entities.Contractor.update(c.id, { role });
+    setContractors((prev) => prev.map((x) => (x.id === c.id ? { ...x, role } : x)));
+  };
+
   const onboarded = contractors.filter((c) => c.onboarding_status === "complete").length;
 
   return (
@@ -79,7 +84,15 @@ export default function Contractors() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-400">{c.role}</td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={c.role}
+                      onChange={(e) => changeRole(c, e.target.value)}
+                      className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                    >
+                      {["Field Technician", "Field Pilot", "Dispatcher", "Billing Manager", "Admin"].map((r) => <option key={r}>{r}</option>)}
+                    </select>
+                  </td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-1.5 text-xs capitalize text-slate-300">
                       {c.location_sharing && <Radio className="w-3 h-3 text-emerald-400" />}
