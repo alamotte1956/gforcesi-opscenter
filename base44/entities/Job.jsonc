@@ -1,0 +1,106 @@
+{
+  "name": "Job",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "site_address": {
+      "type": "string"
+    },
+    "latitude": {
+      "type": "number"
+    },
+    "longitude": {
+      "type": "number"
+    },
+    "required_equipment": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "estimated_duration_hours": {
+      "type": "number"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
+    },
+    "scheduled_start": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scheduled_end": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "assigned_employee_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assigned_employee_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "en_route",
+        "on_site",
+        "scanning",
+        "processing",
+        "complete",
+        "invoiced"
+      ],
+      "default": "scheduled"
+    },
+    "billable_rate_type": {
+      "type": "string",
+      "enum": [
+        "hourly",
+        "per_sqft",
+        "flat",
+        "daily"
+      ],
+      "default": "hourly"
+    },
+    "billable_rate": {
+      "type": "number"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "deliverables": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "project_id",
+    "site_address"
+  ]
+}

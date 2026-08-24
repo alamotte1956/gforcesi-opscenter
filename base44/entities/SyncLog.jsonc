@@ -1,0 +1,53 @@
+{
+  "name": "SyncLog",
+  "type": "object",
+  "properties": {
+    "sync_type": {
+      "type": "string",
+      "enum": [
+        "invoice",
+        "payroll",
+        "customer",
+        "employee",
+        "payment"
+      ]
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "to_qb",
+        "from_qb"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "error",
+        "pending"
+      ],
+      "default": "pending"
+    },
+    "entity_id": {
+      "type": "string"
+    },
+    "entity_type": {
+      "type": "string"
+    },
+    "entity_label": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "sync_type",
+    "direction",
+    "status"
+  ]
+}

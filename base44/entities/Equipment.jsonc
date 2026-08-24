@@ -1,0 +1,62 @@
+{
+  "name": "Equipment",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "LiDAR Scanner",
+        "Drone",
+        "360 Camera",
+        "Tablet",
+        "Vehicle",
+        "Tripod",
+        "Other"
+      ]
+    },
+    "serial_number": {
+      "type": "string"
+    },
+    "assigned_to_employee_id": {
+      "type": "string"
+    },
+    "assigned_to_employee_name": {
+      "type": "string"
+    },
+    "checked_out_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "expected_return_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "maintenance_due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "calibration_due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "available",
+        "checked_out",
+        "in_maintenance"
+      ],
+      "default": "available"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "type"
+  ]
+}
