@@ -4,6 +4,7 @@ import {
   Plug, FileSpreadsheet, Calendar, Receipt, CheckCircle2, XCircle,
   Loader2, ExternalLink, AlertCircle, RefreshCw, Link2, Unlink,
 } from "lucide-react";
+import CredentialsHelp from "@/components/CredentialsHelp";
 
 const SHEETS_CONNECTOR_ID = "6a78afeef15cdc646169800c";
 
@@ -150,6 +151,10 @@ export default function Integrations() {
           <RefreshCw className="w-3.5 h-3.5" /> Refresh status
         </button>
         <span className="text-xs text-slate-500">Signed in as {user?.email || "—"}</span>
+      </div>
+
+      <div className="mt-5">
+        <CredentialsHelp />
       </div>
     </div>
   );

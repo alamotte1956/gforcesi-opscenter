@@ -52,7 +52,10 @@ export default function Matterport() {
             {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Sync now
           </button>
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">Requires Matterport API credentials in Settings → Environment Variables. New scans become jobs in the selected project; existing linked jobs update their model URL and status.</p>
+        <p className="text-[11px] text-slate-500 mt-2">
+          Requires Matterport API credentials (<code className="text-cyan-300">MATTERPORT_CLIENT_ID</code> and <code className="text-cyan-300">MATTERPORT_CLIENT_SECRET</code>) entered in the app's Secrets area.
+          {" "}See <Link to="/integrations" className="text-cyan-400 hover:text-cyan-300">Integrations → Credentials & Secrets</Link> for step-by-step instructions on obtaining them. New scans become jobs in the selected project; existing linked jobs update their model URL and status.
+        </p>
         {error && <div className="mt-3 text-sm text-rose-300 flex items-center gap-2"><AlertCircle className="w-4 h-4" />{error}</div>}
         {result && <div className="mt-3 text-sm text-emerald-300">Sync complete — {result.created} new, {result.updated} updated, {result.total} models found.</div>}
       </div>
