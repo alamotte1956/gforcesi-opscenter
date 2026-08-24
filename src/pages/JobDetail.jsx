@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag, ExternalLink, Link2, ScanLine, ShieldCheck, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag, ExternalLink, Link2, ScanLine, ShieldCheck, X, ChevronLeft, ChevronRight, UploadCloud, Loader2 } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { parseMatterportUrl } from "@/lib/matterport";
 import AssetAssessments from "@/components/AssetAssessments";
@@ -26,6 +26,8 @@ export default function JobDetail() {
   const [mpInput, setMpInput] = useState("");
   const [mpSaving, setMpSaving] = useState(false);
   const [lightbox, setLightbox] = useState(null);
+  const [uploading7g, setUploading7g] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState("");
 
   const isAdmin = me?.role === "admin";
 
@@ -62,6 +64,20 @@ export default function JobDetail() {
     setJob({ ...job, matterport_model_id: "", matterport_share_url: "", matterport_embed_url: "" });
   };
 
+  const uploadTo7G = async () => {
+    setUploading7g(true); setUploadMsg("");
+    try {
+      const res = await base44.functions.invoke("uploadScanTo7G", { job_id: job.id });
+      const data = res.data || {};
+      setUploadMsg(data.ok ? "Uploaded to 7G workspace" : `Failed: ${data.error || "unknown error"}`);
+    } catch (e) {
+      setUploadMsg(`Failed: ${e.message || "unknown error"}`);
+    } finally {
+      setUploading7g(false);
+      setTimeout(() => setUploadMsg(""), 5000);
+    }
+  };
+
   if (loading) {
     return <div className="p-6 flex justify-center"><div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" /></div>;
   }
@@ -85,7 +101,18 @@ export default function JobDetail() {
           <h1 className="text-xl font-semibold">{job.title}</h1>
           <div className="text-sm text-slate-500 flex items-center gap-1 mt-1"><MapPin className="w-3.5 h-3.5" />{job.site_address || "Remote"}</div>
         </div>
-        <span className={`text-[11px] px-2 py-1 rounded-full capitalize whitespace-nowrap ${statusStyles[job.status] || statusStyles.scheduled}`}>{job.status?.replace("_", " ")}</span>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <span className={`text-[11px] px-2 py-1 rounded-full capitalize whitespace-nowrap ${statusStyles[job.status] || statusStyles.scheduled}`}>{job.status?.replace("_", " ")}</span>
+            {isAdmin && (
+              <button onClick={uploadTo7G} disabled={uploading7g} className="text-xs px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium flex items-center gap-1.5 hover:bg-cyan-400 disabled:opacity-50 whitespace-nowrap">
+                {uploading7g ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
+                {uploading7g ? "Uploading…" : "Upload to 7G"}
+              </button>
+            )}
+          </div>
+          {uploadMsg && <div className={`text-xs ${uploadMsg.startsWith("Uploaded") ? "text-emerald-400" : "text-rose-400"}`}>{uploadMsg}</div>}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
