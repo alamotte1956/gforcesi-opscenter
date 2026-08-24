@@ -25,6 +25,7 @@ import Analytics from '@/pages/Analytics';
 import Settings from '@/pages/Settings';
 import Compliance from '@/pages/Compliance';
 import ClientPortal from '@/pages/ClientPortal';
+import RoutePlanning from '@/pages/RoutePlanning';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/jobs" element={<Jobs />} />
+          <Route path="/routes" element={<RoutePlanning />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/contractors" element={<Contractors />} />
           <Route path="/contractors/onboarding" element={<ContractorOnboarding />} />

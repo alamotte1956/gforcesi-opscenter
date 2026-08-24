@@ -3,12 +3,13 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   Map, KanbanSquare, FolderKanban, Users, Building2, FileText,
-  Clock, Boxes, BarChart3, Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe
+  Clock, Boxes, BarChart3, Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon
 } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "Live Map", icon: Map, end: true },
   { to: "/jobs", label: "Jobs", icon: KanbanSquare },
+  { to: "/routes", label: "Route Planning", icon: RouteIcon },
   { to: "/projects", label: "Projects", icon: FolderKanban },
   { to: "/contractors", label: "Contractors", icon: Users },
   { to: "/clients", label: "Clients", icon: Building2 },
