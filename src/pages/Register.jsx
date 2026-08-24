@@ -227,6 +227,12 @@ export default function Register() {
           )}
         </Button>
       </form>
+      <p className="text-center text-xs text-muted-foreground mt-4">
+        By creating an account, you agree to our{" "}
+        <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>{" "}
+        and{" "}
+        <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>.
+      </p>
     </AuthLayout>
   );
 }

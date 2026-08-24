@@ -105,6 +105,10 @@ export default function Layout() {
         </nav>
 
         <div className="p-3 border-t border-slate-800 space-y-1">
+          <div className="flex items-center gap-3 px-3 pb-1 text-[11px] text-slate-500">
+            <NavLink to="/privacy" className="hover:text-cyan-300">Privacy</NavLink>
+            <NavLink to="/terms" className="hover:text-cyan-300">Terms</NavLink>
+          </div>
           <GuideDownload label="User Guide" className="w-full px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:text-cyan-300 hover:bg-slate-800/60 transition-colors font-medium" />
           <button
             onClick={handleLogout}
