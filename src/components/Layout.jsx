@@ -9,24 +9,29 @@ import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
 
 const navItems = [
+  // Daily operations — most used
   { to: "/", label: "Live Map", icon: Map, end: true },
   { to: "/jobs", label: "Jobs", icon: KanbanSquare },
   { to: "/routes", label: "Route Planning", icon: RouteIcon },
   { to: "/contractors", label: "Contractors", icon: Users },
   { to: "/messages", label: "Messages", icon: MessageSquare },
+  // Field reporting & resources
+  { to: "/daily-reports", label: "Daily Reports", icon: ClipboardList },
+  { to: "/issues", label: "Issues", icon: AlertTriangle },
+  { to: "/inspections", label: "Inspections", icon: ClipboardCheck },
+  { to: "/equipment", label: "Equipment", icon: Boxes },
+  // Business & financials
   { to: "/clients", label: "Clients", icon: Building2 },
   { to: "/projects", label: "Projects", icon: FolderKanban },
   { to: "/invoices", label: "Invoices", icon: FileText },
   { to: "/expenses", label: "Expenses", icon: Receipt },
-  { to: "/equipment", label: "Equipment", icon: Boxes },
-  { to: "/daily-reports", label: "Daily Reports", icon: ClipboardList },
-  { to: "/issues", label: "Issues", icon: AlertTriangle },
-  { to: "/inspections", label: "Inspections", icon: ClipboardCheck },
+  // Insights & administration
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/compliance", label: "Compliance", icon: ShieldCheck },
   { to: "/users", label: "User Management", icon: UserCog },
   { to: "/import", label: "Data Import", icon: FileSpreadsheet },
   { to: "/settings", label: "QB Settings", icon: Settings },
+  // External portal
   { to: "/portal", label: "Client Portal", icon: Globe },
 ];
 
