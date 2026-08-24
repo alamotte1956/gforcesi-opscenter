@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Building2, Mail, FileText, Globe, Shield, Clock } from "lucide-react";
+import { Plus, Globe, Shield, Clock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -60,68 +60,59 @@ export default function Clients() {
       {loading ? (
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" /></div>
       ) : (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {clients.map((c) => {
-            const cInv = invoices.filter((i) => i.client_id === c.id);
-            const outstanding = cInv.filter((i) => ["sent", "synced", "overdue"].includes(i.status)).reduce((s, i) => s + (i.total || 0), 0);
-            return (
-              <div key={c.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-cyan-400">
-                    <Building2 className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium truncate">{c.name}</div>
-                    <div className="text-xs text-slate-500 truncate">{c.company}</div>
-                  </div>
-                </div>
-                <div className="mt-3 space-y-1.5 text-xs text-slate-400">
-                  {c.billing_email && (
-                    <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-slate-500" />{c.billing_email}</div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Terms</span>
-                    <span>{c.terms}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">QB Customer</span>
-                    <span className="font-mono">{c.quickbooks_customer_id || "—"}</span>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <FileText className="w-3.5 h-3.5" /> {cInv.length} invoices
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-slate-500">Outstanding</div>
-                    <div className="text-sm font-medium text-amber-300">${outstanding.toLocaleString()}</div>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <Clock className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="text-slate-500">Hours:</span>
-                    <span className="text-slate-300">{c.opening_time && c.closing_time ? `${c.opening_time}–${c.closing_time}` : "Not set"}</span>
-                  </div>
-                  <button onClick={() => openHours(c)} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" /> Set hours
-                  </button>
-                </div>
-                <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <Globe className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="text-slate-500">Portal:</span>
-                    <span className={`capitalize ${c.portal_access_level === "full" ? "text-emerald-300" : c.portal_access_level === "limited" ? "text-amber-300" : "text-slate-500"}`}>
-                      {c.portal_access_level || "none"}
-                    </span>
-                  </div>
-                  <button onClick={() => openEdit(c)} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
-                    <Shield className="w-3.5 h-3.5" /> Manage
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-auto">
+          <table className="w-full text-sm border-collapse min-w-[1200px]">
+            <thead className="sticky top-0 z-10">
+              <tr className="text-left text-xs text-slate-400 bg-slate-900 border-b border-slate-800">
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap">Name</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap">Company</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap">Billing Email</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap">Billing Phone</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap">Terms</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap">QB Customer ID</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">Default Rate</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">Invoices</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">Outstanding</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap">Site Hours</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap">Portal</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clients.map((c) => {
+                const cInv = invoices.filter((i) => i.client_id === c.id);
+                const outstanding = cInv.filter((i) => ["sent", "synced", "overdue"].includes(i.status)).reduce((s, i) => s + (i.total || 0), 0);
+                return (
+                  <tr key={c.id} className="border-b border-slate-800/60 hover:bg-slate-800/40 align-top">
+                    <td className="px-3 py-2.5 font-medium text-slate-200 whitespace-nowrap">{c.name}</td>
+                    <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{c.company || "—"}</td>
+                    <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{c.billing_email || "—"}</td>
+                    <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{c.billing_phone || "—"}</td>
+                    <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{c.terms || "—"}</td>
+                    <td className="px-3 py-2.5 text-slate-400 font-mono whitespace-nowrap">{c.quickbooks_customer_id || "—"}</td>
+                    <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-right">{c.default_rate != null ? `$${c.default_rate}` : "—"}</td>
+                    <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-right">{cInv.length}</td>
+                    <td className="px-3 py-2.5 text-amber-300 whitespace-nowrap text-right font-medium">{outstanding ? `$${outstanding.toLocaleString()}` : "$0"}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {c.opening_time && c.closing_time ? <span className="text-slate-300">{c.opening_time}–{c.closing_time}</span> : <span className="text-slate-600">Not set</span>}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className={`text-[11px] px-2 py-0.5 rounded capitalize ${c.portal_access_level === "full" ? "bg-emerald-500/15 text-emerald-300" : c.portal_access_level === "limited" ? "bg-amber-500/15 text-amber-300" : "bg-slate-700 text-slate-400"}`}>{c.portal_access_level || "none"}</span>
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        <button onClick={() => openHours(c)} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Hours</button>
+                        <button onClick={() => openEdit(c)} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />Manage</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {clients.length === 0 && (
+                <tr><td colSpan={12} className="px-3 py-10 text-center text-slate-500">No clients yet.</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
