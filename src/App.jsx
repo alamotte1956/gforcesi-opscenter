@@ -23,6 +23,7 @@ import Timesheets from '@/pages/Timesheets';
 import Equipment from '@/pages/Equipment';
 import Analytics from '@/pages/Analytics';
 import Settings from '@/pages/Settings';
+import Compliance from '@/pages/Compliance';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -63,6 +64,7 @@ const AuthenticatedApp = () => {
           <Route path="/equipment" element={<Equipment />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/compliance" element={<Compliance />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

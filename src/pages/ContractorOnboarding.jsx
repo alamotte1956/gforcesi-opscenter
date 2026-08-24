@@ -15,7 +15,7 @@ const blank = {
   name: "", email: "", phone: "", role: "Field Technician", region: "",
   skills: [], certifications: [],
   pay_type: "hourly", pay_rate: 0, quickbooks_id: "",
-  w9_on_file: false, contract_signed: false, insurance_on_file: false, emergency_contact: "",
+  w9_on_file: false, contract_signed: false, insurance_on_file: false, mn_ic_exemption_on_file: false, workers_comp_on_file: false, esign_consent: false, emergency_contact: "",
 };
 
 export default function ContractorOnboarding() {
@@ -44,7 +44,7 @@ export default function ContractorOnboarding() {
 
   const submit = async () => {
     setSaving(true);
-    const complianceReady = form.w9_on_file && form.contract_signed && form.insurance_on_file;
+    const complianceReady = form.w9_on_file && form.contract_signed && form.mn_ic_exemption_on_file && form.workers_comp_on_file && form.insurance_on_file && form.esign_consent;
     const payload = {
       ...form,
       pay_rate: Number(form.pay_rate) || 0,
@@ -159,19 +159,22 @@ export default function ContractorOnboarding() {
             <p className="text-sm text-slate-400">Collect compliance documents before activating this contractor. All three are required for full onboarding.</p>
             <Toggle label="W-9 on file" desc="IRS form for 1099 reporting" checked={form.w9_on_file} onChange={(v) => set("w9_on_file", v)} />
             <Toggle label="Contract signed" desc="Independent contractor agreement executed" checked={form.contract_signed} onChange={(v) => set("contract_signed", v)} />
-            <Toggle label="Insurance on file" desc="Certificate of liability insurance" checked={form.insurance_on_file} onChange={(v) => set("insurance_on_file", v)} />
+            <Toggle label="MN IC Exemption Cert." desc="Required for construction-related services (Minn. Stat. § 181.723)" checked={form.mn_ic_exemption_on_file} onChange={(v) => set("mn_ic_exemption_on_file", v)} />
+            <Toggle label="Workers' Comp COI" desc="Certificate of workers' comp insurance" checked={form.workers_comp_on_file} onChange={(v) => set("workers_comp_on_file", v)} />
+            <Toggle label="Insurance on file" desc="Certificate of general liability insurance" checked={form.insurance_on_file} onChange={(v) => set("insurance_on_file", v)} />
+            <Toggle label="E-sign consent" desc="Consent to electronic signatures (ESIGN / MN UETA)" checked={form.esign_consent} onChange={(v) => set("esign_consent", v)} />
             <Field label="Emergency contact">
               <input value={form.emergency_contact} onChange={(e) => set("emergency_contact", e.target.value)} className={inputCls} placeholder="Name & phone" />
             </Field>
             <div className={`mt-2 p-3 rounded-lg text-xs flex items-center gap-2 ${
-              form.w9_on_file && form.contract_signed && form.insurance_on_file
+              form.w9_on_file && form.contract_signed && form.mn_ic_exemption_on_file && form.workers_comp_on_file && form.insurance_on_file && form.esign_consent
                 ? "bg-emerald-500/10 text-emerald-300"
                 : "bg-amber-500/10 text-amber-300"
             }`}>
               <UserCheck className="w-4 h-4" />
-              {form.w9_on_file && form.contract_signed && form.insurance_on_file
+              {form.w9_on_file && form.contract_signed && form.mn_ic_exemption_on_file && form.workers_comp_on_file && form.insurance_on_file && form.esign_consent
                 ? "All compliance docs received — contractor will be marked fully onboarded."
-                : "Incomplete — contractor will be saved as in_progress until all docs are received."}
+                : "Incomplete — contractor will be saved as in_progress until all compliance docs are received."}
             </div>
           </div>
         )}

@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   Map, KanbanSquare, FolderKanban, Users, Building2, FileText,
-  Clock, Boxes, BarChart3, Settings, LogOut, Satellite, Menu, X, ChevronRight
+  Clock, Boxes, BarChart3, Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck
 } from "lucide-react";
 
 const navItems = [
@@ -17,6 +17,7 @@ const navItems = [
   { to: "/equipment", label: "Equipment", icon: Boxes },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/settings", label: "QB Settings", icon: Settings },
+  { to: "/compliance", label: "Compliance", icon: ShieldCheck },
 ];
 
 export default function Layout() {

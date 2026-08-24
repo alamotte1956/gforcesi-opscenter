@@ -120,6 +120,18 @@
       "type": "boolean",
       "default": false
     },
+    "mn_ic_exemption_on_file": {
+      "type": "boolean",
+      "default": false
+    },
+    "workers_comp_on_file": {
+      "type": "boolean",
+      "default": false
+    },
+    "esign_consent": {
+      "type": "boolean",
+      "default": false
+    },
     "emergency_contact": {
       "type": "string"
     },
