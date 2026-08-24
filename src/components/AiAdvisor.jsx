@@ -18,6 +18,13 @@ const pageLabels = {
   "/users": "User Management",
   "/import": "Data Import",
   "/messages": "Messages",
+  "/expenses": "Expenses",
+  "/daily-reports": "Daily Reports",
+  "/issues": "Issues",
+  "/inspections": "Inspections",
+  "/integrations": "Integrations",
+  "/matterport": "Matterport",
+  "/contractors/onboarding": "Contractor Onboarding",
   "/portal": "Client Portal",
   "/field": "Field App",
 };
