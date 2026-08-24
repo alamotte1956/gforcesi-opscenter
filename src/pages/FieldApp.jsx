@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Satellite, LogOut, ArrowLeft, Navigation, Clock, MapPin,
   CheckCircle2, Truck, Camera, Flag, User, Briefcase,
-  MessageSquare, Send, Mail, ClipboardList,
+  MessageSquare, Send, Mail, ClipboardList, Receipt,
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
@@ -49,6 +49,10 @@ export default function FieldApp() {
   const [sending, setSending] = useState(false);
   const [report, setReport] = useState({ report_date: new Date().toISOString().slice(0, 10), job_id: "", weather: "", work_completed: "", hours_worked: "", crew_count: "1", delays: "" });
   const [reportSaved, setReportSaved] = useState(false);
+  const [expenses, setExpenses] = useState([]);
+  const [expForm, setExpForm] = useState({ description: "", amount: "", category: "labor", vendor_name: "", date: new Date().toISOString().slice(0, 10), job_id: "", notes: "" });
+  const [expSaving, setExpSaving] = useState(false);
+  const [expSaved, setExpSaved] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -82,6 +86,7 @@ export default function FieldApp() {
     (async () => {
       const allJobs = await base44.entities.Job.list();
       setJobs(allJobs);
+      setExpenses(await base44.entities.Expense.list("-date"));
     })();
   }, [contractor?.id]);
 
@@ -98,6 +103,7 @@ export default function FieldApp() {
     .filter((j) => (j.assigned_contractor_ids || []).includes(contractor?.id))
     .sort((a, b) => new Date(a.scheduled_start || 0) - new Date(b.scheduled_start || 0));
   const completedJobs = myJobs.filter((j) => ["complete", "invoiced"].includes(j.status)).length;
+  const myExpenses = expenses.filter((e) => e.created_by_id === me?.id);
 
   const setMyStatus = async (s) => {
     await base44.entities.Contractor.update(contractor.id, {
@@ -176,6 +182,31 @@ export default function FieldApp() {
     setReport({ report_date: new Date().toISOString().slice(0, 10), job_id: "", weather: "", work_completed: "", hours_worked: "", crew_count: "1", delays: "" });
     setReportSaved(true);
     setTimeout(() => setReportSaved(false), 2500);
+  };
+
+  const submitExpense = async () => {
+    if (!expForm.description || !expForm.amount) return;
+    setExpSaving(true);
+    const job = myJobs.find((j) => j.id === expForm.job_id);
+    await base44.entities.Expense.create({
+      description: expForm.description,
+      amount: Number(expForm.amount),
+      date: expForm.date,
+      category: expForm.category,
+      vendor_name: expForm.vendor_name,
+      job_id: expForm.job_id || undefined,
+      job_title: job?.title,
+      project_id: job?.project_id,
+      project_name: job?.project_name,
+      filed_by_name: contractor.name,
+      status: "pending",
+      notes: expForm.notes,
+    });
+    setExpenses(await base44.entities.Expense.list("-date"));
+    setExpForm({ description: "", amount: "", category: "labor", vendor_name: "", date: new Date().toISOString().slice(0, 10), job_id: "", notes: "" });
+    setExpSaving(false);
+    setExpSaved(true);
+    setTimeout(() => setExpSaved(false), 2500);
   };
 
   const clientHours = (job) => {
@@ -275,9 +306,52 @@ export default function FieldApp() {
           <MessageSquare className="w-4 h-4" /> Messages
           {conversations.reduce((s, c) => s + c.unread, 0) > 0 && <span className="bg-cyan-500 text-slate-950 text-[10px] font-bold rounded-full px-1.5">{conversations.reduce((s, c) => s + c.unread, 0)}</span>}
         </button>
+        <button onClick={() => setTab("expenses")} className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${tab === "expenses" ? "bg-slate-800 text-slate-100 border border-slate-700" : "text-slate-400"}`}>
+          <Receipt className="w-4 h-4" /> Expenses
+        </button>
       </div>
 
-      {tab === "messages" ? (
+      {tab === "expenses" ? (
+        <div className="space-y-3">
+          <div className="text-xs font-medium text-slate-400 mb-2">Submit Expense</div>
+          {expSaved && <div className="bg-emerald-500/15 text-emerald-300 text-sm rounded-lg p-3">Expense submitted — an admin will review it for approval.</div>}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+            <div><label className="block text-xs text-slate-400 mb-1">Description</label><input value={expForm.description} onChange={(e) => setExpForm({ ...expForm, description: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="e.g. Fuel for site visit" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-xs text-slate-400 mb-1">Amount ($)</label><input type="number" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="0.00" /></div>
+              <div><label className="block text-xs text-slate-400 mb-1">Category</label><select value={expForm.category} onChange={(e) => setExpForm({ ...expForm, category: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm">{["labor","equipment","materials","travel","software","other"].map((c) => <option key={c} value={c} className="capitalize">{c}</option>)}</select></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-xs text-slate-400 mb-1">Vendor</label><input value={expForm.vendor_name} onChange={(e) => setExpForm({ ...expForm, vendor_name: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Vendor name" /></div>
+              <div><label className="block text-xs text-slate-400 mb-1">Date</label><input type="date" value={expForm.date} onChange={(e) => setExpForm({ ...expForm, date: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" /></div>
+            </div>
+            <div><label className="block text-xs text-slate-400 mb-1">Job</label><select value={expForm.job_id} onChange={(e) => setExpForm({ ...expForm, job_id: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm"><option value="">— General / no specific job —</option>{myJobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}</select></div>
+            <div><label className="block text-xs text-slate-400 mb-1">Notes</label><textarea value={expForm.notes} onChange={(e) => setExpForm({ ...expForm, notes: e.target.value })} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm resize-none" /></div>
+            <button onClick={submitExpense} disabled={expSaving || !expForm.description || !expForm.amount} className="w-full py-2.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm disabled:opacity-50">Submit Expense</button>
+          </div>
+          <div className="text-xs font-medium text-slate-400 mb-2 mt-4">Your Submitted Expenses</div>
+          {myExpenses.length === 0 ? (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 text-center text-sm text-slate-500">No expenses submitted yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {myExpenses.map((e) => (
+                <div key={e.id} className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-slate-100 truncate">{e.description}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{e.date}{e.job_title ? ` · ${e.job_title}` : ""}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-semibold">${(e.amount || 0).toFixed(2)}</div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded capitalize ${e.status === "pending" ? "bg-amber-500/15 text-amber-300" : e.status === "approved" ? "bg-emerald-500/15 text-emerald-300" : e.status === "rejected" ? "bg-rose-500/15 text-rose-300" : "bg-cyan-500/15 text-cyan-300"}`}>{e.status}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : tab === "messages" ? (
         <div className="space-y-3">
           {!threadPartner ? (
             <>

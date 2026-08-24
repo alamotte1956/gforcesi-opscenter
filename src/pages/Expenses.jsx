@@ -159,7 +159,7 @@ export default function Expenses() {
                   <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{e.date || "—"}</td>
                   <td className="px-4 py-3 text-slate-200">{e.description}</td>
                   <td className="px-4 py-3"><span className={`text-[10px] px-2 py-0.5 rounded capitalize ${categoryStyles[e.category] || categoryStyles.other}`}>{e.category}</span></td>
-                  <td className="px-4 py-3 text-slate-400">{e.vendor_name || "—"}</td>
+                  <td className="px-4 py-3 text-slate-400">{e.vendor_name || e.filed_by_name || "—"}</td>
                   <td className="px-4 py-3 text-slate-400 max-w-[160px] truncate" title={e.job_title}>{e.job_title || "—"}</td>
                   <td className="px-4 py-3 text-right font-medium text-slate-200">{fmtMoney(e.amount)}</td>
                   <td className="px-4 py-3">
