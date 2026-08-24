@@ -8,7 +8,7 @@ const steps = [
   { key: "profile", label: "Profile", icon: Briefcase },
   { key: "skills", label: "Skills & Certs", icon: ShieldCheck },
   { key: "pay", label: "Pay Details", icon: DollarSign },
-  { key: "compliance", label: "Compliance", icon: FileText },
+  { key: "compliance", label: "Documents & Disclosures", icon: FileText },
 ];
 
 const blank = {
@@ -18,6 +18,39 @@ const blank = {
   w9_on_file: false, contract_signed: false, insurance_on_file: false, mn_ic_exemption_on_file: false, workers_comp_on_file: false, esign_consent: false, emergency_contact: "",
 };
 
+const docs = [
+  {
+    key: "contract_signed",
+    title: "Independent Contractor Agreement & Liability",
+    disclosure: `You acknowledge that you are engaged as an independent contractor and not as an employee of GForceSI. You are responsible for your own federal and state income taxes, including self-employment tax, and will receive Form 1099-NEC where required. You are not entitled to employee benefits, paid time off, unemployment insurance, or employer-provided workers' compensation.\n\nLiability & Indemnification: You agree to perform services in a professional and workmanlike manner. You assume responsibility for your own acts and omissions and agree to indemnify and hold harmless GForceSI, its clients, and their agents from claims, damages, losses, and expenses (including reasonable attorneys' fees) arising out of or resulting from your negligent acts, errors, or omissions in performance of the services, to the fullest extent permitted by law.\n\nYou retain control over the manner and means of performing the services, subject to the agreed scope of work and schedule.`,
+  },
+  {
+    key: "w9_on_file",
+    title: "IRS Form W-9 — Request for Taxpayer Identification",
+    disclosure: `You must furnish a completed IRS Form W-9 providing your correct taxpayer identification number (TIN). GForceSI uses this information to file Form 1099-NEC with the Internal Revenue Service as required by federal tax law.\n\nUnder penalties of perjury, you certify that the information provided on Form W-9 is true, correct, and complete, and that you are not subject to backup withholding.`,
+  },
+  {
+    key: "mn_ic_exemption_on_file",
+    title: "MN Independent Contractor Exemption Certificate",
+    disclosure: `Under Minnesota Statutes § 181.723, individuals performing services in the construction industry must obtain an Independent Contractor Exemption Certificate from the Minnesota Department of Labor and Industry to be classified as an independent contractor rather than an employee.\n\nBy signing, you represent that you have obtained, or will obtain prior to commencing work, this certificate where your services require it, and that you are not an employee for purposes of Minnesota workers' compensation and unemployment insurance. You understand that misclassification may result in penalties, back taxes, and liability for unpaid premiums.`,
+  },
+  {
+    key: "insurance_on_file",
+    title: "Certificate of Insurance — General Liability",
+    disclosure: `You must maintain Commercial General Liability insurance with limits of not less than $1,000,000 per occurrence and $2,000,000 general aggregate, naming GForceSI and its clients as additional insureds.\n\nYou agree to furnish a Certificate of Insurance evidencing this coverage before commencing any work, to provide renewal certificates, and to maintain continuous coverage throughout the engagement. You understand that failure to maintain required coverage may result in suspension or termination of assignments.`,
+  },
+  {
+    key: "workers_comp_on_file",
+    title: "Workers' Compensation Coverage",
+    disclosure: `Under Minnesota Statutes chapter 176, employers must generally carry workers' compensation insurance for their employees. As an independent contractor, you represent that you either (a) maintain your own workers' compensation coverage for any personnel you employ, or (b) qualify for and hold a valid Minnesota Independent Contractor Exemption Certificate that exempts you from the requirement.\n\nYou agree to provide proof of coverage or exemption upon request and to notify GForceSI of any lapse in coverage.`,
+  },
+  {
+    key: "esign_consent",
+    title: "Electronic Signature Consent",
+    disclosure: `By signing electronically, you consent to conduct transactions and to execute this and related documents electronically under the Electronic Signatures in Global and National Commerce Act (ESIGN, 15 U.S.C. § 7001 et seq.) and the Minnesota Uniform Electronic Transactions Act (Minn. Stat. ch. 325L).\n\nYou acknowledge that your electronic signature has the same legal force and effect as a handwritten signature, that you may request a paper copy of any signed document, and that you may withdraw this electronic consent by notifying GForceSI in writing (which may affect your continued engagement).`,
+  },
+];
+
 export default function ContractorOnboarding() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -26,6 +59,7 @@ export default function ContractorOnboarding() {
   const [skillInput, setSkillInput] = useState("");
   const [certInput, setCertInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [sigs, setSigs] = useState({});
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const addTag = (k, val, reset) => {
@@ -35,6 +69,12 @@ export default function ContractorOnboarding() {
     reset("");
   };
   const removeTag = (k, idx) => setForm((f) => ({ ...f, [k]: f[k].filter((_, i) => i !== idx) }));
+
+  const handleSign = (key, value) => {
+    setSigs((s) => ({ ...s, [key]: value }));
+    const matched = value.trim() !== "" && form.name.trim() !== "" && value.trim().toLowerCase() === form.name.trim().toLowerCase();
+    set(key, matched);
+  };
 
   const canNext = () => {
     if (step === 0) return form.name && form.role;
@@ -156,13 +196,23 @@ export default function ContractorOnboarding() {
 
         {step === 3 && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-400">Collect compliance documents before activating this contractor. All three are required for full onboarding.</p>
-            <Toggle label="W-9 on file" desc="IRS form for 1099 reporting" checked={form.w9_on_file} onChange={(v) => set("w9_on_file", v)} />
-            <Toggle label="Contract signed" desc="Independent contractor agreement executed" checked={form.contract_signed} onChange={(v) => set("contract_signed", v)} />
-            <Toggle label="MN IC Exemption Cert." desc="Required for construction-related services (Minn. Stat. § 181.723)" checked={form.mn_ic_exemption_on_file} onChange={(v) => set("mn_ic_exemption_on_file", v)} />
-            <Toggle label="Workers' Comp COI" desc="Certificate of workers' comp insurance" checked={form.workers_comp_on_file} onChange={(v) => set("workers_comp_on_file", v)} />
-            <Toggle label="Insurance on file" desc="Certificate of general liability insurance" checked={form.insurance_on_file} onChange={(v) => set("insurance_on_file", v)} />
-            <Toggle label="E-sign consent" desc="Consent to electronic signatures (ESIGN / MN UETA)" checked={form.esign_consent} onChange={(v) => set("esign_consent", v)} />
+            <p className="text-sm text-slate-400">Review and sign each disclosure below. Type your full name exactly as entered in your profile to apply your electronic signature.</p>
+            {docs.map((doc) => (
+              <div key={doc.key} className="rounded-lg border border-slate-700 bg-slate-800/40 overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700 bg-slate-800">
+                  <div className="text-sm font-medium text-slate-200">{doc.title}</div>
+                  {form[doc.key]
+                    ? <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1"><Check className="w-3 h-3" /> Signed</span>
+                    : <span className="text-[10px] text-rose-300">Required</span>}
+                </div>
+                <div className="px-3 py-2.5 max-h-36 overflow-y-auto text-xs text-slate-400 leading-relaxed whitespace-pre-line">{doc.disclosure}</div>
+                <div className="px-3 py-2 border-t border-slate-700">
+                  {form[doc.key]
+                    ? <div className="text-xs text-emerald-300 flex items-center gap-1.5"><UserCheck className="w-3.5 h-3.5" /> Signed electronically by {sigs[doc.key] || form.name}</div>
+                    : <input value={sigs[doc.key] || ""} onChange={(e) => handleSign(doc.key, e.target.value)} className={inputCls} placeholder={`Type "${form.name || "your full name"}" to sign`} />}
+                </div>
+              </div>
+            ))}
             <Field label="Emergency contact">
               <input value={form.emergency_contact} onChange={(e) => set("emergency_contact", e.target.value)} className={inputCls} placeholder="Name & phone" />
             </Field>
@@ -173,8 +223,8 @@ export default function ContractorOnboarding() {
             }`}>
               <UserCheck className="w-4 h-4" />
               {form.w9_on_file && form.contract_signed && form.mn_ic_exemption_on_file && form.workers_comp_on_file && form.insurance_on_file && form.esign_consent
-                ? "All compliance docs received — contractor will be marked fully onboarded."
-                : "Incomplete — contractor will be saved as in_progress until all compliance docs are received."}
+                ? "All documents signed — contractor will be marked fully onboarded."
+                : "Incomplete — contractor will be saved as in_progress until all documents are signed."}
             </div>
           </div>
         )}
