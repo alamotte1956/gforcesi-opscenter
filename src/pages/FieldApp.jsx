@@ -25,6 +25,12 @@ const statusStyles = {
   invoiced: "bg-cyan-500/15 text-cyan-300",
 };
 const advanceLabel = { en_route: "En Route", on_site: "On Site", scanning: "Scanning", processing: "Processing", complete: "Complete" };
+const entryStatusStyles = {
+  open: "bg-amber-500/15 text-amber-300",
+  submitted: "bg-blue-500/15 text-blue-300",
+  approved: "bg-emerald-500/15 text-emerald-300",
+  locked: "bg-slate-700 text-slate-400",
+};
 
 const navUrl = (job) => job.latitude != null && job.longitude != null
   ? `https://www.google.com/maps/dir/?api=1&destination=${job.latitude},${job.longitude}`
@@ -209,6 +215,14 @@ export default function FieldApp() {
     return c && c.opening_time && c.closing_time ? `${c.opening_time}–${c.closing_time}` : null;
   };
 
+  const submitEntry = async (e) => {
+    await base44.entities.TimeEntry.update(e.id, { status: "submitted" });
+    reload();
+  };
+  const myEntries = (timeEntries || []).filter((e) => e.contractor_id === contractor?.id).sort((a, b) => new Date(b.clock_in) - new Date(a.clock_in));
+  const entryHours = (e) => e.regular_hours != null ? e.regular_hours : (e.status === "open" ? (now - new Date(e.clock_in).getTime()) / 3600000 : 0);
+  const weekHours = myEntries.filter((e) => new Date(e.clock_in).getTime() > now - 7 * 86400000).reduce((s, e) => s + entryHours(e), 0);
+
   if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="w-8 h-8 border-2 border-slate-800 border-t-cyan-400 rounded-full animate-spin" /></div>;
 
   if (!contractor) {
@@ -314,6 +328,9 @@ export default function FieldApp() {
           <MessageSquare className="w-4 h-4" /> Messages
           {conversations.reduce((s, c) => s + c.unread, 0) > 0 && <span className="bg-cyan-500 text-slate-950 text-[10px] font-bold rounded-full px-1.5">{conversations.reduce((s, c) => s + c.unread, 0)}</span>}
         </button>
+        <button onClick={() => setTab("timesheets")} className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${tab === "timesheets" ? "bg-slate-800 text-slate-100 border border-slate-700" : "text-slate-400"}`}>
+          <Clock className="w-4 h-4" /> Timesheets
+        </button>
       </div>
 
       {tab === "messages" ? (
@@ -362,6 +379,42 @@ export default function FieldApp() {
               </div>
             </div>
           )}
+        </div>
+      ) : tab === "timesheets" ? (
+        <div className="space-y-3">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
+            <div>
+              <div className="text-xs text-slate-500">This week</div>
+              <div className="text-lg font-semibold">{weekHours.toFixed(1)}h</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-slate-500">Entries</div>
+              <div className="text-lg font-semibold">{myEntries.length}</div>
+            </div>
+          </div>
+          {myEntries.length === 0 ? (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-sm text-slate-500">No time entries yet. Clock in from the Jobs tab.</div>
+          ) : myEntries.map((e) => {
+            const hrs = entryHours(e);
+            return (
+              <div key={e.id} className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{e.job_title || "—"}</div>
+                    <div className="text-xs text-slate-500">{fmtTime(e.clock_in)} → {e.clock_out ? fmtTime(e.clock_out) : "active"}</div>
+                  </div>
+                  <span className={`text-[10px] px-2 py-1 rounded-full capitalize shrink-0 ${entryStatusStyles[e.status] || "bg-slate-700 text-slate-300"}`}>{e.status}</span>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="text-sm text-slate-300">{hrs.toFixed(2)}h</div>
+                  {e.status === "open" && (
+                    <button onClick={() => submitEntry(e)} className="text-xs px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium">Submit</button>
+                  )}
+                </div>
+                {e.notes && <div className="text-xs text-slate-500 mt-2">{e.notes}</div>}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <>
