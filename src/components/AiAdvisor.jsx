@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Sparkles, X, RefreshCw, Loader2 } from "lucide-react";
@@ -21,6 +21,9 @@ const pageLabels = {
   "/portal": "Client Portal",
   "/field": "Field App",
 };
+
+const IDLE_MS = 45000;
+const COOLDOWN_MS = 180000;
 
 async function buildSnapshot() {
   const [jobs, contractors, invoices, projects] = await Promise.all([
@@ -45,19 +48,24 @@ export default function AiAdvisor({ page, summary: summaryOverride }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const stuckRef = useRef(false);
+  const dismissedAtRef = useRef(0);
 
   const currentPage = page || pageLabels[location.pathname] || "this page";
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    const stuck = stuckRef.current;
     const run = async () => {
       setLoading(true); setError("");
       try {
         const summary = summaryOverride ? summaryOverride : await buildSnapshot();
         let role = "user";
         try { const me = await base44.auth.me(); role = me?.role || "user"; } catch {}
-        const res = await base44.functions.invoke("getAiAdvice", { page: currentPage, summary, role });
+        const res = await base44.functions.invoke("getAiAdvice", { page: currentPage, summary, role, stuck });
+        stuckRef.current = false;
         if (!cancelled) setAdvice(res.data?.advice || "No advice available right now.");
       } catch (e) {
         if (!cancelled) setError("Couldn't load AI advice. Try again.");
@@ -68,6 +76,32 @@ export default function AiAdvisor({ page, summary: summaryOverride }) {
     run();
     return () => { cancelled = true; };
   }, [open, currentPage, refreshKey, summaryOverride]);
+
+  useEffect(() => {
+    let idleTimer;
+    const reset = () => {
+      clearTimeout(idleTimer);
+      if (open) return;
+      if (Date.now() - dismissedAtRef.current < COOLDOWN_MS) return;
+      idleTimer = setTimeout(() => setShowPrompt(true), IDLE_MS);
+    };
+    const onActivity = () => { setShowPrompt(false); reset(); };
+    const events = ["mousemove", "keydown", "click", "touchstart", "scroll"];
+    events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
+    reset();
+    return () => { clearTimeout(idleTimer); events.forEach((e) => window.removeEventListener(e, onActivity)); };
+  }, [open]);
+
+  const acceptHelp = () => {
+    setShowPrompt(false);
+    stuckRef.current = true;
+    setRefreshKey((k) => k + 1);
+    setOpen(true);
+  };
+  const dismissPrompt = () => {
+    setShowPrompt(false);
+    dismissedAtRef.current = Date.now();
+  };
 
   return (
     <>
@@ -111,6 +145,23 @@ export default function AiAdvisor({ page, summary: summaryOverride }) {
               <button onClick={() => setRefreshKey((k) => k + 1)} disabled={loading} className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-40">
                 <RefreshCw className="w-3.5 h-3.5" /> Refresh
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showPrompt && !open && (
+        <div className="fixed bottom-24 right-5 z-40 w-72 bg-slate-900 border border-cyan-500/30 rounded-xl shadow-xl p-3.5">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4 text-slate-950" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-slate-100">Need a hand?</div>
+              <div className="text-xs text-slate-400 mt-0.5">I can walk you through this page for your role.</div>
+              <div className="flex gap-2 mt-2.5">
+                <button onClick={acceptHelp} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 text-xs font-medium hover:bg-cyan-400">Yes, help me</button>
+                <button onClick={dismissPrompt} className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs hover:bg-slate-700">Not now</button>
+              </div>
             </div>
           </div>
         </div>
