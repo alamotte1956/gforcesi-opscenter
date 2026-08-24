@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical } from "lucide-react";
 import RouteMap from "@/components/operations/RouteMap";
+import { Switch } from "@/components/ui/switch";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
 const AVG_SPEED_MPH = 35;
@@ -48,6 +49,7 @@ export default function RoutePlanning() {
   const [assignments, setAssignments] = useState({ pool: [] });
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [autoMode, setAutoMode] = useState(false);
 
   const load = async () => {
     const [j, c, cls] = await Promise.all([base44.entities.Job.list(), base44.entities.Contractor.list(), base44.entities.Client.list()]);
@@ -74,7 +76,7 @@ export default function RoutePlanning() {
 
   const onDragEnd = (result) => {
     const { source, destination } = result;
-    if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) return;
+    if (autoMode || !destination || (source.droppableId === destination.droppableId && source.index === destination.index)) return;
     const srcList = [...(assignments[source.droppableId] || [])];
     const [movedId] = srcList.splice(source.index, 1);
     const destList = [...(assignments[destination.droppableId] || [])];
@@ -210,6 +212,11 @@ export default function RoutePlanning() {
     Promise.all(updates);
   };
 
+  const toggleAuto = (on) => {
+    setAutoMode(on);
+    if (on) generateDailyPlan();
+  };
+
   const suggestContractor = (job) => {
     const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status));
     const pool = available.length ? available : contractors;
@@ -244,27 +251,20 @@ export default function RoutePlanning() {
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2"><RouteIcon className="w-5 h-5 text-cyan-400" /> Route Planning</h1>
-          <p className="text-sm text-slate-500">Auto-assigns to nearest available crew · optimizes stop order · live ETAs</p>
+          <p className="text-sm text-slate-500">{autoMode ? "Auto mode — nearest crews assigned & optimized automatically" : "Manual mode — drag jobs to crews · toggle auto route plan to optimize automatically"}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={generateDailyPlan}
-            className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400"
-          >
-            <Wand2 className="w-4 h-4" /> Generate daily plan
-          </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
+            <Switch checked={autoMode} onCheckedChange={toggleAuto} />
+            <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+              <Wand2 className="w-4 h-4 text-cyan-400" /> Auto route plan
+            </span>
+          </div>
           <button
             onClick={optimizeAll}
             className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700"
           >
             <Zap className="w-4 h-4" /> Optimize all
-          </button>
-          <button
-            onClick={autoAssign}
-            disabled={!(assignments.pool || []).length}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-40"
-          >
-            <Navigation className="w-4 h-4" /> Auto-assign nearest
           </button>
         </div>
       </div>
@@ -284,7 +284,7 @@ export default function RoutePlanning() {
                       const job = jobById(id);
                       if (!job) return null;
                       return (
-                        <Draggable key={job.id} draggableId={job.id} index={i}>
+                        <Draggable key={job.id} draggableId={job.id} index={i} isDragDisabled={autoMode}>
                           {(p) => (
                             <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps} className="bg-slate-800 border border-slate-700 rounded-lg p-2.5 hover:border-slate-600 cursor-grab active:cursor-grabbing">
                               <div className="flex items-start gap-1.5">
@@ -347,7 +347,7 @@ export default function RoutePlanning() {
                         {(provided) => (
                           <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-1.5 min-h-[40px]">
                             {stops.map((job, i) => (
-                              <Draggable key={job.id} draggableId={job.id} index={i}>
+                              <Draggable key={job.id} draggableId={job.id} index={i} isDragDisabled={autoMode}>
                                 {(p) => (
                                   <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps} className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg p-2 hover:border-slate-600 cursor-grab active:cursor-grabbing">
                                     <span className="w-5 h-5 rounded-full bg-cyan-500 text-slate-950 text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
