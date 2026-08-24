@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Satellite, LogOut, ArrowLeft, Navigation, Clock, MapPin,
   CheckCircle2, Truck, Camera, Flag, User, Briefcase,
-  MessageSquare, Send, Mail,
+  MessageSquare, Send, Mail, ClipboardList,
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
@@ -47,6 +47,8 @@ export default function FieldApp() {
   const [threadPartner, setThreadPartner] = useState(null);
   const [msgText, setMsgText] = useState("");
   const [sending, setSending] = useState(false);
+  const [report, setReport] = useState({ report_date: new Date().toISOString().slice(0, 10), job_id: "", weather: "", work_completed: "", hours_worked: "", crew_count: "1", delays: "" });
+  const [reportSaved, setReportSaved] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -153,6 +155,29 @@ export default function FieldApp() {
     setMsgText(""); setSending(false);
   };
 
+  const fileReport = async () => {
+    if (!report.work_completed.trim()) return;
+    const job = myJobs.find((j) => j.id === report.job_id);
+    await base44.entities.DailyReport.create({
+      report_date: report.report_date,
+      job_id: report.job_id || undefined,
+      job_title: job?.title,
+      project_id: job?.project_id,
+      project_name: job?.project_name,
+      filed_by_id: contractor.id,
+      filed_by_name: contractor.name,
+      weather: report.weather,
+      work_completed: report.work_completed,
+      hours_worked: Number(report.hours_worked) || 0,
+      crew_count: Number(report.crew_count) || 1,
+      delays: report.delays,
+      status: "submitted",
+    });
+    setReport({ report_date: new Date().toISOString().slice(0, 10), job_id: "", weather: "", work_completed: "", hours_worked: "", crew_count: "1", delays: "" });
+    setReportSaved(true);
+    setTimeout(() => setReportSaved(false), 2500);
+  };
+
   const clientHours = (job) => {
     const c = clients.find((cl) => cl.id === job.client_id);
     return c && c.opening_time && c.closing_time ? `${c.opening_time}–${c.closing_time}` : null;
@@ -243,6 +268,9 @@ export default function FieldApp() {
         <button onClick={() => setTab("jobs")} className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${tab === "jobs" ? "bg-slate-800 text-slate-100 border border-slate-700" : "text-slate-400"}`}>
           <Briefcase className="w-4 h-4" /> Jobs
         </button>
+        <button onClick={() => setTab("reports")} className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${tab === "reports" ? "bg-slate-800 text-slate-100 border border-slate-700" : "text-slate-400"}`}>
+          <ClipboardList className="w-4 h-4" /> Report
+        </button>
         <button onClick={() => setTab("messages")} className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${tab === "messages" ? "bg-slate-800 text-slate-100 border border-slate-700" : "text-slate-400"}`}>
           <MessageSquare className="w-4 h-4" /> Messages
           {conversations.reduce((s, c) => s + c.unread, 0) > 0 && <span className="bg-cyan-500 text-slate-950 text-[10px] font-bold rounded-full px-1.5">{conversations.reduce((s, c) => s + c.unread, 0)}</span>}
@@ -295,6 +323,31 @@ export default function FieldApp() {
               </div>
             </div>
           )}
+        </div>
+      ) : tab === "reports" ? (
+        <div className="space-y-3">
+          <div className="text-xs font-medium text-slate-400 mb-2">File Daily Report</div>
+          {reportSaved && <div className="bg-emerald-500/15 text-emerald-300 text-sm rounded-lg p-3">Report submitted — your dispatcher has been notified.</div>}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Job</label>
+              <select value={report.job_id} onChange={(e) => setReport({ ...report, job_id: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+                <option value="">— General / no specific job —</option>
+                {myJobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-xs text-slate-400 mb-1">Date</label><input type="date" value={report.report_date} onChange={(e) => setReport({ ...report, report_date: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label className="block text-xs text-slate-400 mb-1">Weather</label><input value={report.weather} onChange={(e) => setReport({ ...report, weather: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Sunny, 72°F" /></div>
+            </div>
+            <div><label className="block text-xs text-slate-400 mb-1">Work completed</label><textarea value={report.work_completed} onChange={(e) => setReport({ ...report, work_completed: e.target.value })} rows={3} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm resize-none" placeholder="What was accomplished today…" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-xs text-slate-400 mb-1">Hours worked</label><input type="number" value={report.hours_worked} onChange={(e) => setReport({ ...report, hours_worked: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="0" /></div>
+              <div><label className="block text-xs text-slate-400 mb-1">Crew count</label><input type="number" value={report.crew_count} onChange={(e) => setReport({ ...report, crew_count: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" /></div>
+            </div>
+            <div><label className="block text-xs text-slate-400 mb-1">Delays / issues</label><input value={report.delays} onChange={(e) => setReport({ ...report, delays: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Any delays or blockers" /></div>
+            <button onClick={fileReport} disabled={!report.work_completed.trim()} className="w-full py-2.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm disabled:opacity-50">Submit Daily Report</button>
+          </div>
         </div>
       ) : (
         <>

@@ -1,0 +1,65 @@
+{
+  "name": "DailyReport",
+  "type": "object",
+  "properties": {
+    "report_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "filed_by_id": {
+      "type": "string"
+    },
+    "filed_by_name": {
+      "type": "string"
+    },
+    "weather": {
+      "type": "string"
+    },
+    "work_completed": {
+      "type": "string"
+    },
+    "hours_worked": {
+      "type": "number"
+    },
+    "crew_count": {
+      "type": "number"
+    },
+    "delays": {
+      "type": "string"
+    },
+    "photo_urls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "submitted",
+        "reviewed"
+      ],
+      "default": "submitted"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "report_date",
+    "work_completed"
+  ]
+}

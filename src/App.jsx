@@ -21,6 +21,9 @@ import Clients from '@/pages/Clients';
 import Invoices from '@/pages/Invoices';
 import Expenses from '@/pages/Expenses';
 import Equipment from '@/pages/Equipment';
+import DailyReports from '@/pages/DailyReports';
+import Issues from '@/pages/Issues';
+import Inspections from '@/pages/Inspections';
 import Analytics from '@/pages/Analytics';
 import Settings from '@/pages/Settings';
 import Compliance from '@/pages/Compliance';
@@ -71,6 +74,9 @@ const AuthenticatedApp = () => {
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/equipment" element={<Equipment />} />
+          <Route path="/daily-reports" element={<DailyReports />} />
+          <Route path="/issues" element={<Issues />} />
+          <Route path="/inspections" element={<Inspections />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/compliance" element={<Compliance />} />
