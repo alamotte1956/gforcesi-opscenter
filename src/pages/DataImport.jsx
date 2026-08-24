@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { FileSpreadsheet, Upload, ArrowRight, CheckCircle2, Loader2, Link2, AlertCircle } from "lucide-react";
+import { FileSpreadsheet, Upload, ArrowRight, CheckCircle2, Loader2, Link2, AlertCircle, Download, FileUp } from "lucide-react";
 
 const entityDefs = {
   Client: {
@@ -108,6 +108,7 @@ export default function DataImport() {
   const [rows, setRows] = useState([]);
   const [mapping, setMapping] = useState({});
   const [result, setResult] = useState(null);
+  const [source, setSource] = useState("sheets");
 
   const fields = entityDefs[entity].fields;
 
@@ -130,6 +131,49 @@ export default function DataImport() {
       setError(e.message || "Failed to load sheet.");
     }
     setLoading(false);
+  };
+
+  const loadExcel = async (file) => {
+    setError("");
+    setLoading(true);
+    setResult(null);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const res = await base44.functions.invoke("readExcelFile", { file_url });
+      const data = res.data;
+      if (data.error) { setError(data.error); setLoading(false); return; }
+      setSheetNames(data.sheet_names || []);
+      setSheetName(data.sheet_name);
+      setHeaders(data.headers || []);
+      setRows(data.rows || []);
+      setMapping(autoMap(entityDefs[entity].fields, data.headers || []));
+    } catch (e) {
+      setError(e.message || "Failed to parse Excel file.");
+    }
+    setLoading(false);
+  };
+
+  const downloadTemplate = async (format) => {
+    setError("");
+    try {
+      const res = await base44.functions.invoke("downloadImportTemplate", { entity, format });
+      const data = res.data;
+      if (data.error) { setError(data.error); return; }
+      const bin = atob(data.file);
+      const u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      const blob = new Blob([u8], { type: data.mime });
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = u;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(u);
+    } catch (e) {
+      setError(e.message || "Could not generate template.");
+    }
   };
 
   const switchEntity = (e) => {
@@ -222,8 +266,8 @@ export default function DataImport() {
   return (
     <div className="p-4 lg:p-6 max-w-5xl">
       <div className="mb-5">
-        <h1 className="text-xl font-semibold flex items-center gap-2"><FileSpreadsheet className="w-5 h-5 text-cyan-400" /> Import from Google Sheets</h1>
-        <p className="text-sm text-slate-500">Map columns from your spreadsheet directly into clients, projects, or job sites.</p>
+        <h1 className="text-xl font-semibold flex items-center gap-2"><FileSpreadsheet className="w-5 h-5 text-cyan-400" /> Import Data</h1>
+        <p className="text-sm text-slate-500">Map columns from a Google Sheet or Excel file directly into clients, projects, or job sites.</p>
       </div>
 
       {result ? (
@@ -236,21 +280,47 @@ export default function DataImport() {
         </div>
       ) : headers.length === 0 ? (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">Google Sheets link</label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Link2 className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://docs.google.com/spreadsheets/d/…"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-            <button onClick={loadSheet} disabled={loading} className="px-4 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400 disabled:opacity-50">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />} Load
+          <div className="flex gap-2 mb-4">
+            <button onClick={() => setSource("sheets")} className={`flex-1 py-2 rounded-lg text-sm font-medium border flex items-center justify-center gap-1.5 ${source === "sheets" ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-300" : "bg-slate-800 border-slate-700 text-slate-400"}`}>
+              <Link2 className="w-4 h-4" /> Google Sheets
+            </button>
+            <button onClick={() => setSource("excel")} className={`flex-1 py-2 rounded-lg text-sm font-medium border flex items-center justify-center gap-1.5 ${source === "excel" ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-300" : "bg-slate-800 border-slate-700 text-slate-400"}`}>
+              <FileUp className="w-4 h-4" /> Excel File
             </button>
           </div>
+
+          {source === "sheets" ? (
+            <>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Google Sheets link</label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Link2 className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/…"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <button onClick={loadSheet} disabled={loading} className="px-4 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400 disabled:opacity-50">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />} Load
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Excel file (.xlsx, .xls)</label>
+              <label className="block cursor-pointer">
+                <div className="border-2 border-dashed border-slate-700 rounded-lg p-6 text-center hover:border-cyan-500/50 transition-colors">
+                  {loading ? <Loader2 className="w-6 h-6 text-cyan-400 mx-auto mb-2 animate-spin" /> : <FileUp className="w-6 h-6 text-slate-500 mx-auto mb-2" />}
+                  <div className="text-sm text-slate-300">{loading ? "Uploading & parsing…" : "Click to choose an Excel file"}</div>
+                  <div className="text-xs text-slate-500 mt-1">First row must contain column headers</div>
+                </div>
+                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) loadExcel(f); e.target.value = ""; }} />
+              </label>
+            </>
+          )}
+
           <div className="mt-4">
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Import as</label>
             <div className="flex gap-2">
@@ -265,9 +335,22 @@ export default function DataImport() {
               ))}
             </div>
           </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-slate-500">Download a template:</span>
+            <button onClick={() => downloadTemplate("xlsx")} className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 hover:border-cyan-500/40 flex items-center gap-1.5">
+              <Download className="w-3.5 h-3.5" /> Excel (.xlsx)
+            </button>
+            <button onClick={() => downloadTemplate("csv")} className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 hover:border-cyan-500/40 flex items-center gap-1.5">
+              <Download className="w-3.5 h-3.5" /> Google Sheets (.csv)
+            </button>
+          </div>
+
           {error && <div className="mt-4 flex items-start gap-2 text-sm text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-lg p-3"><AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />{error}</div>}
           <div className="mt-4 text-xs text-slate-500 bg-slate-800/40 rounded-lg p-3">
-            Make sure your sheet's first row contains column headers. The spreadsheet must be accessible to the connected Google account (sharing access recommended).
+            {source === "sheets"
+              ? "Make sure your sheet's first row contains column headers. The spreadsheet must be accessible to the connected Google account (sharing access recommended)."
+              : "Your Excel file's first row must contain column headers. Download a template below, fill in your data, then upload it."}
           </div>
         </div>
       ) : (
