@@ -99,6 +99,9 @@
       "type": "boolean",
       "default": false
     },
+    "slack_channel": {
+      "type": "string"
+    },
     "onboarding_status": {
       "type": "string",
       "enum": [
