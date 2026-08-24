@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, Search, Table as TableIcon, Clock } from "lucide-react";
+import { Plus, Search, Table as TableIcon, Clock, AlertCircle } from "lucide-react";
 import FormModal from "@/components/FormModal";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -37,7 +37,7 @@ export default function Jobs() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", notes: "" });
+  const [form, setForm] = useState({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", notes: "" });
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
 
@@ -65,13 +65,14 @@ export default function Jobs() {
       priority: form.priority,
       scheduled_start: form.scheduled_start ? new Date(form.scheduled_start).toISOString() : undefined,
       scheduled_end: form.scheduled_end ? new Date(form.scheduled_end).toISOString() : undefined,
+      sla_due_date: form.sla_due_date ? new Date(form.sla_due_date).toISOString() : undefined,
       status: form.status,
       status_history: [{ status: form.status, entered_at: new Date().toISOString() }],
       billable_rate_type: form.billable_rate_type,
       billable_rate: form.billable_rate ? Number(form.billable_rate) : undefined,
       notes: form.notes || undefined,
     });
-    setForm({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", notes: "" });
+    setForm({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", notes: "" });
     setShowForm(false);
     toast({ title: "Job created", description: title });
     load();
@@ -102,6 +103,14 @@ export default function Jobs() {
     const [oh, om] = client.opening_time.split(":").map(Number);
     const [ch, cm] = client.closing_time.split(":").map(Number);
     return { text, warn: mins < oh * 60 + om || mins > ch * 60 + cm };
+  };
+
+  const slaStatus = (job) => {
+    if (!job.sla_due_date) return null;
+    const due = new Date(job.sla_due_date);
+    const done = ["complete", "invoiced"].includes(job.status);
+    if (done) return { text: fmtDate(job.sla_due_date), breached: false, met: true };
+    return { text: fmtDate(job.sla_due_date), breached: due < new Date() };
   };
 
   return (
@@ -154,6 +163,7 @@ export default function Jobs() {
                 <th className="px-3 py-2.5 font-medium whitespace-nowrap">Equipment</th>
                 <th className="px-3 py-2.5 font-medium whitespace-nowrap">Scheduled Start</th>
                 <th className="px-3 py-2.5 font-medium whitespace-nowrap">Scheduled End</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap">SLA Due</th>
                 <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">Est. Hrs</th>
                 <th className="px-3 py-2.5 font-medium whitespace-nowrap">Rate Type</th>
                 <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">Rate</th>
@@ -196,6 +206,17 @@ export default function Jobs() {
                   </td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{fmtDate(j.scheduled_start)}</td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{fmtDate(j.scheduled_end)}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    {(() => {
+                      const s = slaStatus(j);
+                      if (!s) return <span className="text-slate-600">—</span>;
+                      return (
+                        <span className={`flex items-center gap-1 ${s.breached ? "text-rose-400" : s.met ? "text-emerald-400" : "text-slate-400"}`}>
+                          {s.breached && <AlertCircle className="w-3 h-3" />}{s.text}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-right">{j.estimated_duration_hours ?? "—"}</td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap capitalize">{j.billable_rate_type || "—"}</td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-right">{j.billable_rate != null ? `$${j.billable_rate}` : "—"}</td>
@@ -203,7 +224,7 @@ export default function Jobs() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={14} className="px-3 py-10 text-center text-slate-500">No jobs match your filters.</td></tr>
+                <tr><td colSpan={15} className="px-3 py-10 text-center text-slate-500">No jobs match your filters.</td></tr>
               )}
             </tbody>
           </table>
@@ -236,6 +257,7 @@ export default function Jobs() {
             <Field label="Scheduled start"><input type="datetime-local" value={form.scheduled_start} onChange={(e) => setForm({ ...form, scheduled_start: e.target.value })} className={inputCls} /></Field>
             <Field label="Scheduled end"><input type="datetime-local" value={form.scheduled_end} onChange={(e) => setForm({ ...form, scheduled_end: e.target.value })} className={inputCls} /></Field>
           </div>
+          <Field label="SLA due date"><input type="datetime-local" value={form.sla_due_date} onChange={(e) => setForm({ ...form, sla_due_date: e.target.value })} className={inputCls} /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Rate type">
               <select value={form.billable_rate_type} onChange={(e) => setForm({ ...form, billable_rate_type: e.target.value })} className={inputCls}>

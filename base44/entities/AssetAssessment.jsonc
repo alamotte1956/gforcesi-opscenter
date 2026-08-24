@@ -1,0 +1,81 @@
+{
+  "name": "AssetAssessment",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "matterport_model_id": {
+      "type": "string"
+    },
+    "asset_name": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "condition": {
+      "type": "string",
+      "enum": [
+        "good",
+        "fair",
+        "poor",
+        "critical"
+      ],
+      "default": "good"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "assessed_by_name": {
+      "type": "string"
+    },
+    "assessed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "job_id",
+    "asset_name",
+    "condition"
+  ],
+  "rls": {
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

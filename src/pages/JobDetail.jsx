@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag, ExternalLink, Link2, ScanLine, ShieldCheck, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { parseMatterportUrl } from "@/lib/matterport";
+import AssetAssessments from "@/components/AssetAssessments";
 
 const statusStyles = {
   scheduled: "bg-slate-700 text-slate-300",
@@ -117,6 +118,8 @@ export default function JobDetail() {
           </div>
         )}
       </Section>
+
+      <AssetAssessments job={job} assessedByName={me?.full_name || me?.email} />
 
       {job.deliverables && (
         <Section title="Deliverables">

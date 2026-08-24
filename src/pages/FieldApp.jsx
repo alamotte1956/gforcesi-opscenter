@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate, Link } from "react-router-dom";
 import {
@@ -9,6 +9,8 @@ import {
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
 import { parseMatterportUrl } from "@/lib/matterport";
+import { useOfflineQueue } from "@/hooks/useOfflineQueue";
+import OfflineBanner from "@/components/OfflineBanner";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
 const myStatuses = [
@@ -56,6 +58,7 @@ export default function FieldApp() {
   const [expSaved, setExpSaved] = useState(false);
   const [uploadingJobId, setUploadingJobId] = useState(null);
   const [mpScanInput, setMpScanInput] = useState("");
+  const { isOnline, queue, enqueue, flush } = useOfflineQueue();
 
   useEffect(() => {
     (async () => {
@@ -87,9 +90,16 @@ export default function FieldApp() {
   useEffect(() => {
     if (!contractor) return;
     (async () => {
-      const allJobs = await base44.entities.Job.list();
-      setJobs(allJobs);
-      setExpenses(await base44.entities.Expense.list("-date"));
+      try {
+        const allJobs = await base44.entities.Job.list();
+        setJobs(allJobs);
+        try { localStorage.setItem("gforce_field_jobs_cache", JSON.stringify(allJobs)); } catch {}
+        setExpenses(await base44.entities.Expense.list("-date"));
+      } catch (e) {
+        if (!navigator.onLine) {
+          try { setJobs(JSON.parse(localStorage.getItem("gforce_field_jobs_cache") || "[]")); } catch {}
+        }
+      }
     })();
   }, [contractor?.id]);
 
@@ -100,6 +110,24 @@ export default function FieldApp() {
     const unsub = base44.entities.Message.subscribe(loadMsgs);
     return unsub;
   }, [contractor?.id]);
+
+  const runQueue = useCallback(async (op) => {
+    if (op.type === "status") {
+      await base44.functions.invoke("updateJobStatus", { job_id: op.job_id, status: op.status, matterport: op.matterport });
+      const map = { en_route: { current_status: "en_route" }, on_site: { current_status: "on_site" }, scanning: { current_status: "on_site" }, processing: { current_status: "on_site" }, complete: { current_status: "available", current_job_id: "", current_job_title: "" } };
+      if (map[op.status] && op.contractorId) await base44.entities.Contractor.update(op.contractorId, map[op.status]);
+    } else if (op.type === "photo") {
+      const blob = await (await fetch(op.dataUrl)).blob();
+      const { file_url } = await base44.integrations.Core.UploadFile({ file: blob });
+      await base44.functions.invoke("addJobPhoto", { job_id: op.job_id, photo_url: file_url, uploaded_by_name: op.uploaded_by_name });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOnline && contractor && queue.length) {
+      flush(runQueue).then(() => reload());
+    }
+  }, [isOnline, contractor, queue.length]);
 
   const isAdmin = me?.role === "admin";
   const myJobs = jobs
@@ -117,6 +145,12 @@ export default function FieldApp() {
   };
 
   const setJobStatus = async (job, status, matterport) => {
+    if (!isOnline) {
+      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status } : j)));
+      enqueue({ type: "status", job_id: job.id, status, matterport, contractorId: contractor.id });
+      if (matterport) setMpScanInput("");
+      return;
+    }
     await base44.functions.invoke("updateJobStatus", { job_id: job.id, status, matterport });
     const map = {
       en_route: { current_status: "en_route" },
@@ -214,6 +248,12 @@ export default function FieldApp() {
   };
 
   const handlePhoto = async (job, file) => {
+    if (!isOnline) {
+      const reader = new FileReader();
+      reader.onload = () => enqueue({ type: "photo", job_id: job.id, dataUrl: reader.result, uploaded_by_name: contractor.name });
+      reader.readAsDataURL(file);
+      return;
+    }
     setUploadingJobId(job.id);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
@@ -264,6 +304,8 @@ export default function FieldApp() {
 
   return (
     <Shell me={me} onLogout={logout} contractor={contractor} summary={{ contractor: contractor.name, status: contractor.current_status, assignedJobs: myJobs.length, completedJobs, jobStatuses: myJobs.reduce((m, j) => { m[j.status] = (m[j.status] || 0) + 1; return m; }, {}) }}>
+      <OfflineBanner isOnline={isOnline} queueCount={queue.length} onSync={() => flush(runQueue).then(() => reload())} />
+
       {/* Status card */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-4">
         <div className="flex items-center justify-between mb-3">

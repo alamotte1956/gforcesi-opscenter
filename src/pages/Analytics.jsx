@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
-import { TrendingUp, DollarSign, Clock, Target, Gauge, AlertTriangle } from "lucide-react";
+import { TrendingUp, DollarSign, Clock, Target, Gauge, AlertTriangle, ShieldCheck } from "lucide-react";
 
 const STAGES = ["scheduled", "en_route", "on_site", "scanning", "processing", "complete", "invoiced"];
 const stageLabels = {
@@ -36,7 +36,13 @@ export default function Analytics() {
     const invoiced = invoices.reduce((s, i) => s + (i.total || 0), 0);
     const collected = invoices.filter((i) => i.status === "paid").reduce((s, i) => s + (i.total || 0), 0);
     const onDuty = employees.filter((e) => e.shift_status === "on_duty").length;
-    return { completed, invoiced, collected, onDuty };
+    const slaJobs = jobs.filter((j) => j.sla_due_date && ["complete", "invoiced"].includes(j.status));
+    const slaOnTime = slaJobs.filter((j) => {
+      const done = (j.status_history || []).find((h) => h.status === "complete")?.entered_at || j.updated_date;
+      return done && new Date(done) <= new Date(j.sla_due_date);
+    }).length;
+    const slaOnTimePct = slaJobs.length ? Math.round((slaOnTime / slaJobs.length) * 100) : null;
+    return { completed, invoiced, collected, onDuty, slaOnTimePct };
   }, [jobs, invoices, employees]);
 
   const jobsByStatus = useMemo(() => {
@@ -99,11 +105,12 @@ export default function Analytics() {
 
       {tab === "overview" ? (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
             <KpiCard icon={Target} label="Jobs Completed" value={kpis.completed} accent="text-cyan-400" />
             <KpiCard icon={DollarSign} label="Invoiced" value={`$${kpis.invoiced.toLocaleString()}`} accent="text-blue-400" />
             <KpiCard icon={TrendingUp} label="Collected" value={`$${kpis.collected.toLocaleString()}`} accent="text-emerald-400" />
             <KpiCard icon={Clock} label="On Duty Now" value={kpis.onDuty} accent="text-amber-400" />
+            <KpiCard icon={ShieldCheck} label="SLA On-Time" value={kpis.slaOnTimePct != null ? `${kpis.slaOnTimePct}%` : "—"} accent="text-cyan-400" />
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">

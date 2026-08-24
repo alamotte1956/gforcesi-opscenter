@@ -53,6 +53,10 @@
       "type": "string",
       "format": "date-time"
     },
+    "sla_due_date": {
+      "type": "string",
+      "format": "date-time"
+    },
     "assigned_contractor_ids": {
       "type": "array",
       "items": {

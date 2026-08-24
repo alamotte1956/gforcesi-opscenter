@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import OperationsMap from "@/components/operations/OperationsMap";
-import { Filter, Radio, MapPin, Users, Activity, X, Navigation2 } from "lucide-react";
+import { Filter, Radio, MapPin, Users, Activity, X, Navigation2, ShieldAlert } from "lucide-react";
 
 const statusStyles = {
   available: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
@@ -51,17 +51,19 @@ export default function Dashboard() {
     const activeJobs = jobs.filter((j) => ["en_route", "on_site", "scanning", "processing"].includes(j.status)).length;
     const scheduled = jobs.filter((j) => j.status === "scheduled").length;
     const completed = jobs.filter((j) => ["complete", "invoiced"].includes(j.status)).length;
-    return { onDuty, activeJobs, scheduled, completed };
+    const slaAtRisk = jobs.filter((j) => j.sla_due_date && !["complete", "invoiced"].includes(j.status) && new Date(j.sla_due_date) < new Date()).length;
+    return { onDuty, activeJobs, scheduled, completed, slaAtRisk };
   }, [employees, jobs]);
 
   return (
     <div className="flex flex-col h-screen">
       {/* Stat bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-slate-950 border-b border-slate-800">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 p-4 bg-slate-950 border-b border-slate-800">
         <StatCard icon={Users} label="On Duty" value={stats.onDuty} accent="text-emerald-400" />
         <StatCard icon={Activity} label="Active Jobs" value={stats.activeJobs} accent="text-amber-400" />
         <StatCard icon={MapPin} label="Scheduled" value={stats.scheduled} accent="text-blue-400" />
         <StatCard icon={Radio} label="Completed" value={stats.completed} accent="text-cyan-400" />
+        <StatCard icon={ShieldAlert} label="SLA at Risk" value={stats.slaAtRisk} accent={stats.slaAtRisk > 0 ? "text-rose-400" : "text-slate-400"} />
       </div>
 
       <div className="flex flex-1 flex-col lg:flex-row min-h-0">
