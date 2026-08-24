@@ -110,9 +110,9 @@ export default function Jobs() {
                         </span>
                         <span className="text-xs text-slate-500">{job.project_name}</span>
                       </div>
-                      {job.assigned_employee_names?.length > 0 && (
+                      {job.assigned_contractor_names?.length > 0 && (
                         <div className="flex -space-x-1.5 mt-2">
-                          {job.assigned_employee_names.slice(0, 3).map((n, i) => (
+                          {job.assigned_contractor_names.slice(0, 3).map((n, i) => (
                             <div key={i} className="w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-[10px] font-semibold">
                               {n.charAt(0)}
                             </div>

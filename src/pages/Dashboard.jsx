@@ -27,7 +27,7 @@ export default function Dashboard() {
 
   const load = async () => {
     const [emps, jbs] = await Promise.all([
-      base44.entities.Employee.list(),
+      base44.entities.Contractor.list(),
       base44.entities.Job.list(),
     ]);
     setEmployees(emps);
@@ -37,7 +37,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     load();
-    const unsub = base44.entities.Employee.subscribe(() => load());
+    const unsub = base44.entities.Contractor.subscribe(() => load());
     return unsub;
   }, []);
 
@@ -146,7 +146,7 @@ export default function Dashboard() {
                 <DetailRow label="Status" value={selectedJob.status} />
                 <DetailRow label="Priority" value={selectedJob.priority} />
                 <DetailRow label="Project" value={selectedJob.project_name} />
-                <DetailRow label="Team" value={(selectedJob.assigned_employee_names || []).join(", ") || "Unassigned"} />
+                <DetailRow label="Team" value={(selectedJob.assigned_contractor_names || []).join(", ") || "Unassigned"} />
                 <DetailRow label="Equipment" value={(selectedJob.required_equipment || []).join(", ") || "—"} />
               </DetailCard>
             )}

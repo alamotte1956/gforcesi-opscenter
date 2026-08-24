@@ -15,7 +15,8 @@ import Layout from '@/components/Layout';
 import Dashboard from '@/pages/Dashboard';
 import Jobs from '@/pages/Jobs';
 import Projects from '@/pages/Projects';
-import Employees from '@/pages/Employees';
+import Contractors from '@/pages/Contractors';
+import ContractorOnboarding from '@/pages/ContractorOnboarding';
 import Clients from '@/pages/Clients';
 import Invoices from '@/pages/Invoices';
 import Timesheets from '@/pages/Timesheets';
@@ -54,7 +55,8 @@ const AuthenticatedApp = () => {
           <Route path="/" element={<Dashboard />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/projects" element={<Projects />} />
-          <Route path="/employees" element={<Employees />} />
+          <Route path="/contractors" element={<Contractors />} />
+          <Route path="/contractors/onboarding" element={<ContractorOnboarding />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/timesheets" element={<Timesheets />} />

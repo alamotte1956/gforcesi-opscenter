@@ -2,10 +2,10 @@
   "name": "TimeEntry",
   "type": "object",
   "properties": {
-    "employee_id": {
+    "contractor_id": {
       "type": "string"
     },
-    "employee_name": {
+    "contractor_name": {
       "type": "string"
     },
     "job_id": {
@@ -55,7 +55,7 @@
     }
   },
   "required": [
-    "employee_id",
-    "employee_name"
+    "contractor_id",
+    "contractor_name"
   ]
 }

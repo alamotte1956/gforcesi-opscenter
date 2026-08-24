@@ -8,7 +8,7 @@
         "invoice",
         "payroll",
         "customer",
-        "employee",
+        "contractor",
         "payment"
       ]
     },

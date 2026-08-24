@@ -79,7 +79,7 @@ export default function Settings() {
         {[
           { title: "Clients → QB Customers", count: 2 },
           { title: "Services → QB Products", count: 4 },
-          { title: "Employees → QB Employees", count: 4 },
+          { title: "Contractors → QB Vendors", count: 4 },
         ].map((m) => (
           <div key={m.title} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
             <div className="text-sm font-medium text-slate-300">{m.title}</div>

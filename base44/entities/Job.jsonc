@@ -53,13 +53,13 @@
       "type": "string",
       "format": "date-time"
     },
-    "assigned_employee_ids": {
+    "assigned_contractor_ids": {
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "assigned_employee_names": {
+    "assigned_contractor_names": {
       "type": "array",
       "items": {
         "type": "string"

@@ -58,7 +58,7 @@ export default function Timesheets() {
           <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="text-left text-xs text-slate-500 border-b border-slate-800">
-                <th className="px-4 py-3 font-medium">Employee</th>
+                <th className="px-4 py-3 font-medium">Contractor</th>
                 <th className="px-4 py-3 font-medium">Job</th>
                 <th className="px-4 py-3 font-medium">Clock In</th>
                 <th className="px-4 py-3 font-medium">Clock Out</th>
@@ -71,7 +71,7 @@ export default function Timesheets() {
             <tbody>
               {entries.map((e) => (
                 <tr key={e.id} className="border-b border-slate-800/60 hover:bg-slate-800/40">
-                  <td className="px-4 py-3 text-slate-200">{e.employee_name}</td>
+                  <td className="px-4 py-3 text-slate-200">{e.contractor_name}</td>
                   <td className="px-4 py-3 text-slate-400">{e.job_title || "—"}</td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{e.clock_in ? new Date(e.clock_in).toLocaleString() : "—"}</td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{e.clock_out ? new Date(e.clock_out).toLocaleString() : "—"}</td>

@@ -20,10 +20,10 @@
     "serial_number": {
       "type": "string"
     },
-    "assigned_to_employee_id": {
+    "assigned_to_contractor_id": {
       "type": "string"
     },
-    "assigned_to_employee_name": {
+    "assigned_to_contractor_name": {
       "type": "string"
     },
     "checked_out_date": {

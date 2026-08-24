@@ -13,7 +13,7 @@ export default function Analytics() {
     Promise.all([
       base44.entities.Job.list(),
       base44.entities.Invoice.list(),
-      base44.entities.Employee.list(),
+      base44.entities.Contractor.list(),
     ]).then(([j, i, e]) => {
       setJobs(j); setInvoices(i); setEmployees(e);
       setLoading(false);

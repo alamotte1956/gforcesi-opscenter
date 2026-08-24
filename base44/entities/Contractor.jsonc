@@ -1,8 +1,11 @@
 {
-  "name": "Employee",
+  "name": "Contractor",
   "type": "object",
   "properties": {
     "name": {
+      "type": "string"
+    },
+    "email": {
       "type": "string"
     },
     "photo_url": {
@@ -14,11 +17,11 @@
     "role": {
       "type": "string",
       "enum": [
-        "Admin",
+        "Field Technician",
+        "Field Pilot",
         "Dispatcher",
         "Billing Manager",
-        "Field Technician",
-        "Field Pilot"
+        "Admin"
       ],
       "default": "Field Technician"
     },
@@ -44,6 +47,7 @@
       "type": "string",
       "enum": [
         "hourly",
+        "flat",
         "salary"
       ],
       "default": "hourly"
@@ -51,7 +55,7 @@
     "pay_rate": {
       "type": "number"
     },
-    "quickbooks_employee_id": {
+    "quickbooks_id": {
       "type": "string"
     },
     "shift_status": {
@@ -94,6 +98,34 @@
     "location_sharing": {
       "type": "boolean",
       "default": false
+    },
+    "onboarding_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "complete"
+      ],
+      "default": "pending"
+    },
+    "w9_on_file": {
+      "type": "boolean",
+      "default": false
+    },
+    "contract_signed": {
+      "type": "boolean",
+      "default": false
+    },
+    "insurance_on_file": {
+      "type": "boolean",
+      "default": false
+    },
+    "emergency_contact": {
+      "type": "string"
+    },
+    "onboarded_date": {
+      "type": "string",
+      "format": "date"
     }
   },
   "required": [

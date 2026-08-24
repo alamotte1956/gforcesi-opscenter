@@ -10,7 +10,7 @@ const navItems = [
   { to: "/", label: "Live Map", icon: Map, end: true },
   { to: "/jobs", label: "Jobs", icon: KanbanSquare },
   { to: "/projects", label: "Projects", icon: FolderKanban },
-  { to: "/employees", label: "Employees", icon: Users },
+  { to: "/contractors", label: "Contractors", icon: Users },
   { to: "/clients", label: "Clients", icon: Building2 },
   { to: "/invoices", label: "Invoices", icon: FileText },
   { to: "/timesheets", label: "Timesheets", icon: Clock },
