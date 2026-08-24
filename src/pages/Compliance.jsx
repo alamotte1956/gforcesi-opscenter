@@ -17,18 +17,13 @@ const complianceFields = [
 
 export default function Compliance() {
   const [contractors, setContractors] = useState([]);
-  const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [purgeId, setPurgeId] = useState("");
   const { toast } = useToast();
 
   const load = async () => {
-    const [c, t] = await Promise.all([
-      base44.entities.Contractor.list(),
-      base44.entities.TimeEntry.list(),
-    ]);
+    const c = await base44.entities.Contractor.list();
     setContractors(c);
-    setEntries(t);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -36,17 +31,12 @@ export default function Compliance() {
   const isCompliant = (c) => complianceFields.every((f) => c[f.key]);
   const compliantCount = contractors.filter(isCompliant).length;
 
-  const missingClockouts = entries.filter((e) => !e.clock_out && e.status !== "open").length;
-  const unapproved = entries.filter((e) => e.status === "submitted").length;
-  const openEntries = entries.filter((e) => e.status === "open").length;
-
   const purge = async () => {
     if (!purgeId) return;
     const c = contractors.find((x) => x.id === purgeId);
-    if (!window.confirm(`Permanently delete ${c?.name} and all their time entries? This cannot be undone.`)) return;
-    await base44.entities.TimeEntry.deleteMany({ contractor_id: purgeId });
+    if (!window.confirm(`Permanently delete ${c?.name}? This cannot be undone.`)) return;
     await base44.entities.Contractor.delete(purgeId);
-    toast({ title: "Contractor data purged", description: `${c?.name} and related time entries deleted.` });
+    toast({ title: "Contractor purged", description: `${c?.name} deleted.` });
     setPurgeId("");
     load();
   };
@@ -68,11 +58,9 @@ export default function Compliance() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <SummaryCard icon={CheckCircle2} label="Fully Compliant" value={compliantCount} accent="text-emerald-400" />
         <SummaryCard icon={XCircle} label="Action Needed" value={contractors.length - compliantCount} accent="text-rose-400" />
-        <SummaryCard icon={Clock} label="Unapproved Timesheets" value={unapproved} accent="text-amber-400" />
-        <SummaryCard icon={AlertTriangle} label="Missing Clock-outs" value={missingClockouts} accent="text-rose-400" />
       </div>
 
       {/* Contractor classification */}
@@ -121,33 +109,20 @@ export default function Compliance() {
         )}
       </Section>
 
-      {/* Wage & hour */}
-      <Section icon={Clock} title="Wage & Hour Records" refs="Federal Fair Labor Standards Act (FLSA) · Minn. Stat. ch. 177 (Minnesota FLSA)">
-        <div className="grid grid-cols-3 gap-3">
-          <MiniStat label="Open time entries" value={openEntries} />
-          <MiniStat label="Awaiting approval" value={unapproved} />
-          <MiniStat label="Missing clock-out" value={missingClockouts} />
-        </div>
-        <p className="text-xs text-slate-500 mt-3 flex items-start gap-1.5">
-          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          Employers must maintain accurate time and pay records. Resolve missing clock-outs and approve submitted timesheets promptly to meet recordkeeping requirements.
-        </p>
-      </Section>
-
       {/* Data privacy */}
       <Section icon={Database} title="Data Privacy & Breach Notification" refs="Minn. Stat. § 325E.61 (Security Breach Notification) · MN Government Data Practices Act (where applicable)">
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <div className="text-xs font-medium text-slate-400 mb-2">Personal Data (PII) Stored</div>
             <ul className="text-xs text-slate-400 space-y-1">
-              {["Name, email, phone, emergency contact", "Pay rate & QuickBooks vendor ID", "W-9 (taxpayer ID) and certification records", "Live GPS location (when sharing enabled)", "Time entries (clock in/out, hours)"].map((p) => (
+              {["Name, email, phone, emergency contact", "Pay rate & QuickBooks vendor ID", "W-9 (taxpayer ID) and certification records", "Live GPS location (when sharing enabled)"].map((p) => (
                 <li key={p} className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-slate-500" />{p}</li>
               ))}
             </ul>
           </div>
           <div>
             <div className="text-xs font-medium text-slate-400 mb-2">Data Minimization / Right to Erasure</div>
-            <p className="text-xs text-slate-500 mb-2">Permanently remove a contractor and all their time entries when data is no longer needed.</p>
+            <p className="text-xs text-slate-500 mb-2">Permanently remove a contractor's record when their data is no longer needed.</p>
             <div className="flex gap-2">
               <select value={purgeId} onChange={(e) => setPurgeId(e.target.value)} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm">
                 <option value="">Select contractor…</option>

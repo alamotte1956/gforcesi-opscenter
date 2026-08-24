@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Satellite, LogOut, ArrowLeft, Navigation, Clock, MapPin,
-  Play, Square, CheckCircle2, Truck, Camera, Flag, User, Briefcase,
+  CheckCircle2, Truck, Camera, Flag, User, Briefcase,
   MessageSquare, Send, Mail,
 } from "lucide-react";
 
@@ -25,12 +25,6 @@ const statusStyles = {
   invoiced: "bg-cyan-500/15 text-cyan-300",
 };
 const advanceLabel = { en_route: "En Route", on_site: "On Site", scanning: "Scanning", processing: "Processing", complete: "Complete" };
-const entryStatusStyles = {
-  open: "bg-amber-500/15 text-amber-300",
-  submitted: "bg-blue-500/15 text-blue-300",
-  approved: "bg-emerald-500/15 text-emerald-300",
-  locked: "bg-slate-700 text-slate-400",
-};
 
 const navUrl = (job) => job.latitude != null && job.longitude != null
   ? `https://www.google.com/maps/dir/?api=1&destination=${job.latitude},${job.longitude}`
@@ -44,20 +38,13 @@ export default function FieldApp() {
   const [contractors, setContractors] = useState([]);
   const [contractor, setContractor] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [timeEntries, setTimeEntries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [now, setNow] = useState(Date.now());
   const [clients, setClients] = useState([]);
   const [messages, setMessages] = useState([]);
   const [tab, setTab] = useState("jobs");
   const [threadPartner, setThreadPartner] = useState(null);
   const [msgText, setMsgText] = useState("");
   const [sending, setSending] = useState(false);
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 15000);
-    return () => clearInterval(t);
-  }, []);
 
   useEffect(() => {
     (async () => {
@@ -77,13 +64,11 @@ export default function FieldApp() {
 
   const reload = async () => {
     if (!contractor) return;
-    const [allJobs, entries, cons] = await Promise.all([
+    const [allJobs, cons] = await Promise.all([
       base44.entities.Job.list(),
-      base44.entities.TimeEntry.filter({ contractor_id: contractor.id }),
       base44.entities.Contractor.list(),
     ]);
     setJobs(allJobs);
-    setTimeEntries(entries);
     const updated = cons.find((c) => c.id === contractor.id);
     if (updated) setContractor(updated);
   };
@@ -91,12 +76,8 @@ export default function FieldApp() {
   useEffect(() => {
     if (!contractor) return;
     (async () => {
-      const [allJobs, entries] = await Promise.all([
-        base44.entities.Job.list(),
-        base44.entities.TimeEntry.filter({ contractor_id: contractor.id }),
-      ]);
+      const allJobs = await base44.entities.Job.list();
       setJobs(allJobs);
-      setTimeEntries(entries);
     })();
   }, [contractor?.id]);
 
@@ -112,14 +93,7 @@ export default function FieldApp() {
   const myJobs = jobs
     .filter((j) => (j.assigned_contractor_ids || []).includes(contractor?.id))
     .sort((a, b) => new Date(a.scheduled_start || 0) - new Date(b.scheduled_start || 0));
-  const openEntry = timeEntries.find((e) => e.status === "open" && e.contractor_id === contractor?.id);
-  const activeJob = openEntry ? jobs.find((j) => j.id === openEntry.job_id) : null;
-
-  const elapsed = openEntry ? (now - new Date(openEntry.clock_in).getTime()) : 0;
-  const timerStr = `${Math.floor(elapsed / 3600000)}h ${Math.floor((elapsed % 3600000) / 60000).toString().padStart(2, "0")}m`;
-  const todayHours = timeEntries
-    .filter((e) => e.contractor_id === contractor?.id)
-    .reduce((s, e) => s + (e.regular_hours || (e.status === "open" ? elapsed / 3600000 : 0)), 0);
+  const completedJobs = myJobs.filter((j) => ["complete", "invoiced"].includes(j.status)).length;
 
   const setMyStatus = async (s) => {
     await base44.entities.Contractor.update(contractor.id, {
@@ -139,39 +113,6 @@ export default function FieldApp() {
       complete: { current_status: "available", current_job_id: "", current_job_title: "" },
     };
     if (map[status]) await base44.entities.Contractor.update(contractor.id, map[status]);
-    reload();
-  };
-
-  const clockIn = async (job) => {
-    if (openEntry) {
-      const out = new Date();
-      const hours = (out - new Date(openEntry.clock_in)) / 3600000;
-      await base44.entities.TimeEntry.update(openEntry.id, {
-        clock_out: out.toISOString(), regular_hours: +hours.toFixed(2), status: "submitted",
-      });
-    }
-    await base44.entities.TimeEntry.create({
-      contractor_id: contractor.id, contractor_name: contractor.name,
-      job_id: job.id, job_title: job.title, project_id: job.project_id, project_name: job.project_name,
-      clock_in: new Date().toISOString(), status: "open",
-    });
-    await base44.entities.Contractor.update(contractor.id, {
-      shift_status: "on_duty", current_status: "on_site", current_job_id: job.id, current_job_title: job.title,
-    });
-    if (["scheduled", "en_route"].includes(job.status)) await base44.entities.Job.update(job.id, { status: "on_site" });
-    reload();
-  };
-
-  const clockOut = async () => {
-    if (!openEntry) return;
-    const out = new Date();
-    const hours = (out - new Date(openEntry.clock_in)) / 3600000;
-    await base44.entities.TimeEntry.update(openEntry.id, {
-      clock_out: out.toISOString(), regular_hours: +hours.toFixed(2), status: "submitted",
-    });
-    await base44.entities.Contractor.update(contractor.id, {
-      shift_status: "off_duty", current_status: "available", current_job_id: "", current_job_title: "",
-    });
     reload();
   };
 
@@ -214,14 +155,6 @@ export default function FieldApp() {
     const c = clients.find((cl) => cl.id === job.client_id);
     return c && c.opening_time && c.closing_time ? `${c.opening_time}–${c.closing_time}` : null;
   };
-
-  const submitEntry = async (e) => {
-    await base44.entities.TimeEntry.update(e.id, { status: "submitted" });
-    reload();
-  };
-  const myEntries = (timeEntries || []).filter((e) => e.contractor_id === contractor?.id).sort((a, b) => new Date(b.clock_in) - new Date(a.clock_in));
-  const entryHours = (e) => e.regular_hours != null ? e.regular_hours : (e.status === "open" ? (now - new Date(e.clock_in).getTime()) / 3600000 : 0);
-  const weekHours = myEntries.filter((e) => new Date(e.clock_in).getTime() > now - 7 * 86400000).reduce((s, e) => s + entryHours(e), 0);
 
   if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="w-8 h-8 border-2 border-slate-800 border-t-cyan-400 rounded-full animate-spin" /></div>;
 
@@ -292,32 +225,16 @@ export default function FieldApp() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-          <Clock className="w-4 h-4 text-cyan-400 mb-1.5" />
-          <div className="text-xl font-semibold">{todayHours.toFixed(1)}h</div>
-          <div className="text-xs text-slate-500">Today</div>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
           <Briefcase className="w-4 h-4 text-cyan-400 mb-1.5" />
           <div className="text-xl font-semibold">{myJobs.length}</div>
           <div className="text-xs text-slate-500">Assigned jobs</div>
         </div>
-      </div>
-
-      {/* Active shift */}
-      {openEntry && (
-        <div className="bg-gradient-to-br from-cyan-500/10 to-blue-600/10 border border-cyan-500/30 rounded-xl p-4 mb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-cyan-300/80 uppercase tracking-wide">Active shift</div>
-              <div className="text-lg font-semibold tabular-nums">{timerStr}</div>
-              <div className="text-xs text-slate-400 mt-0.5">{activeJob?.title || openEntry.job_title}</div>
-            </div>
-            <button onClick={clockOut} className="px-4 py-2.5 rounded-lg bg-rose-500 text-white text-sm font-medium flex items-center gap-1.5">
-              <Square className="w-4 h-4" /> Clock Out
-            </button>
-          </div>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+          <CheckCircle2 className="w-4 h-4 text-cyan-400 mb-1.5" />
+          <div className="text-xl font-semibold">{completedJobs}</div>
+          <div className="text-xs text-slate-500">Completed</div>
         </div>
-      )}
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-2 mb-4">
@@ -327,9 +244,6 @@ export default function FieldApp() {
         <button onClick={() => setTab("messages")} className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${tab === "messages" ? "bg-slate-800 text-slate-100 border border-slate-700" : "text-slate-400"}`}>
           <MessageSquare className="w-4 h-4" /> Messages
           {conversations.reduce((s, c) => s + c.unread, 0) > 0 && <span className="bg-cyan-500 text-slate-950 text-[10px] font-bold rounded-full px-1.5">{conversations.reduce((s, c) => s + c.unread, 0)}</span>}
-        </button>
-        <button onClick={() => setTab("timesheets")} className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${tab === "timesheets" ? "bg-slate-800 text-slate-100 border border-slate-700" : "text-slate-400"}`}>
-          <Clock className="w-4 h-4" /> Timesheets
         </button>
       </div>
 
@@ -380,42 +294,6 @@ export default function FieldApp() {
             </div>
           )}
         </div>
-      ) : tab === "timesheets" ? (
-        <div className="space-y-3">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-500">This week</div>
-              <div className="text-lg font-semibold">{weekHours.toFixed(1)}h</div>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-slate-500">Entries</div>
-              <div className="text-lg font-semibold">{myEntries.length}</div>
-            </div>
-          </div>
-          {myEntries.length === 0 ? (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-sm text-slate-500">No time entries yet. Clock in from the Jobs tab.</div>
-          ) : myEntries.map((e) => {
-            const hrs = entryHours(e);
-            return (
-              <div key={e.id} className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{e.job_title || "—"}</div>
-                    <div className="text-xs text-slate-500">{fmtTime(e.clock_in)} → {e.clock_out ? fmtTime(e.clock_out) : "active"}</div>
-                  </div>
-                  <span className={`text-[10px] px-2 py-1 rounded-full capitalize shrink-0 ${entryStatusStyles[e.status] || "bg-slate-700 text-slate-300"}`}>{e.status}</span>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <div className="text-sm text-slate-300">{hrs.toFixed(2)}h</div>
-                  {e.status === "open" && (
-                    <button onClick={() => submitEntry(e)} className="text-xs px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium">Submit</button>
-                  )}
-                </div>
-                {e.notes && <div className="text-xs text-slate-500 mt-2">{e.notes}</div>}
-              </div>
-            );
-          })}
-        </div>
       ) : (
         <>
       {/* Jobs */}
@@ -426,7 +304,6 @@ export default function FieldApp() {
         <div className="space-y-3">
           {myJobs.map((job) => {
             const n = next(job);
-            const isActive = openEntry?.job_id === job.id;
             return (
               <div key={job.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -446,17 +323,6 @@ export default function FieldApp() {
                     <button onClick={() => setJobStatus(job, n.status)} className="flex-1 py-2.5 rounded-lg bg-cyan-500 text-slate-950 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
                       {n.status === "complete" ? <CheckCircle2 className="w-4 h-4" /> : n.status === "en_route" ? <Truck className="w-4 h-4" /> : n.status === "scanning" ? <Camera className="w-4 h-4" /> : <Flag className="w-4 h-4" />}
                       {n.label}
-                    </button>
-                  )}
-                </div>
-                <div className="flex gap-2 mt-2">
-                  {isActive ? (
-                    <button onClick={clockOut} className="flex-1 py-2.5 rounded-lg bg-rose-500/15 text-rose-300 text-sm font-medium flex items-center justify-center gap-1.5">
-                      <Square className="w-4 h-4" /> Clock Out
-                    </button>
-                  ) : (
-                    <button onClick={() => clockIn(job)} className="flex-1 py-2.5 rounded-lg bg-emerald-500/15 text-emerald-300 text-sm font-medium flex items-center justify-center gap-1.5">
-                      <Play className="w-4 h-4" /> Clock In
                     </button>
                   )}
                 </div>

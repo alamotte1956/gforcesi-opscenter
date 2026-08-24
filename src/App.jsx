@@ -19,7 +19,6 @@ import Contractors from '@/pages/Contractors';
 import ContractorOnboarding from '@/pages/ContractorOnboarding';
 import Clients from '@/pages/Clients';
 import Invoices from '@/pages/Invoices';
-import Timesheets from '@/pages/Timesheets';
 import Equipment from '@/pages/Equipment';
 import Analytics from '@/pages/Analytics';
 import Settings from '@/pages/Settings';
@@ -69,7 +68,6 @@ const AuthenticatedApp = () => {
           <Route path="/contractors/onboarding" element={<ContractorOnboarding />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/invoices" element={<Invoices />} />
-          <Route path="/timesheets" element={<Timesheets />} />
           <Route path="/equipment" element={<Equipment />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />
