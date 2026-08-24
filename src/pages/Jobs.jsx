@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Search, Table as TableIcon } from "lucide-react";
+import { Plus, Search, Table as TableIcon, Clock } from "lucide-react";
 
 const statusOptions = [
   "scheduled", "en_route", "on_site", "scanning", "processing", "complete", "invoiced",
@@ -27,13 +27,15 @@ const fmtDate = (v) => v ? new Date(v).toLocaleString("en-US", { month: "short",
 
 export default function Jobs() {
   const [jobs, setJobs] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const load = async () => {
-    const data = await base44.entities.Job.list("-scheduled_start");
+    const [data, cls] = await Promise.all([base44.entities.Job.list("-scheduled_start"), base44.entities.Client.list()]);
     setJobs(data);
+    setClients(cls);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -51,6 +53,18 @@ export default function Jobs() {
   const updateField = async (id, patch) => {
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
     await base44.entities.Job.update(id, patch);
+  };
+
+  const hoursInfo = (job) => {
+    const client = clients.find((c) => c.id === job.client_id);
+    if (!client || !client.opening_time || !client.closing_time) return { text: null, warn: false };
+    const text = `${client.opening_time}–${client.closing_time}`;
+    if (!job.scheduled_start) return { text, warn: false };
+    const t = new Date(job.scheduled_start);
+    const mins = t.getHours() * 60 + t.getMinutes();
+    const [oh, om] = client.opening_time.split(":").map(Number);
+    const [ch, cm] = client.closing_time.split(":").map(Number);
+    return { text, warn: mins < oh * 60 + om || mins > ch * 60 + cm };
   };
 
   return (
@@ -112,7 +126,10 @@ export default function Jobs() {
                 <tr key={j.id} className="border-b border-slate-800/60 hover:bg-slate-800/40 align-top">
                   <td className="px-3 py-2.5 font-medium text-slate-200 whitespace-nowrap">{j.title}</td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{j.project_name || "—"}</td>
-                  <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{j.client_name || "—"}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    <div className="text-slate-400">{j.client_name || "—"}</div>
+                    {(() => { const h = hoursInfo(j); return h.text ? <div className={`text-[10px] flex items-center gap-1 ${h.warn ? "text-amber-400" : "text-slate-500"}`}><Clock className="w-3 h-3" />{h.text}{h.warn && " · outside"}</div> : null; })()}
+                  </td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap max-w-[200px] truncate" title={j.site_address}>{j.site_address || "—"}</td>
                   <td className="px-3 py-2.5">
                     <select

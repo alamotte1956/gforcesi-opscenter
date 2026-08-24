@@ -48,6 +48,15 @@
       ],
       "default": "none"
     },
+    "opening_time": {
+      "type": "string"
+    },
+    "closing_time": {
+      "type": "string"
+    },
+    "access_notes": {
+      "type": "string"
+    },
     "notes": {
       "type": "string"
     }

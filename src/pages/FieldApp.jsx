@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Satellite, LogOut, ArrowLeft, Navigation, Clock, MapPin,
   Play, Square, CheckCircle2, Truck, Camera, Flag, User, Briefcase,
+  MessageSquare, Send, Mail,
 } from "lucide-react";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
@@ -40,6 +41,12 @@ export default function FieldApp() {
   const [timeEntries, setTimeEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
+  const [clients, setClients] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [tab, setTab] = useState("jobs");
+  const [threadPartner, setThreadPartner] = useState(null);
+  const [msgText, setMsgText] = useState("");
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 15000);
@@ -48,12 +55,14 @@ export default function FieldApp() {
 
   useEffect(() => {
     (async () => {
-      const [user, cons] = await Promise.all([
+      const [user, cons, cls] = await Promise.all([
         base44.auth.me().catch(() => null),
         base44.entities.Contractor.list(),
+        base44.entities.Client.list(),
       ]);
       setMe(user);
       setContractors(cons);
+      setClients(cls);
       const matched = cons.find((c) => c.email && user?.email && c.email.toLowerCase() === user.email.toLowerCase());
       if (matched) setContractor(matched);
       setLoading(false);
@@ -83,6 +92,14 @@ export default function FieldApp() {
       setJobs(allJobs);
       setTimeEntries(entries);
     })();
+  }, [contractor?.id]);
+
+  useEffect(() => {
+    if (!contractor) return;
+    const loadMsgs = async () => setMessages(await base44.entities.Message.list("created_date"));
+    loadMsgs();
+    const unsub = base44.entities.Message.subscribe(loadMsgs);
+    return unsub;
   }, [contractor?.id]);
 
   const isAdmin = me?.role === "admin";
@@ -153,6 +170,44 @@ export default function FieldApp() {
   };
 
   const logout = async () => { await base44.auth.logout(); navigate("/login"); };
+
+  const myMsgId = contractor?.id;
+  const conversations = useMemo(() => {
+    const map = {};
+    messages.forEach((m) => {
+      if (m.sender_id !== myMsgId && m.recipient_id !== myMsgId) return;
+      const otherId = m.sender_id === myMsgId ? m.recipient_id : m.sender_id;
+      const otherName = m.sender_id === myMsgId ? m.recipient_name : m.sender_name;
+      if (!map[otherId]) map[otherId] = { id: otherId, name: otherName || "Team", last: m, unread: 0 };
+      if (new Date(m.created_date) > new Date(map[otherId].last.created_date)) map[otherId].last = m;
+      if (m.recipient_id === myMsgId && !m.read) map[otherId].unread++;
+    });
+    return Object.values(map).sort((a, b) => new Date(b.last.created_date) - new Date(a.last.created_date));
+  }, [messages, myMsgId]);
+
+  const thread = useMemo(() => messages
+    .filter((m) => (m.sender_id === myMsgId && m.recipient_id === threadPartner) || (m.sender_id === threadPartner && m.recipient_id === myMsgId))
+    .sort((a, b) => new Date(a.created_date) - new Date(b.created_date)), [messages, myMsgId, threadPartner]);
+
+  const sendMsg = async (alsoEmail) => {
+    if (!msgText.trim() || !threadPartner) return;
+    setSending(true);
+    const partner = conversations.find((c) => c.id === threadPartner);
+    await base44.entities.Message.create({
+      sender_id: myMsgId, sender_name: contractor.name,
+      recipient_id: threadPartner, recipient_name: partner?.name,
+      body: msgText.trim(), channel: alsoEmail ? "email" : "app", read: false,
+    });
+    if (alsoEmail) {
+      try { await base44.functions.invoke("sendTeamEmail", { recipient_id: threadPartner, body: msgText.trim(), sender_name: contractor.name }); } catch (e) {}
+    }
+    setMsgText(""); setSending(false);
+  };
+
+  const clientHours = (job) => {
+    const c = clients.find((cl) => cl.id === job.client_id);
+    return c && c.opening_time && c.closing_time ? `${c.opening_time}–${c.closing_time}` : null;
+  };
 
   if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="w-8 h-8 border-2 border-slate-800 border-t-cyan-400 rounded-full animate-spin" /></div>;
 
@@ -250,6 +305,66 @@ export default function FieldApp() {
         </div>
       )}
 
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setTab("jobs")} className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${tab === "jobs" ? "bg-slate-800 text-slate-100 border border-slate-700" : "text-slate-400"}`}>
+          <Briefcase className="w-4 h-4" /> Jobs
+        </button>
+        <button onClick={() => setTab("messages")} className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${tab === "messages" ? "bg-slate-800 text-slate-100 border border-slate-700" : "text-slate-400"}`}>
+          <MessageSquare className="w-4 h-4" /> Messages
+          {conversations.reduce((s, c) => s + c.unread, 0) > 0 && <span className="bg-cyan-500 text-slate-950 text-[10px] font-bold rounded-full px-1.5">{conversations.reduce((s, c) => s + c.unread, 0)}</span>}
+        </button>
+      </div>
+
+      {tab === "messages" ? (
+        <div className="space-y-3">
+          {!threadPartner ? (
+            <>
+              {conversations.length === 0 ? (
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-sm text-slate-500">No messages yet. Your dispatcher will reach out here.</div>
+              ) : conversations.map((c) => (
+                <button key={c.id} onClick={() => setThreadPartner(c.id)} className="w-full text-left bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center gap-3 hover:border-slate-700">
+                  <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold">{c.name?.charAt(0)}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">{c.name}</div>
+                    <div className="text-xs text-slate-500 truncate">{c.last.body}</div>
+                  </div>
+                  {c.unread > 0 && <span className="bg-cyan-500 text-slate-950 text-[10px] font-bold rounded-full px-1.5">{c.unread}</span>}
+                </button>
+              ))}
+            </>
+          ) : (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl flex flex-col" style={{ minHeight: "55vh" }}>
+              <div className="px-3 py-2.5 border-b border-slate-800 flex items-center gap-2">
+                <button onClick={() => setThreadPartner(null)} className="text-slate-400 text-xs">← Back</button>
+                <div className="text-sm font-medium">{conversations.find((c) => c.id === threadPartner)?.name}</div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {thread.map((m) => {
+                  const mine = m.sender_id === myMsgId;
+                  return (
+                    <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${mine ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-200"}`}>
+                        <div className="whitespace-pre-wrap">{m.body}</div>
+                        <div className={`text-[10px] mt-1 flex items-center gap-1 ${mine ? "text-slate-700" : "text-slate-500"}`}>{m.channel === "email" && <Mail className="w-3 h-3" />}{fmtTime(m.created_date)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {thread.length === 0 && <div className="text-center text-sm text-slate-600 py-6">Start the conversation</div>}
+              </div>
+              <div className="p-3 border-t border-slate-800">
+                <textarea value={msgText} onChange={(e) => setMsgText(e.target.value)} rows={2} placeholder="Reply…" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none" />
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => sendMsg(true)} disabled={sending || !msgText.trim()} className="flex-1 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center justify-center gap-1.5 disabled:opacity-50"><Mail className="w-4 h-4" /> Email</button>
+                  <button onClick={() => sendMsg(false)} disabled={sending || !msgText.trim()} className="flex-1 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center justify-center gap-1.5 disabled:opacity-50"><Send className="w-4 h-4" /> Send</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
       {/* Jobs */}
       <div className="text-xs font-medium text-slate-400 mb-2">Assigned Jobs</div>
       {myJobs.length === 0 ? (
@@ -266,6 +381,7 @@ export default function FieldApp() {
                     <div className="font-medium text-slate-100">{job.title}</div>
                     <div className="text-xs text-slate-500 flex items-center gap-1 mt-1"><MapPin className="w-3 h-3 shrink-0" />{job.site_address || "Remote"}</div>
                     <div className="text-xs text-slate-500 mt-0.5">{job.project_name} {job.scheduled_start && `· ${fmtTime(job.scheduled_start)}`}</div>
+                    {clientHours(job) && <div className="text-xs text-cyan-300/80 flex items-center gap-1 mt-0.5"><Clock className="w-3 h-3" />Site hours: {clientHours(job)}</div>}
                   </div>
                   <span className={`text-[10px] px-2 py-1 rounded-full capitalize shrink-0 ${statusStyles[job.status] || statusStyles.scheduled}`}>{job.status?.replace("_", " ")}</span>
                 </div>
@@ -295,6 +411,8 @@ export default function FieldApp() {
             );
           })}
         </div>
+      )}
+        </>
       )}
     </Shell>
   );

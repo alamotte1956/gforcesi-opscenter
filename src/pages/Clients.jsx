@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Building2, Mail, FileText, Globe, Shield } from "lucide-react";
+import { Plus, Building2, Mail, FileText, Globe, Shield, Clock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -20,6 +20,19 @@ export default function Clients() {
   const { toast } = useToast();
   const [editClient, setEditClient] = useState(null);
   const [portalForm, setPortalForm] = useState({ portal_email: "", portal_access_level: "none" });
+  const [hoursClient, setHoursClient] = useState(null);
+  const [hoursForm, setHoursForm] = useState({ opening_time: "", closing_time: "", access_notes: "" });
+
+  const openHours = (c) => {
+    setHoursClient(c);
+    setHoursForm({ opening_time: c.opening_time || "", closing_time: c.closing_time || "", access_notes: c.access_notes || "" });
+  };
+  const saveHours = async () => {
+    await base44.entities.Client.update(hoursClient.id, hoursForm);
+    toast({ title: "Site hours updated", description: hoursClient.name });
+    setHoursClient(null);
+    load();
+  };
 
   const openEdit = (c) => {
     setEditClient(c);
@@ -86,6 +99,16 @@ export default function Clients() {
                 </div>
                 <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs">
+                    <Clock className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-slate-500">Hours:</span>
+                    <span className="text-slate-300">{c.opening_time && c.closing_time ? `${c.opening_time}–${c.closing_time}` : "Not set"}</span>
+                  </div>
+                  <button onClick={() => openHours(c)} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" /> Set hours
+                  </button>
+                </div>
+                <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs">
                     <Globe className="w-3.5 h-3.5 text-slate-500" />
                     <span className="text-slate-500">Portal:</span>
                     <span className={`capitalize ${c.portal_access_level === "full" ? "text-emerald-300" : c.portal_access_level === "limited" ? "text-amber-300" : "text-slate-500"}`}>
@@ -135,6 +158,34 @@ export default function Clients() {
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setEditClient(null)} className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-slate-200">Cancel</button>
             <button onClick={savePortal} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400">Save</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!hoursClient} onOpenChange={(v) => !v && setHoursClient(null)}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Clock className="w-4 h-4 text-cyan-400" /> Site hours — {hoursClient?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Opening time</label>
+                <input type="time" value={hoursForm.opening_time} onChange={(e) => setHoursForm((f) => ({ ...f, opening_time: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Closing time</label>
+                <input type="time" value={hoursForm.closing_time} onChange={(e) => setHoursForm((f) => ({ ...f, closing_time: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Access notes</label>
+              <textarea value={hoursForm.access_notes} onChange={(e) => setHoursForm((f) => ({ ...f, access_notes: e.target.value }))} rows={2} placeholder="e.g. Call 30 min before arrival, check in at front desk" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setHoursClient(null)} className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-slate-200">Cancel</button>
+            <button onClick={saveHours} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400">Save</button>
           </div>
         </DialogContent>
       </Dialog>

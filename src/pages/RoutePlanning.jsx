@@ -44,12 +44,14 @@ function computeRoute(contractor, stops, startTime) {
 export default function RoutePlanning() {
   const [jobs, setJobs] = useState([]);
   const [contractors, setContractors] = useState([]);
+  const [clients, setClients] = useState([]);
   const [assignments, setAssignments] = useState({ pool: [] });
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const [j, c] = await Promise.all([base44.entities.Job.list(), base44.entities.Contractor.list()]);
+    const [j, c, cls] = await Promise.all([base44.entities.Job.list(), base44.entities.Contractor.list(), base44.entities.Client.list()]);
+    setClients(cls);
     const active = j.filter((job) => !["complete", "invoiced"].includes(job.status));
     const field = c.filter((con) => fieldRoles.includes(con.role));
     setJobs(active);
@@ -131,6 +133,16 @@ export default function RoutePlanning() {
   const selectedContractor = contractors.find((c) => c.id === selected);
   const selectedStops = (assignments[selected] || []).map(jobById).filter(Boolean);
   const route = useMemo(() => computeRoute(selectedContractor, selectedStops), [selectedContractor, selectedStops]);
+
+  const hoursWarn = (job, arrival) => {
+    const client = clients.find((c) => c.id === job.client_id);
+    if (!client || !client.opening_time || !client.closing_time) return null;
+    const mins = arrival.getHours() * 60 + arrival.getMinutes();
+    const [oh, om] = client.opening_time.split(":").map(Number);
+    const [ch, cm] = client.closing_time.split(":").map(Number);
+    if (mins < oh * 60 + om || mins > ch * 60 + cm) return `${client.opening_time}–${client.closing_time}`;
+    return null;
+  };
 
   if (loading) {
     return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" /></div>;
@@ -282,6 +294,7 @@ export default function RoutePlanning() {
                       <div className="text-right shrink-0">
                         <div className="text-cyan-300">{fmtTime(s.arrival)}</div>
                         {s.mi != null && <div className="text-slate-500">{s.mi.toFixed(1)} mi</div>}
+                        {(() => { const w = hoursWarn(s.job, s.arrival); return w ? <div className="text-amber-400 text-[10px] flex items-center gap-0.5 justify-end"><Clock className="w-3 h-3" />outside {w}</div> : null; })()}
                       </div>
                     </div>
                   ))}
