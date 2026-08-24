@@ -26,6 +26,7 @@ import Settings from '@/pages/Settings';
 import Compliance from '@/pages/Compliance';
 import ClientPortal from '@/pages/ClientPortal';
 import RoutePlanning from '@/pages/RoutePlanning';
+import FieldApp from '@/pages/FieldApp';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -55,6 +56,7 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/portal" element={<ClientPortal />} />
+        <Route path="/field" element={<FieldApp />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/jobs" element={<Jobs />} />

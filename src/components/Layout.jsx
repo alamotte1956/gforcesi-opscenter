@@ -34,6 +34,11 @@ export default function Layout() {
           const linked = await base44.entities.Client.filter({ portal_email: me.email });
           if (linked.length && linked[0].portal_access_level !== "none") {
             navigate("/portal", { replace: true });
+            return;
+          }
+          const cons = await base44.entities.Contractor.filter({ email: me.email });
+          if (cons.length && ["Field Technician", "Field Pilot"].includes(cons[0].role)) {
+            navigate("/field", { replace: true });
           }
         }
       } catch {}
