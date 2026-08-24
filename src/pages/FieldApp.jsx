@@ -62,29 +62,57 @@ export default function FieldApp() {
 
   useEffect(() => {
     (async () => {
-      const [user, cons, cls] = await Promise.all([
-        base44.auth.me().catch(() => null),
-        base44.entities.Contractor.list(),
-        base44.entities.Client.list(),
-      ]);
-      setMe(user);
-      setContractors(cons);
-      setClients(cls);
-      const matched = cons.find((c) => c.email && user?.email && c.email.toLowerCase() === user.email.toLowerCase());
-      if (matched) setContractor(matched);
-      setLoading(false);
+      try {
+        const [user, cons, cls] = await Promise.all([
+          base44.auth.me(),
+          base44.entities.Contractor.list(),
+          base44.entities.Client.list(),
+        ]);
+        setMe(user); setContractors(cons); setClients(cls);
+        const matched = cons.find((c) => c.email && user?.email && c.email.toLowerCase() === user.email.toLowerCase());
+        if (matched) {
+          setContractor(matched);
+          try {
+            localStorage.setItem("gforce_field_contractor", JSON.stringify(matched));
+            localStorage.setItem("gforce_field_contractors", JSON.stringify(cons));
+            localStorage.setItem("gforce_field_clients", JSON.stringify(cls));
+          } catch {}
+        }
+        setLoading(false);
+      } catch (e) {
+        // Offline (or API unreachable) — hydrate from cache so the field crew
+        // can still view their assigned job details and site addresses.
+        try {
+          const cachedContractor = JSON.parse(localStorage.getItem("gforce_field_contractor") || "null");
+          const cachedContractors = JSON.parse(localStorage.getItem("gforce_field_contractors") || "[]");
+          const cachedClients = JSON.parse(localStorage.getItem("gforce_field_clients") || "[]");
+          const cachedJobs = JSON.parse(localStorage.getItem("gforce_field_jobs_cache") || "[]");
+          if (cachedContractor) {
+            setContractor(cachedContractor);
+            setContractors(cachedContractors.length ? cachedContractors : [cachedContractor]);
+            setClients(cachedClients);
+            setJobs(cachedJobs);
+          }
+        } catch {}
+        setLoading(false);
+      }
     })();
   }, []);
 
   const reload = async () => {
     if (!contractor) return;
-    const [allJobs, cons] = await Promise.all([
-      base44.entities.Job.list(),
-      base44.entities.Contractor.list(),
-    ]);
-    setJobs(allJobs);
-    const updated = cons.find((c) => c.id === contractor.id);
-    if (updated) setContractor(updated);
+    try {
+      const [allJobs, cons] = await Promise.all([
+        base44.entities.Job.list(),
+        base44.entities.Contractor.list(),
+      ]);
+      setJobs(allJobs);
+      try { localStorage.setItem("gforce_field_jobs_cache", JSON.stringify(allJobs)); } catch {}
+      const updated = cons.find((c) => c.id === contractor.id);
+      if (updated) setContractor(updated);
+    } catch (e) {
+      // Offline — keep current cached state; queued changes sync on reconnect.
+    }
   };
 
   useEffect(() => {
