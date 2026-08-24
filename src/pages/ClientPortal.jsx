@@ -5,6 +5,7 @@ import {
   Satellite, LogOut, ArrowLeft, Building2, MapPin, Calendar,
   FileText, CheckCircle2, Clock, Activity, Loader2,
 } from "lucide-react";
+import AiAdvisor from "@/components/AiAdvisor";
 
 const stages = [
   { key: "scheduled", label: "Scheduled" },
@@ -86,7 +87,7 @@ export default function ClientPortal() {
 
   if (!activeClient) {
     return (
-      <Shell me={me} onLogout={logout}>
+      <Shell me={me} onLogout={logout} summary={{}}>
         <div className="max-w-md mx-auto mt-20 text-center">
           <Building2 className="w-12 h-12 text-slate-700 mx-auto mb-4" />
           <h2 className="text-lg font-semibold mb-2">{isAdmin ? "Select a client to preview" : "Portal access not configured"}</h2>
@@ -106,7 +107,7 @@ export default function ClientPortal() {
 
   if (activeClient.portal_access_level === "none" && !isAdmin) {
     return (
-      <Shell me={me} onLogout={logout}>
+      <Shell me={me} onLogout={logout} summary={{}}>
         <div className="max-w-md mx-auto mt-20 text-center">
           <Clock className="w-12 h-12 text-amber-500/50 mx-auto mb-4" />
           <h2 className="text-lg font-semibold mb-2">Access pending</h2>
@@ -119,7 +120,7 @@ export default function ClientPortal() {
   const limited = activeClient.portal_access_level === "limited";
 
   return (
-    <Shell me={me} onLogout={logout} client={activeClient}>
+    <Shell me={me} onLogout={logout} client={activeClient} summary={{ client: activeClient.name, accessLevel: activeClient.portal_access_level, activeJobs: stats.active, inProgress: stats.inProgress, completed: stats.complete, invoiced: stats.invoiced, projects: clientProjects.length, invoices: clientInvoices.length, outstanding: clientInvoices.filter((i) => ["sent", "synced", "overdue"].includes(i.status)).reduce((s, i) => s + (i.total || 0), 0) }}>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Welcome, {activeClient.company || activeClient.name}</h1>
@@ -249,7 +250,7 @@ export default function ClientPortal() {
   );
 }
 
-function Shell({ me, onLogout, client, children }) {
+function Shell({ me, onLogout, client, children, summary }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
@@ -275,6 +276,7 @@ function Shell({ me, onLogout, client, children }) {
         </div>
       </header>
       <main className="max-w-5xl mx-auto px-4 lg:px-6 py-6">{children}</main>
+      <AiAdvisor page="Client Portal" summary={summary} />
     </div>
   );
 }

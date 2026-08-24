@@ -6,6 +6,7 @@ import {
   CheckCircle2, Truck, Camera, Flag, User, Briefcase,
   MessageSquare, Send, Mail,
 } from "lucide-react";
+import AiAdvisor from "@/components/AiAdvisor";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
 const myStatuses = [
@@ -160,7 +161,7 @@ export default function FieldApp() {
 
   if (!contractor) {
     return (
-      <Shell me={me} onLogout={logout}>
+      <Shell me={me} onLogout={logout} summary={{}}>
         <div className="max-w-md mx-auto mt-16 text-center">
           <Briefcase className="w-12 h-12 text-slate-700 mx-auto mb-4" />
           <h2 className="text-lg font-semibold mb-2">{isAdmin ? "Select a field crew to preview" : "Field access not configured"}</h2>
@@ -189,7 +190,7 @@ export default function FieldApp() {
   };
 
   return (
-    <Shell me={me} onLogout={logout} contractor={contractor}>
+    <Shell me={me} onLogout={logout} contractor={contractor} summary={{ contractor: contractor.name, status: contractor.current_status, assignedJobs: myJobs.length, completedJobs, jobStatuses: myJobs.reduce((m, j) => { m[j.status] = (m[j.status] || 0) + 1; return m; }, {}) }}>
       {/* Status card */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
@@ -337,7 +338,7 @@ export default function FieldApp() {
   );
 }
 
-function Shell({ me, onLogout, contractor, children }) {
+function Shell({ me, onLogout, contractor, children, summary }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
@@ -363,6 +364,7 @@ function Shell({ me, onLogout, contractor, children }) {
         </div>
       </header>
       <main className="max-w-md mx-auto px-4 py-4 pb-10">{children}</main>
+      <AiAdvisor page="Field App" summary={summary} />
     </div>
   );
 }

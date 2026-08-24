@@ -5,6 +5,7 @@ import {
   Map, KanbanSquare, FolderKanban, Users, Building2, FileText,
   Boxes, BarChart3, Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog
 } from "lucide-react";
+import AiAdvisor from "@/components/AiAdvisor";
 
 const navItems = [
   { to: "/", label: "Live Map", icon: Map, end: true },
@@ -123,6 +124,7 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      <AiAdvisor />
     </div>
   );
 }
