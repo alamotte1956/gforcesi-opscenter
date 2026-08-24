@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Satellite, LogOut, ArrowLeft, Navigation, Clock, MapPin,
   CheckCircle2, Truck, Camera, Flag, User, Briefcase,
-  MessageSquare, Send, Mail, ClipboardList, Receipt,
+  MessageSquare, Send, Mail, ClipboardList, Receipt, Loader2,
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
@@ -53,6 +53,7 @@ export default function FieldApp() {
   const [expForm, setExpForm] = useState({ description: "", amount: "", category: "labor", vendor_name: "", date: new Date().toISOString().slice(0, 10), job_id: "", notes: "" });
   const [expSaving, setExpSaving] = useState(false);
   const [expSaved, setExpSaved] = useState(false);
+  const [uploadingJobId, setUploadingJobId] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -207,6 +208,18 @@ export default function FieldApp() {
     setExpSaving(false);
     setExpSaved(true);
     setTimeout(() => setExpSaved(false), 2500);
+  };
+
+  const handlePhoto = async (job, file) => {
+    setUploadingJobId(job.id);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      await base44.functions.invoke("addJobPhoto", { job_id: job.id, photo_url: file_url, uploaded_by_name: contractor.name });
+      await reload();
+    } catch (e) {
+    } finally {
+      setUploadingJobId(null);
+    }
   };
 
   const clientHours = (job) => {
@@ -441,6 +454,7 @@ export default function FieldApp() {
                     <div className="text-xs text-slate-500 flex items-center gap-1 mt-1"><MapPin className="w-3 h-3 shrink-0" />{job.site_address || "Remote"}</div>
                     <div className="text-xs text-slate-500 mt-0.5">{job.project_name} {job.scheduled_start && `· ${fmtTime(job.scheduled_start)}`}</div>
                     {clientHours(job) && <div className="text-xs text-cyan-300/80 flex items-center gap-1 mt-0.5"><Clock className="w-3 h-3" />Site hours: {clientHours(job)}</div>}
+                    {job.photos?.length > 0 && <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><Camera className="w-3 h-3" />{job.photos.length} photo{job.photos.length > 1 ? "s" : ""}</div>}
                   </div>
                   <span className={`text-[10px] px-2 py-1 rounded-full capitalize shrink-0 ${statusStyles[job.status] || statusStyles.scheduled}`}>{job.status?.replace("_", " ")}</span>
                 </div>
@@ -448,6 +462,11 @@ export default function FieldApp() {
                   <a href={navUrl(job)} target="_blank" rel="noreferrer" className="flex-1 py-2.5 rounded-lg bg-blue-500/15 text-blue-300 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
                     <Navigation className="w-4 h-4" /> Navigate
                   </a>
+                  <label className="flex-1 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm font-medium flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform">
+                    {uploadingJobId === job.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                    {uploadingJobId === job.id ? "Uploading…" : "Photo"}
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhoto(job, f); e.target.value = ""; }} />
+                  </label>
                   {n && (
                     <button onClick={() => setJobStatus(job, n.status)} className="flex-1 py-2.5 rounded-lg bg-cyan-500 text-slate-950 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
                       {n.status === "complete" ? <CheckCircle2 className="w-4 h-4" /> : n.status === "en_route" ? <Truck className="w-4 h-4" /> : n.status === "scanning" ? <Camera className="w-4 h-4" /> : <Flag className="w-4 h-4" />}

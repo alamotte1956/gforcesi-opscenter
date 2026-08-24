@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { Link } from "react-router-dom";
 import { Plus, Search, Table as TableIcon, Clock } from "lucide-react";
 
 const statusOptions = [
@@ -124,7 +125,7 @@ export default function Jobs() {
             <tbody>
               {filtered.map((j) => (
                 <tr key={j.id} className="border-b border-slate-800/60 hover:bg-slate-800/40 align-top">
-                  <td className="px-3 py-2.5 font-medium text-slate-200 whitespace-nowrap">{j.title}</td>
+                  <td className="px-3 py-2.5 font-medium text-slate-200 whitespace-nowrap"><Link to={`/jobs/${j.id}`} className="text-cyan-300 hover:underline">{j.title}</Link></td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{j.project_name || "—"}</td>
                   <td className="px-3 py-2.5 whitespace-nowrap">
                     <div className="text-slate-400">{j.client_name || "—"}</div>

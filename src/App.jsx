@@ -16,6 +16,7 @@ import Terms from '@/pages/Terms';
 import Layout from '@/components/Layout';
 import Dashboard from '@/pages/Dashboard';
 import Jobs from '@/pages/Jobs';
+import JobDetail from '@/pages/JobDetail';
 import Projects from '@/pages/Projects';
 import Contractors from '@/pages/Contractors';
 import ContractorOnboarding from '@/pages/ContractorOnboarding';
@@ -70,6 +71,7 @@ const AuthenticatedApp = () => {
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/jobs" element={<Jobs />} />
+          <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/routes" element={<RoutePlanning />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/contractors" element={<Contractors />} />
