@@ -37,6 +37,7 @@ import DataImport from '@/pages/DataImport';
 import Matterport from '@/pages/Matterport';
 import Messages from '@/pages/Messages';
 import UserManagement from '@/pages/UserManagement';
+import Integrations from '@/pages/Integrations';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -91,6 +92,7 @@ const AuthenticatedApp = () => {
           <Route path="/matterport" element={<Matterport />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/users" element={<UserManagement />} />
+          <Route path="/integrations" element={<Integrations />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
