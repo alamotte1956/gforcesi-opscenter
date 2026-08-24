@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   Map, KanbanSquare, FolderKanban, Users, Building2, FileText,
-  Boxes, BarChart3, Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog, Receipt, ClipboardList, AlertTriangle, ClipboardCheck
+  Boxes, BarChart3, Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog, Receipt, ClipboardList, AlertTriangle, ClipboardCheck, ScanLine
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
@@ -30,6 +30,7 @@ const navItems = [
   { to: "/compliance", label: "Compliance", icon: ShieldCheck },
   { to: "/users", label: "User Management", icon: UserCog },
   { to: "/import", label: "Data Import", icon: FileSpreadsheet },
+  { to: "/matterport", label: "Matterport", icon: ScanLine },
   { to: "/settings", label: "QB Settings", icon: Settings },
   // External portal
   { to: "/portal", label: "Client Portal", icon: Globe },

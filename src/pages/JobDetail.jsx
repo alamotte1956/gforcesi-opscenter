@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag, ExternalLink, Link2, ScanLine } from "lucide-react";
 import { Image } from "@/components/ui/image";
+import { parseMatterportUrl } from "@/lib/matterport";
 
 const statusStyles = {
   scheduled: "bg-slate-700 text-slate-300",
@@ -20,6 +21,8 @@ export default function JobDetail() {
   const { id } = useParams();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mpInput, setMpInput] = useState("");
+  const [mpSaving, setMpSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -29,6 +32,28 @@ export default function JobDetail() {
       setLoading(false);
     })();
   }, [id]);
+
+  const saveMatterport = async () => {
+    const parsed = parseMatterportUrl(mpInput);
+    if (!parsed) return;
+    setMpSaving(true);
+    try {
+      await base44.entities.Job.update(job.id, {
+        matterport_model_id: parsed.modelId,
+        matterport_share_url: parsed.shareUrl,
+        matterport_embed_url: parsed.embedUrl,
+      });
+      setJob({ ...job, matterport_model_id: parsed.modelId, matterport_share_url: parsed.shareUrl, matterport_embed_url: parsed.embedUrl });
+      setMpInput("");
+    } finally {
+      setMpSaving(false);
+    }
+  };
+
+  const clearMatterport = async () => {
+    await base44.entities.Job.update(job.id, { matterport_model_id: "", matterport_share_url: "", matterport_embed_url: "" });
+    setJob({ ...job, matterport_model_id: "", matterport_share_url: "", matterport_embed_url: "" });
+  };
 
   if (loading) {
     return <div className="p-6 flex justify-center"><div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" /></div>;
@@ -65,6 +90,28 @@ export default function JobDetail() {
         <Info icon={Flag} label="Priority" value={job.priority} />
       </div>
 
+      <Section title="Matterport 3D Model" icon={ScanLine}>
+        {job.matterport_embed_url ? (
+          <>
+            <div className="aspect-video rounded-lg overflow-hidden bg-slate-800 border border-slate-800 mb-3">
+              <iframe src={job.matterport_embed_url} title={job.title} className="w-full h-full" allowFullScreen allow="xr-spatial-tracking" />
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-500 font-mono">Model: {job.matterport_model_id}</span>
+              <div className="flex gap-3">
+                <a href={job.matterport_share_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><ExternalLink className="w-3.5 h-3.5" />Open in Matterport</a>
+                <button onClick={clearMatterport} className="text-rose-400 hover:text-rose-300">Unlink</button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex gap-2">
+            <input value={mpInput} onChange={(e) => setMpInput(e.target.value)} placeholder="Paste Matterport share URL or model ID" className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500" />
+            <button onClick={saveMatterport} disabled={mpSaving || !mpInput.trim()} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm disabled:opacity-50 flex items-center gap-1.5"><Link2 className="w-4 h-4" />Link</button>
+          </div>
+        )}
+      </Section>
+
       {job.deliverables && (
         <Section title="Deliverables">
           <p className="text-sm text-slate-300">{job.deliverables}</p>
@@ -98,10 +145,10 @@ export default function JobDetail() {
   );
 }
 
-function Section({ title, children }) {
+function Section({ title, children, icon: Icon = Camera }) {
   return (
     <div className="mb-6">
-      <h2 className="text-sm font-medium text-slate-300 mb-2 flex items-center gap-2"><Camera className="w-4 h-4 text-cyan-400" />{title}</h2>
+      <h2 className="text-sm font-medium text-slate-300 mb-2 flex items-center gap-2"><Icon className="w-4 h-4 text-cyan-400" />{title}</h2>
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">{children}</div>
     </div>
   );

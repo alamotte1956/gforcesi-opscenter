@@ -34,6 +34,7 @@ import ClientPortal from '@/pages/ClientPortal';
 import RoutePlanning from '@/pages/RoutePlanning';
 import FieldApp from '@/pages/FieldApp';
 import DataImport from '@/pages/DataImport';
+import Matterport from '@/pages/Matterport';
 import Messages from '@/pages/Messages';
 import UserManagement from '@/pages/UserManagement';
 
@@ -87,6 +88,7 @@ const AuthenticatedApp = () => {
           <Route path="/settings" element={<Settings />} />
           <Route path="/compliance" element={<Compliance />} />
           <Route path="/import" element={<DataImport />} />
+          <Route path="/matterport" element={<Matterport />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/users" element={<UserManagement />} />
         </Route>

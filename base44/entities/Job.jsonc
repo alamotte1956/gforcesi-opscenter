@@ -114,6 +114,19 @@
           }
         }
       }
+    },
+    "matterport_model_id": {
+      "type": "string"
+    },
+    "matterport_share_url": {
+      "type": "string"
+    },
+    "matterport_embed_url": {
+      "type": "string"
+    },
+    "matterport_synced_at": {
+      "type": "string",
+      "format": "date-time"
     }
   },
   "required": [

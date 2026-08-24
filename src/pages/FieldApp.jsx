@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
+import { parseMatterportUrl } from "@/lib/matterport";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
 const myStatuses = [
@@ -54,6 +55,7 @@ export default function FieldApp() {
   const [expSaving, setExpSaving] = useState(false);
   const [expSaved, setExpSaved] = useState(false);
   const [uploadingJobId, setUploadingJobId] = useState(null);
+  const [mpScanInput, setMpScanInput] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -114,8 +116,8 @@ export default function FieldApp() {
     reload();
   };
 
-  const setJobStatus = async (job, status) => {
-    await base44.functions.invoke("updateJobStatus", { job_id: job.id, status });
+  const setJobStatus = async (job, status, matterport) => {
+    await base44.functions.invoke("updateJobStatus", { job_id: job.id, status, matterport });
     const map = {
       en_route: { current_status: "en_route" },
       on_site: { current_status: "on_site" },
@@ -125,6 +127,7 @@ export default function FieldApp() {
     };
     if (map[status]) await base44.entities.Contractor.update(contractor.id, map[status]);
     reload();
+    if (matterport) setMpScanInput("");
   };
 
   const logout = async () => { await base44.auth.logout(); navigate("/login"); };
@@ -458,6 +461,9 @@ export default function FieldApp() {
                   </div>
                   <span className={`text-[10px] px-2 py-1 rounded-full capitalize shrink-0 ${statusStyles[job.status] || statusStyles.scheduled}`}>{job.status?.replace("_", " ")}</span>
                 </div>
+                {job.status === "scanning" && (
+                  <input value={mpScanInput} onChange={(e) => setMpScanInput(e.target.value)} placeholder="Matterport model URL or ID (paste when scan done)" className="w-full mt-3 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500" />
+                )}
                 <div className="flex gap-2 mt-3">
                   <a href={navUrl(job)} target="_blank" rel="noreferrer" className="flex-1 py-2.5 rounded-lg bg-blue-500/15 text-blue-300 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
                     <Navigation className="w-4 h-4" /> Navigate
@@ -468,7 +474,14 @@ export default function FieldApp() {
                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhoto(job, f); e.target.value = ""; }} />
                   </label>
                   {n && (
-                    <button onClick={() => setJobStatus(job, n.status)} className="flex-1 py-2.5 rounded-lg bg-cyan-500 text-slate-950 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+                    <button onClick={() => {
+                      let mp;
+                      if (job.status === "scanning" && mpScanInput.trim()) {
+                        const parsed = parseMatterportUrl(mpScanInput);
+                        if (parsed) mp = parsed;
+                      }
+                      setJobStatus(job, n.status, mp);
+                    }} className="flex-1 py-2.5 rounded-lg bg-cyan-500 text-slate-950 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
                       {n.status === "complete" ? <CheckCircle2 className="w-4 h-4" /> : n.status === "en_route" ? <Truck className="w-4 h-4" /> : n.status === "scanning" ? <Camera className="w-4 h-4" /> : <Flag className="w-4 h-4" />}
                       {n.label}
                     </button>

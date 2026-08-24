@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Satellite, LogOut, ArrowLeft, Building2, MapPin, Calendar,
-  FileText, CheckCircle2, Clock, Activity, Loader2, Send, MessageSquare,
+  FileText, CheckCircle2, Clock, Activity, Loader2, Send, MessageSquare, ScanLine,
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
@@ -240,6 +240,14 @@ export default function ClientPortal() {
                     <div className="mt-4 pt-3 border-t border-slate-800 space-y-1 text-xs text-slate-500">
                       {job.assigned_contractor_names?.length > 0 && <div>Assigned: {job.assigned_contractor_names.join(", ")}</div>}
                       {job.deliverables && <div>Deliverables: {job.deliverables}</div>}
+                    </div>
+                  )}
+
+                  {job.matterport_share_url && ["complete", "invoiced"].includes(job.status) && (
+                    <div className="mt-3 pt-3 border-t border-slate-800">
+                      <a href={job.matterport_share_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25">
+                        <ScanLine className="w-3.5 h-3.5" /> View 3D Model
+                      </a>
                     </div>
                   )}
                 </div>

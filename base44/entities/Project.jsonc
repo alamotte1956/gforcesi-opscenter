@@ -36,6 +36,12 @@
     },
     "notes": {
       "type": "string"
+    },
+    "matterport_model_id": {
+      "type": "string"
+    },
+    "matterport_share_url": {
+      "type": "string"
     }
   },
   "required": [
