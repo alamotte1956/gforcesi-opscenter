@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Globe, Shield, Clock } from "lucide-react";
+import FormModal from "@/components/FormModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function Clients() {
   const [clients, setClients] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", company: "", billing_contact_name: "", billing_email: "", billing_phone: "", billing_address: "", terms: "Net 30", default_rate: "", quickbooks_customer_id: "", portal_email: "", portal_access_level: "none", notes: "" });
+  const isAdmin = me?.role === "admin";
 
   const load = async () => {
-    const [c, inv] = await Promise.all([base44.entities.Client.list(), base44.entities.Invoice.list()]);
+    const [c, inv, user] = await Promise.all([base44.entities.Client.list(), base44.entities.Invoice.list(), base44.auth.me().catch(() => null)]);
     setClients(c);
     setInvoices(inv);
+    setMe(user);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -45,6 +51,29 @@ export default function Clients() {
     load();
   };
 
+  const createClient = async () => {
+    if (!form.name) return;
+    const name = form.name;
+    await base44.entities.Client.create({
+      name,
+      company: form.company || undefined,
+      billing_contact_name: form.billing_contact_name || undefined,
+      billing_email: form.billing_email || undefined,
+      billing_phone: form.billing_phone || undefined,
+      billing_address: form.billing_address || undefined,
+      terms: form.terms,
+      default_rate: form.default_rate ? Number(form.default_rate) : undefined,
+      quickbooks_customer_id: form.quickbooks_customer_id || undefined,
+      portal_email: form.portal_email || undefined,
+      portal_access_level: form.portal_access_level,
+      notes: form.notes || undefined,
+    });
+    setForm({ name: "", company: "", billing_contact_name: "", billing_email: "", billing_phone: "", billing_address: "", terms: "Net 30", default_rate: "", quickbooks_customer_id: "", portal_email: "", portal_access_level: "none", notes: "" });
+    setShowForm(false);
+    toast({ title: "Client created", description: name });
+    load();
+  };
+
   return (
     <div className="p-4 lg:p-6">
       <div className="flex items-center justify-between mb-5">
@@ -52,9 +81,11 @@ export default function Clients() {
           <h1 className="text-xl font-semibold">Clients</h1>
           <p className="text-sm text-slate-500">{clients.length} clients</p>
         </div>
-        <button className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
-          <Plus className="w-4 h-4" /> New Client
-        </button>
+        {isAdmin && (
+          <button onClick={() => setShowForm(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
+            <Plus className="w-4 h-4" /> New Client
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -180,6 +211,46 @@ export default function Clients() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {showForm && (
+        <FormModal title="New Client" onClose={() => setShowForm(false)} onSubmit={createClient} submitLabel="Create Client">
+          <Field label="Client name"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} placeholder="Client or contact name" /></Field>
+          <Field label="Company"><input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className={inputCls} /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Billing contact"><input value={form.billing_contact_name} onChange={(e) => setForm({ ...form, billing_contact_name: e.target.value })} className={inputCls} /></Field>
+            <Field label="Billing email"><input value={form.billing_email} onChange={(e) => setForm({ ...form, billing_email: e.target.value })} className={inputCls} /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Billing phone"><input value={form.billing_phone} onChange={(e) => setForm({ ...form, billing_phone: e.target.value })} className={inputCls} /></Field>
+            <Field label="Terms">
+              <select value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value })} className={inputCls}>
+                {["Net 15", "Net 30", "Net 45", "Due on Receipt"].map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label="Billing address"><input value={form.billing_address} onChange={(e) => setForm({ ...form, billing_address: e.target.value })} className={inputCls} /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Default rate ($)"><input type="number" value={form.default_rate} onChange={(e) => setForm({ ...form, default_rate: e.target.value })} className={inputCls} placeholder="0" /></Field>
+            <Field label="QB Customer ID"><input value={form.quickbooks_customer_id} onChange={(e) => setForm({ ...form, quickbooks_customer_id: e.target.value })} className={inputCls} /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Portal email"><input value={form.portal_email} onChange={(e) => setForm({ ...form, portal_email: e.target.value })} className={inputCls} /></Field>
+            <Field label="Portal access">
+              <select value={form.portal_access_level} onChange={(e) => setForm({ ...form, portal_access_level: e.target.value })} className={inputCls}>
+                <option value="none">None</option>
+                <option value="limited">Limited</option>
+                <option value="full">Full</option>
+              </select>
+            </Field>
+          </div>
+          <Field label="Notes"><textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className={inputCls} /></Field>
+        </FormModal>
+      )}
     </div>
   );
+}
+
+const inputCls = "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500";
+function Field({ label, children }) {
+  return (<div><label className="block text-xs text-slate-400 mb-1">{label}</label>{children}</div>);
 }

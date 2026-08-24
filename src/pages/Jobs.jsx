@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { Plus, Search, Table as TableIcon, Clock } from "lucide-react";
+import FormModal from "@/components/FormModal";
+import { useToast } from "@/components/ui/use-toast";
 
 const statusOptions = [
   "scheduled", "en_route", "on_site", "scanning", "processing", "complete", "invoiced",
@@ -29,17 +31,50 @@ const fmtDate = (v) => v ? new Date(v).toLocaleString("en-US", { month: "short",
 export default function Jobs() {
   const [jobs, setJobs] = useState([]);
   const [clients, setClients] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", notes: "" });
+  const { toast } = useToast();
+  const isAdmin = me?.role === "admin";
 
   const load = async () => {
-    const [data, cls] = await Promise.all([base44.entities.Job.list("-scheduled_start"), base44.entities.Client.list()]);
+    const [data, cls, prj, user] = await Promise.all([base44.entities.Job.list("-scheduled_start"), base44.entities.Client.list(), base44.entities.Project.list(), base44.auth.me().catch(() => null)]);
     setJobs(data);
     setClients(cls);
+    setProjects(prj);
+    setMe(user);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+
+  const createJob = async () => {
+    if (!form.title || !form.project_id || !form.site_address) return;
+    const project = projects.find((p) => p.id === form.project_id);
+    const title = form.title;
+    await base44.entities.Job.create({
+      title,
+      project_id: form.project_id,
+      project_name: project?.name,
+      client_id: project?.client_id,
+      client_name: project?.client_name,
+      site_address: form.site_address,
+      priority: form.priority,
+      scheduled_start: form.scheduled_start ? new Date(form.scheduled_start).toISOString() : undefined,
+      scheduled_end: form.scheduled_end ? new Date(form.scheduled_end).toISOString() : undefined,
+      status: form.status,
+      billable_rate_type: form.billable_rate_type,
+      billable_rate: form.billable_rate ? Number(form.billable_rate) : undefined,
+      notes: form.notes || undefined,
+    });
+    setForm({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", notes: "" });
+    setShowForm(false);
+    toast({ title: "Job created", description: title });
+    load();
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -93,9 +128,11 @@ export default function Jobs() {
             <option value="all">All statuses</option>
             {statusOptions.map((s) => <option key={s} value={s} className="capitalize">{s.replace("_", " ")}</option>)}
           </select>
-          <button className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
-            <Plus className="w-4 h-4" /> New Job
-          </button>
+          {isAdmin && (
+            <button onClick={() => setShowForm(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
+              <Plus className="w-4 h-4" /> New Job
+            </button>
+          )}
         </div>
       </div>
 
@@ -171,6 +208,49 @@ export default function Jobs() {
           </table>
         </div>
       )}
+
+      {showForm && (
+        <FormModal title="New Job" onClose={() => setShowForm(false)} onSubmit={createJob} submitLabel="Create Job">
+          <Field label="Job title"><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputCls} placeholder="Job title" /></Field>
+          <Field label="Project">
+            <select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} className={inputCls}>
+              <option value="">— Select project —</option>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Site address"><input value={form.site_address} onChange={(e) => setForm({ ...form, site_address: e.target.value })} className={inputCls} placeholder="Site address" /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Priority">
+              <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className={inputCls}>
+                {["low", "medium", "high", "urgent"].map((p) => <option key={p} value={p} className="capitalize">{p}</option>)}
+              </select>
+            </Field>
+            <Field label="Status">
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className={inputCls}>
+                {["scheduled", "en_route", "on_site", "scanning", "processing", "complete", "invoiced"].map((s) => <option key={s} value={s} className="capitalize">{s.replace("_", " ")}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Scheduled start"><input type="datetime-local" value={form.scheduled_start} onChange={(e) => setForm({ ...form, scheduled_start: e.target.value })} className={inputCls} /></Field>
+            <Field label="Scheduled end"><input type="datetime-local" value={form.scheduled_end} onChange={(e) => setForm({ ...form, scheduled_end: e.target.value })} className={inputCls} /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Rate type">
+              <select value={form.billable_rate_type} onChange={(e) => setForm({ ...form, billable_rate_type: e.target.value })} className={inputCls}>
+                {["hourly", "per_sqft", "flat", "daily"].map((r) => <option key={r} value={r} className="capitalize">{r.replace("_", "/")}</option>)}
+              </select>
+            </Field>
+            <Field label="Billable rate"><input type="number" value={form.billable_rate} onChange={(e) => setForm({ ...form, billable_rate: e.target.value })} className={inputCls} placeholder="0" /></Field>
+          </div>
+          <Field label="Notes"><textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className={inputCls} /></Field>
+        </FormModal>
+      )}
     </div>
   );
+}
+
+const inputCls = "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500";
+function Field({ label, children }) {
+  return (<div><label className="block text-xs text-slate-400 mb-1">{label}</label>{children}</div>);
 }
