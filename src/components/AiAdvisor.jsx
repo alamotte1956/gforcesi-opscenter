@@ -51,6 +51,7 @@ export default function AiAdvisor({ page, summary: summaryOverride }) {
   const [showPrompt, setShowPrompt] = useState(false);
   const stuckRef = useRef(false);
   const dismissedAtRef = useRef(0);
+  const showPromptRef = useRef(false);
 
   const currentPage = page || pageLabels[location.pathname] || "this page";
 
@@ -77,15 +78,17 @@ export default function AiAdvisor({ page, summary: summaryOverride }) {
     return () => { cancelled = true; };
   }, [open, currentPage, refreshKey, summaryOverride]);
 
+  useEffect(() => { showPromptRef.current = showPrompt; }, [showPrompt]);
+
   useEffect(() => {
     let idleTimer;
     const reset = () => {
       clearTimeout(idleTimer);
-      if (open) return;
+      if (open || showPromptRef.current) return;
       if (Date.now() - dismissedAtRef.current < COOLDOWN_MS) return;
       idleTimer = setTimeout(() => setShowPrompt(true), IDLE_MS);
     };
-    const onActivity = () => { setShowPrompt(false); reset(); };
+    const onActivity = () => { if (!showPromptRef.current) reset(); };
     const events = ["mousemove", "keydown", "click", "touchstart", "scroll"];
     events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
     reset();
