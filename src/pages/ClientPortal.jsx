@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Satellite, LogOut, ArrowLeft, Building2, MapPin, Calendar,
-  FileText, CheckCircle2, Clock, Activity, Loader2,
+  FileText, CheckCircle2, Clock, Activity, Loader2, Send, MessageSquare,
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
@@ -37,20 +37,24 @@ export default function ClientPortal() {
   const [invoices, setInvoices] = useState([]);
   const [previewId, setPreviewId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [cMessages, setCMessages] = useState([]);
+  const [cReply, setCReply] = useState("");
+  const [cSending, setCSending] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [user, cls, allJobs, allProjects, allInv] = await Promise.all([
+      const [user, cls, allJobs, allProjects, allInv, allMsgs] = await Promise.all([
         base44.auth.me().catch(() => null),
         base44.entities.Client.list(),
         base44.entities.Job.list(),
         base44.entities.Project.list(),
         base44.entities.Invoice.list(),
+        base44.entities.Message.list("created_date"),
       ]);
-      setMe(user); setClients(cls); setJobs(allJobs); setProjects(allProjects); setInvoices(allInv);
+      setMe(user); setClients(cls); setJobs(allJobs); setProjects(allProjects); setInvoices(allInv); setCMessages(allMsgs);
       setLoading(false);
     })();
-    const unsub = base44.entities.Job.subscribe((event) => {
+    const unsubJob = base44.entities.Job.subscribe((event) => {
       setJobs((prev) => {
         if (event.type === "delete") return prev.filter((j) => j.id !== event.id);
         const idx = prev.findIndex((j) => j.id === event.id);
@@ -58,7 +62,10 @@ export default function ClientPortal() {
         return [...prev, event.data];
       });
     });
-    return unsub;
+    const unsubMsg = base44.entities.Message.subscribe(() => {
+      base44.entities.Message.list("created_date").then(setCMessages);
+    });
+    return () => { unsubJob(); unsubMsg(); };
   }, []);
 
   const isAdmin = me?.role === "admin";
@@ -78,6 +85,30 @@ export default function ClientPortal() {
     inProgress: clientJobs.filter((j) => ["en_route", "on_site", "scanning", "processing"].includes(j.status)).length,
     complete: clientJobs.filter((j) => j.status === "complete").length,
     invoiced: clientJobs.filter((j) => j.status === "invoiced").length,
+  };
+
+  const cThread = useMemo(() => (activeClient ? cMessages
+    .filter((m) => m.sender_id === activeClient.id || m.recipient_id === activeClient.id)
+    .sort((a, b) => new Date(a.created_date) - new Date(b.created_date)) : []), [cMessages, activeClient]);
+  const cPartner = useMemo(() => {
+    if (!activeClient) return null;
+    const inbound = cMessages.filter((m) => m.recipient_id === activeClient.id).sort((a, b) => new Date(b.created_date) - new Date(a.created_date))[0];
+    return inbound ? inbound.sender_id : null;
+  }, [cMessages, activeClient]);
+  const sendClientReply = async () => {
+    if (!cReply.trim() || !cPartner || !activeClient) return;
+    setCSending(true);
+    const partnerMsg = cMessages.find((m) => m.sender_id === cPartner);
+    await base44.entities.Message.create({
+      sender_id: activeClient.id,
+      sender_name: activeClient.company || activeClient.name,
+      recipient_id: cPartner,
+      recipient_name: partnerMsg?.sender_name,
+      body: cReply.trim(),
+      channel: "app",
+      read: false,
+    });
+    setCReply(""); setCSending(false);
   };
 
   const logout = async () => { await base44.auth.logout(); navigate("/login"); };
@@ -121,7 +152,7 @@ export default function ClientPortal() {
   const limited = activeClient.portal_access_level === "limited";
 
   return (
-    <Shell me={me} onLogout={logout} client={activeClient} summary={{ client: activeClient.name, accessLevel: activeClient.portal_access_level, activeJobs: stats.active, inProgress: stats.inProgress, completed: stats.complete, invoiced: stats.invoiced, projects: clientProjects.length, invoices: clientInvoices.length, outstanding: clientInvoices.filter((i) => ["sent", "synced", "overdue"].includes(i.status)).reduce((s, i) => s + (i.total || 0), 0) }}>
+    <Shell me={me} onLogout={logout} client={activeClient} summary={{ client: activeClient.name, accessLevel: activeClient.portal_access_level, activeJobs: stats.active, inProgress: stats.inProgress, completed: stats.complete, invoiced: stats.invoiced, projects: clientProjects.length, invoices: clientInvoices.length, outstanding: clientInvoices.filter((i) => ["sent", "synced", "overdue"].includes(i.status)).reduce((s, i) => s + (i.total || 0), 0), unreadMessages: cMessages.filter((m) => m.recipient_id === activeClient.id && !m.read).length }}>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Welcome, {activeClient.company || activeClient.name}</h1>
@@ -247,6 +278,32 @@ export default function ClientPortal() {
           </div>
         </section>
       )}
+      <section className="mt-8">
+        <h2 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2"><MessageSquare className="w-4 h-4 text-cyan-400" /> Messages with GForceSI</h2>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl flex flex-col" style={{ minHeight: "40vh" }}>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {cThread.length === 0 ? (
+              <div className="text-center text-sm text-slate-500 py-8">No messages yet. Your GForceSI dispatcher will reach out here — once they do, you can reply below.</div>
+            ) : cThread.map((m) => {
+              const mine = m.sender_id === activeClient.id;
+              return (
+                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${mine ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-200"}`}>
+                    <div className="whitespace-pre-wrap">{m.body}</div>
+                    <div className={`text-[10px] mt-1 ${mine ? "text-slate-700" : "text-slate-500"}`}>{new Date(m.created_date).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="p-3 border-t border-slate-800">
+            <textarea value={cReply} onChange={(e) => setCReply(e.target.value)} rows={2} placeholder={cPartner ? "Reply to GForceSI…" : "Awaiting a message from GForceSI to reply"} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none" />
+            <button onClick={sendClientReply} disabled={cSending || !cReply.trim() || !cPartner} className="mt-2 w-full py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <Send className="w-4 h-4" /> Send
+            </button>
+          </div>
+        </div>
+      </section>
     </Shell>
   );
 }

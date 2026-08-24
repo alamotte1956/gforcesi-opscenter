@@ -5,6 +5,7 @@ import { Send, Mail, MessageSquare, Search, Clock } from "lucide-react";
 export default function Messages() {
   const [me, setMe] = useState(null);
   const [contractors, setContractors] = useState([]);
+  const [clients, setClients] = useState([]);
   const [messages, setMessages] = useState([]);
   const [selected, setSelected] = useState(null);
   const [text, setText] = useState("");
@@ -14,13 +15,15 @@ export default function Messages() {
   const bottomRef = useRef(null);
 
   const load = async () => {
-    const [user, cons, msgs] = await Promise.all([
+    const [user, cons, cls, msgs] = await Promise.all([
       base44.auth.me().catch(() => null),
       base44.entities.Contractor.list(),
+      base44.entities.Client.list(),
       base44.entities.Message.list("created_date"),
     ]);
     setMe(user);
     setContractors(cons);
+    setClients(cls);
     setMessages(msgs);
     setLoading(false);
   };
@@ -35,7 +38,12 @@ export default function Messages() {
   const myId = matched?.id || me?.id;
   const myName = matched?.name || me?.full_name || me?.email || "Me";
 
-  const directory = contractors.filter((c) => c.id !== myId && c.name?.toLowerCase().includes(query.toLowerCase()));
+  const partners = useMemo(() => {
+    const cons = contractors.filter((c) => c.id !== myId).map((c) => ({ id: c.id, name: c.name, role: c.role, type: "crew" }));
+    const cls = clients.map((c) => ({ id: c.id, name: c.name, role: "Client", type: "client" }));
+    return [...cons, ...cls].filter((p) => p.name?.toLowerCase().includes(query.toLowerCase()));
+  }, [contractors, clients, myId, query]);
+  const selectedPartner = partners.find((p) => p.id === selected);
 
   const thread = useMemo(() => {
     return messages
@@ -65,7 +73,7 @@ export default function Messages() {
   const send = async (alsoEmail) => {
     if (!text.trim() || !selected) return;
     setSending(true);
-    const partner = contractors.find((c) => c.id === selected);
+    const partner = [...contractors, ...clients].find((p) => p.id === selected);
     const payload = {
       sender_id: myId,
       sender_name: myName,
@@ -94,7 +102,7 @@ export default function Messages() {
     <div className="p-4 lg:p-6 h-screen lg:h-full flex flex-col">
       <div className="mb-4">
         <h1 className="text-xl font-semibold flex items-center gap-2"><MessageSquare className="w-5 h-5 text-cyan-400" /> Team Messages</h1>
-        <p className="text-sm text-slate-500">Coordinate with your crew in-app, or send a copy to their email.</p>
+        <p className="text-sm text-slate-500">Message your crew and clients in-app, or send a copy to their email.</p>
       </div>
 
       <div className="flex-1 flex gap-4 min-h-0 border border-slate-800 rounded-xl overflow-hidden bg-slate-900/40">
@@ -112,25 +120,24 @@ export default function Messages() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {directory.map((c) => {
-              const unread = unreadFrom(c.id);
-              const last = lastMsg(c.id);
+            {partners.map((p) => {
+              const unread = unreadFrom(p.id);
               return (
                 <button
-                  key={c.id}
-                  onClick={() => selectPartner(c.id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 border-b border-slate-800/60 text-left hover:bg-slate-800/40 ${selected === c.id ? "bg-slate-800/60" : ""}`}
+                  key={p.id}
+                  onClick={() => selectPartner(p.id)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 border-b border-slate-800/60 text-left hover:bg-slate-800/40 ${selected === p.id ? "bg-slate-800/60" : ""}`}
                 >
-                  <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold shrink-0">{c.name?.charAt(0)}</div>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${p.type === "client" ? "bg-cyan-500/20 text-cyan-300" : "bg-slate-700 text-slate-200"}`}>{p.name?.charAt(0)}</div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-slate-200 truncate">{c.name}</div>
-                    <div className="text-xs text-slate-500 truncate capitalize">{c.role?.replace("_", " ")}</div>
+                    <div className="text-sm font-medium text-slate-200 truncate">{p.name}</div>
+                    <div className="text-xs text-slate-500 truncate capitalize">{p.role?.replace("_", " ")}</div>
                   </div>
                   {unread > 0 && <span className="bg-cyan-500 text-slate-950 text-[10px] font-bold rounded-full px-1.5 py-0.5">{unread}</span>}
                 </button>
               );
             })}
-            {directory.length === 0 && <div className="text-center text-xs text-slate-600 py-6">No team members</div>}
+            {partners.length === 0 && <div className="text-center text-xs text-slate-600 py-6">No contacts found</div>}
           </div>
         </div>
 
@@ -144,12 +151,12 @@ export default function Messages() {
           ) : (
             <>
               <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold">
-                  {contractors.find((c) => c.id === selected)?.name?.charAt(0)}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold ${selectedPartner?.type === "client" ? "bg-cyan-500/20 text-cyan-300" : "bg-slate-700 text-slate-200"}`}>
+                  {selectedPartner?.name?.charAt(0)}
                 </div>
                 <div>
-                  <div className="text-sm font-medium">{contractors.find((c) => c.id === selected)?.name}</div>
-                  <div className="text-xs text-slate-500 capitalize">{contractors.find((c) => c.id === selected)?.role?.replace("_", " ")}</div>
+                  <div className="text-sm font-medium">{selectedPartner?.name}</div>
+                  <div className="text-xs text-slate-500 capitalize">{selectedPartner?.role?.replace("_", " ")}</div>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -180,9 +187,11 @@ export default function Messages() {
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
                 />
                 <div className="flex justify-end gap-2 mt-2">
-                  <button onClick={() => send(true)} disabled={sending || !text.trim()} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50">
-                    <Mail className="w-4 h-4" /> Send & Email
-                  </button>
+                  {selectedPartner?.type !== "client" && (
+                    <button onClick={() => send(true)} disabled={sending || !text.trim()} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50">
+                      <Mail className="w-4 h-4" /> Send & Email
+                    </button>
+                  )}
                   <button onClick={() => send(false)} disabled={sending || !text.trim()} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400 disabled:opacity-50">
                     {sending ? "…" : <><Send className="w-4 h-4" /> Send</>}
                   </button>
