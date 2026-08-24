@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag, ExternalLink, Link2, ScanLine } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag, ExternalLink, Link2, ScanLine, ShieldCheck, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { parseMatterportUrl } from "@/lib/matterport";
 
@@ -20,14 +20,20 @@ const fmt = (v) => (v ? new Date(v).toLocaleString("en-US", { month: "short", da
 export default function JobDetail() {
   const { id } = useParams();
   const [job, setJob] = useState(null);
+  const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [mpInput, setMpInput] = useState("");
   const [mpSaving, setMpSaving] = useState(false);
+  const [lightbox, setLightbox] = useState(null);
+
+  const isAdmin = me?.role === "admin";
 
   useEffect(() => {
     (async () => {
       try {
-        setJob(await base44.entities.Job.get(id));
+        const [j, user] = await Promise.all([base44.entities.Job.get(id), base44.auth.me().catch(() => null)]);
+        setJob(j);
+        setMe(user);
       } catch {}
       setLoading(false);
     })();
@@ -123,9 +129,23 @@ export default function JobDetail() {
         </Section>
       )}
 
-      <Section title={`Field Photos (${photos.length})`}>
+      <Section title={isAdmin ? `Work Quality Review (${photos.length})` : `Field Photos (${photos.length})`} icon={isAdmin ? ShieldCheck : Camera}>
         {photos.length === 0 ? (
           <p className="text-sm text-slate-500">No photos uploaded yet.</p>
+        ) : isAdmin ? (
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {photos.map((p, i) => (
+              <button key={i} onClick={() => setLightbox(i)} className="text-left group">
+                <div className="aspect-video rounded-lg overflow-hidden bg-slate-800 border border-slate-800 group-hover:border-cyan-500/50 transition-colors">
+                  <Image src={p.url} className="w-full h-full" fittingType="fill" />
+                </div>
+                <div className="mt-1.5 flex items-center justify-between text-xs">
+                  <span className="text-slate-300 truncate">{p.uploaded_by_name || "Field crew"}</span>
+                  <span className="text-slate-500 shrink-0">{p.uploaded_at ? fmt(p.uploaded_at) : ""}</span>
+                </div>
+              </button>
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {photos.map((p, i) => (
@@ -141,6 +161,27 @@ export default function JobDetail() {
           </div>
         )}
       </Section>
+
+      {lightbox != null && photos[lightbox] && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={() => setLightbox(null)}>
+          <div className="flex items-center justify-between px-4 py-3 text-slate-200" onClick={(e) => e.stopPropagation()}>
+            <div className="text-sm">
+              <div className="font-medium">{photos[lightbox].uploaded_by_name || "Field crew"}</div>
+              <div className="text-xs text-slate-400">{photos[lightbox].uploaded_at ? fmt(photos[lightbox].uploaded_at) : ""} · Photo {lightbox + 1} of {photos.length}</div>
+            </div>
+            <button onClick={() => setLightbox(null)} className="text-slate-400 hover:text-slate-100 p-1.5"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="flex-1 flex items-center justify-center px-4 pb-4 relative" onClick={(e) => e.stopPropagation()}>
+            {lightbox > 0 && (
+              <button onClick={() => setLightbox(lightbox - 1)} className="absolute left-4 text-slate-300 hover:text-white p-2 rounded-full bg-slate-800/60"><ChevronLeft className="w-6 h-6" /></button>
+            )}
+            <Image src={photos[lightbox].url} className="max-w-full max-h-full rounded-lg" fittingType="fit" />
+            {lightbox < photos.length - 1 && (
+              <button onClick={() => setLightbox(lightbox + 1)} className="absolute right-4 text-slate-300 hover:text-white p-2 rounded-full bg-slate-800/60"><ChevronRight className="w-6 h-6" /></button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
