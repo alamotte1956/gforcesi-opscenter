@@ -29,6 +29,7 @@ import RoutePlanning from '@/pages/RoutePlanning';
 import FieldApp from '@/pages/FieldApp';
 import DataImport from '@/pages/DataImport';
 import Messages from '@/pages/Messages';
+import UserManagement from '@/pages/UserManagement';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -75,6 +76,7 @@ const AuthenticatedApp = () => {
           <Route path="/compliance" element={<Compliance />} />
           <Route path="/import" element={<DataImport />} />
           <Route path="/messages" element={<Messages />} />
+          <Route path="/users" element={<UserManagement />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
