@@ -9,7 +9,8 @@
         "payroll",
         "customer",
         "contractor",
-        "payment"
+        "payment",
+        "expense"
       ]
     },
     "direction": {
