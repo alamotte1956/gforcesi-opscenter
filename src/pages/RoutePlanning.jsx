@@ -90,14 +90,21 @@ export default function RoutePlanning() {
 
   const autoAssign = () => {
     const poolJobs = (assignments.pool || []).map(jobById).filter(Boolean);
+    const prio = { urgent: 0, high: 1, medium: 2, low: 3 };
+    poolJobs.sort((a, b) => (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2));
+    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status));
+    const pool = available.length ? available : contractors;
     const next = { ...assignments, pool: [] };
     contractors.forEach((c) => { if (!next[c.id]) next[c.id] = []; });
     const updates = [];
     poolJobs.forEach((job) => {
-      let best = null, bestMi = Infinity;
-      contractors.forEach((c) => {
+      let best = null, bestScore = Infinity;
+      pool.forEach((c) => {
+        const load = (next[c.id] || []).length;
         const mi = haversineMi({ lat: c.current_latitude, lng: c.current_longitude }, { lat: job.latitude, lng: job.longitude });
-        if (mi != null && mi < bestMi) { bestMi = mi; best = c; }
+        const dist = mi != null ? mi : (load === 0 ? 0 : 50);
+        const score = dist + load * 5;
+        if (score < bestScore) { bestScore = score; best = c; }
       });
       if (!best && contractors.length) best = contractors[0];
       if (best) {
@@ -130,6 +137,29 @@ export default function RoutePlanning() {
     setAssignments({ ...assignments, [cid]: ordered.map((j) => j.id) });
   };
 
+  const optimizeAll = () => {
+    const next = { ...assignments };
+    contractors.forEach((c) => {
+      const list = (assignments[c.id] || []).map(jobById).filter(Boolean);
+      if (list.length < 2) return;
+      let prev = { lat: c.current_latitude, lng: c.current_longitude };
+      const ordered = [];
+      const remaining = [...list];
+      while (remaining.length) {
+        let bi = 0, bd = Infinity;
+        remaining.forEach((j, i) => {
+          const d = haversineMi(prev, { lat: j.latitude, lng: j.longitude }) ?? Infinity;
+          if (d < bd) { bd = d; bi = i; }
+        });
+        const j = remaining.splice(bi, 1)[0];
+        ordered.push(j);
+        prev = { lat: j.latitude, lng: j.longitude };
+      }
+      next[c.id] = ordered.map((j) => j.id);
+    });
+    setAssignments(next);
+  };
+
   const selectedContractor = contractors.find((c) => c.id === selected);
   const selectedStops = (assignments[selected] || []).map(jobById).filter(Boolean);
   const route = useMemo(() => computeRoute(selectedContractor, selectedStops), [selectedContractor, selectedStops]);
@@ -153,15 +183,23 @@ export default function RoutePlanning() {
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2"><RouteIcon className="w-5 h-5 text-cyan-400" /> Route Planning</h1>
-          <p className="text-sm text-slate-500">Drag jobs to field crews · auto ETAs · nearest-employee assignment</p>
+          <p className="text-sm text-slate-500">Auto-assigns to nearest available crew · optimizes stop order · live ETAs</p>
         </div>
-        <button
-          onClick={autoAssign}
-          disabled={!(assignments.pool || []).length}
-          className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400 disabled:opacity-40"
-        >
-          <Wand2 className="w-4 h-4" /> Auto-assign nearest
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={optimizeAll}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700"
+          >
+            <Zap className="w-4 h-4" /> Optimize all
+          </button>
+          <button
+            onClick={autoAssign}
+            disabled={!(assignments.pool || []).length}
+            className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400 disabled:opacity-40"
+          >
+            <Wand2 className="w-4 h-4" /> Auto-assign nearest
+          </button>
+        </div>
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
@@ -216,10 +254,13 @@ export default function RoutePlanning() {
                       onClick={() => setSelected(c.id)}
                       className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-800/40 rounded-t-xl"
                     >
-                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold">{c.name?.charAt(0)}</div>
+                      <div className="relative">
+                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold">{c.name?.charAt(0)}</div>
+                        <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${c.current_status === "available" ? "bg-emerald-400" : ["en_route", "on_site"].includes(c.current_status) ? "bg-amber-400" : "bg-slate-500"}`} />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium text-slate-200 truncate">{c.name}</div>
-                        <div className="text-xs text-slate-500 capitalize">{c.current_status?.replace("_", " ")}</div>
+                        <div className={`text-xs capitalize ${c.current_status === "available" ? "text-emerald-400" : "text-slate-500"}`}>{c.current_status?.replace("_", " ")}</div>
                       </div>
                       <div className="text-right text-xs">
                         <div className="text-slate-300">{stops.length} stops · {r.totalDrive.toFixed(1)} mi</div>
