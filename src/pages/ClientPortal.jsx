@@ -6,6 +6,7 @@ import {
   FileText, CheckCircle2, Clock, Activity, Loader2,
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
+import GuideDownload from "@/components/GuideDownload";
 
 const stages = [
   { key: "scheduled", label: "Scheduled" },
@@ -264,6 +265,7 @@ function Shell({ me, onLogout, client, children, summary }) {
           </div>
           {client && <div className="hidden sm:block text-sm text-slate-400 ml-2">| {client.company || client.name}</div>}
           <div className="ml-auto flex items-center gap-4">
+            <GuideDownload label="Guide" className="text-xs text-slate-400 hover:text-cyan-300" />
             {me?.role === "admin" && (
               <Link to="/" className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
                 <ArrowLeft className="w-3.5 h-3.5" /> Operations

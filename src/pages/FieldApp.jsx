@@ -7,6 +7,7 @@ import {
   MessageSquare, Send, Mail,
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
+import GuideDownload from "@/components/GuideDownload";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
 const myStatuses = [
@@ -352,6 +353,7 @@ function Shell({ me, onLogout, contractor, children, summary }) {
           </div>
           {contractor && <div className="ml-1 text-xs text-slate-400 truncate hidden sm:block">· {contractor.name}</div>}
           <div className="ml-auto flex items-center gap-3">
+            <GuideDownload label="Guide" className="text-xs text-slate-400 hover:text-cyan-300" />
             {me?.role === "admin" && (
               <Link to="/" className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
                 <ArrowLeft className="w-3.5 h-3.5" /> Ops

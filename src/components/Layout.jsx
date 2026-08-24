@@ -6,6 +6,7 @@ import {
   Boxes, BarChart3, Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
+import GuideDownload from "@/components/GuideDownload";
 
 const navItems = [
   { to: "/", label: "Live Map", icon: Map, end: true },
@@ -99,7 +100,8 @@ export default function Layout() {
           })}
         </nav>
 
-        <div className="p-3 border-t border-slate-800">
+        <div className="p-3 border-t border-slate-800 space-y-1">
+          <GuideDownload label="User Guide" className="w-full px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:text-cyan-300 hover:bg-slate-800/60 transition-colors font-medium" />
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
