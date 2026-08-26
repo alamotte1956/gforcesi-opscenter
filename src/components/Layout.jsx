@@ -8,33 +8,58 @@ import {
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
 
-const navItems = [
-  // Daily operations — most used
-  { to: "/", label: "Live Map", icon: Map, end: true },
-  { to: "/jobs", label: "Jobs", icon: KanbanSquare },
-  { to: "/routes", label: "Route Planning", icon: RouteIcon },
-  { to: "/contractors", label: "Contractors", icon: Users },
-  { to: "/messages", label: "Messages", icon: MessageSquare },
-  // Field reporting & resources
-  { to: "/daily-reports", label: "Daily Reports", icon: ClipboardList },
-  { to: "/issues", label: "Issues", icon: AlertTriangle },
-  { to: "/inspections", label: "Inspections", icon: ClipboardCheck },
-  { to: "/equipment", label: "Equipment", icon: Boxes },
-  // Business & financials
-  { to: "/clients", label: "Clients", icon: Building2 },
-  { to: "/projects", label: "Projects", icon: FolderKanban },
-  { to: "/invoices", label: "Invoices", icon: FileText },
-  { to: "/expenses", label: "Expenses", icon: Receipt },
-  // Insights & administration
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/compliance", label: "Compliance", icon: ShieldCheck },
-  { to: "/users", label: "User Management", icon: UserCog },
-  { to: "/import", label: "Data Import", icon: FileSpreadsheet },
-  { to: "/matterport", label: "Matterport", icon: ScanLine },
-  { to: "/integrations", label: "Integrations", icon: Plug },
-  { to: "/settings", label: "QB Settings", icon: Settings },
-  // External portal
-  { to: "/portal", label: "Client Portal", icon: Globe },
+const navGroups = [
+  {
+    label: "Operations",
+    items: [
+      { to: "/", label: "Live Map", icon: Map, end: true },
+      { to: "/jobs", label: "Jobs", icon: KanbanSquare },
+      { to: "/routes", label: "Route Planning", icon: RouteIcon },
+      { to: "/contractors", label: "Contractors", icon: Users },
+      { to: "/messages", label: "Messages", icon: MessageSquare },
+    ],
+  },
+  {
+    label: "Field Reporting",
+    items: [
+      { to: "/daily-reports", label: "Daily Reports", icon: ClipboardList },
+      { to: "/issues", label: "Issues", icon: AlertTriangle },
+      { to: "/inspections", label: "Inspections", icon: ClipboardCheck },
+      { to: "/equipment", label: "Equipment", icon: Boxes },
+    ],
+  },
+  {
+    label: "Business & Financials",
+    items: [
+      { to: "/clients", label: "Clients", icon: Building2 },
+      { to: "/projects", label: "Projects", icon: FolderKanban },
+      { to: "/invoices", label: "Invoices", icon: FileText },
+      { to: "/expenses", label: "Expenses", icon: Receipt },
+    ],
+  },
+  {
+    label: "Insights & Admin",
+    items: [
+      { to: "/analytics", label: "Analytics", icon: BarChart3 },
+      { to: "/compliance", label: "Compliance", icon: ShieldCheck },
+      { to: "/users", label: "User Management", icon: UserCog },
+    ],
+  },
+  {
+    label: "Data & Integrations",
+    items: [
+      { to: "/import", label: "Data Import", icon: FileSpreadsheet },
+      { to: "/matterport", label: "Matterport", icon: ScanLine },
+      { to: "/integrations", label: "Integrations", icon: Plug },
+      { to: "/settings", label: "QB Settings", icon: Settings },
+    ],
+  },
+  {
+    label: "External",
+    items: [
+      { to: "/portal", label: "Client Portal", icon: Globe },
+    ],
+  },
 ];
 
 export default function Layout() {
@@ -86,29 +111,36 @@ export default function Layout() {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                onClick={() => setOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all group ${
-                    isActive
-                      ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20"
-                      : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent"
-                  }`
-                }
-              >
-                <Icon className="w-[18px] h-[18px] shrink-0" />
-                <span className="font-medium">{item.label}</span>
-                <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-40 transition-opacity" />
-              </NavLink>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto py-4 px-3">
+          {navGroups.map((group) => (
+            <div key={group.label} className="mb-4 last:mb-0">
+              <div className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">{group.label}</div>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      onClick={() => setOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all group ${
+                          isActive
+                            ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20"
+                            : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent"
+                        }`
+                      }
+                    >
+                      <Icon className="w-[18px] h-[18px] shrink-0" />
+                      <span className="font-medium">{item.label}</span>
+                      <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-40 transition-opacity" />
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <div className="p-3 border-t border-slate-800 space-y-1">
