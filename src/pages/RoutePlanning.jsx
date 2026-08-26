@@ -23,6 +23,18 @@ function fmtTime(d) {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
+function toMin(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function timeToday(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
 function computeRoute(contractor, stops, startTime) {
   const start = startTime || (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })();
   let prev = contractor ? { lat: contractor.current_latitude, lng: contractor.current_longitude } : null;
@@ -50,6 +62,8 @@ export default function RoutePlanning() {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [autoMode, setAutoMode] = useState(false);
+  const [dayStart, setDayStart] = useState("08:00");
+  const [dayEnd, setDayEnd] = useState("17:00");
 
   const load = async () => {
     const [j, c, cls] = await Promise.all([base44.entities.Job.list(), base44.entities.Contractor.list(), base44.entities.Client.list()]);
@@ -163,31 +177,72 @@ export default function RoutePlanning() {
   };
 
   const generateDailyPlan = () => {
-    const poolJobs = (assignments.pool || []).map(jobById).filter(Boolean);
+    const startMin = toMin(dayStart);
+    const endMin = toMin(dayEnd);
     const prio = { urgent: 0, high: 1, medium: 2, low: 3 };
-    poolJobs.sort((a, b) => (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2));
+    // Gather every current job (pool + already assigned) as candidates.
+    const seen = new Set();
+    const candidates = [];
+    [...(assignments.pool || []), ...contractors.flatMap((c) => assignments[c.id] || [])].forEach((id) => {
+      const job = jobById(id);
+      if (job && !seen.has(job.id)) { seen.add(job.id); candidates.push(job); }
+    });
+    // Most important / soonest SLA first so they get claimed before the day fills.
+    candidates.sort((a, b) => {
+      const pa = prio[a.priority] ?? 2, pb = prio[b.priority] ?? 2;
+      if (pa !== pb) return pa - pb;
+      const sa = a.sla_due_date ? new Date(a.sla_due_date).getTime() : Infinity;
+      const sb = b.sla_due_date ? new Date(b.sla_due_date).getTime() : Infinity;
+      return sa - sb;
+    });
     const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status));
     const pool = available.length ? available : contractors;
     const next = { pool: [] };
-    contractors.forEach((c) => { next[c.id] = [...(assignments[c.id] || [])]; });
+    contractors.forEach((c) => { next[c.id] = []; });
+    const crewState = {};
+    pool.forEach((c) => {
+      crewState[c.id] = { pos: { lat: c.current_latitude, lng: c.current_longitude }, time: startMin };
+    });
     const updates = [];
-    poolJobs.forEach((job) => {
-      let best = null, bestScore = Infinity;
+    candidates.forEach((job) => {
+      let best = null, bestScore = Infinity, bestArrival = null;
       pool.forEach((c) => {
+        const st = crewState[c.id];
+        if (!st) return;
+        const mi = haversineMi(st.pos, { lat: job.latitude, lng: job.longitude });
+        const driveMin = mi != null ? (mi / AVG_SPEED_MPH) * 60 : 15;
+        const arrival = st.time + driveMin;
+        const serviceMin = job.estimated_duration_hours ? job.estimated_duration_hours * 60 : SERVICE_MIN;
+        if (arrival + serviceMin > endMin + 30) return; // doesn't fit in the workday
+        const client = clients.find((cl) => cl.id === job.client_id);
+        let penalty = 0;
+        if (client && client.opening_time && client.closing_time) {
+          const open = toMin(client.opening_time), close = toMin(client.closing_time);
+          if (arrival > close) penalty = 1000; // after hours — avoid
+          else if (arrival < open) penalty = (open - arrival) * 2; // waiting penalty
+        }
         const load = (next[c.id] || []).length;
-        const mi = haversineMi({ lat: c.current_latitude, lng: c.current_longitude }, { lat: job.latitude, lng: job.longitude });
-        const dist = mi != null ? mi : (load === 0 ? 0 : 50);
-        const score = dist + load * 5;
-        if (score < bestScore) { bestScore = score; best = c; }
+        const score = driveMin + penalty + load * 3;
+        if (score < bestScore) { bestScore = score; best = c; bestArrival = arrival; }
       });
-      if (!best && contractors.length) best = contractors[0];
       if (best) {
+        const st = crewState[best.id];
+        const serviceMin = job.estimated_duration_hours ? job.estimated_duration_hours * 60 : SERVICE_MIN;
         next[best.id].push(job.id);
-        updates.push(base44.entities.Job.update(job.id, { assigned_contractor_ids: [best.id], assigned_contractor_names: [best.name] }));
+        crewState[best.id].pos = { lat: job.latitude, lng: job.longitude };
+        crewState[best.id].time = bestArrival + serviceMin;
+        if (!(job.assigned_contractor_ids || []).includes(best.id)) {
+          updates.push(base44.entities.Job.update(job.id, { assigned_contractor_ids: [best.id], assigned_contractor_names: [best.name] }));
+        }
       } else {
+        // Doesn't fit any crew today — defer back to the pool.
         next.pool.push(job.id);
+        if (job.assigned_contractor_ids && job.assigned_contractor_ids.length) {
+          updates.push(base44.entities.Job.update(job.id, { assigned_contractor_ids: [], assigned_contractor_names: [] }));
+        }
       }
     });
+    // Sequence each crew's stops by nearest-neighbor from their start position.
     Object.keys(next).forEach((cid) => {
       if (cid === "pool") return;
       const c = contractors.find((x) => x.id === cid);
@@ -230,7 +285,7 @@ export default function RoutePlanning() {
 
   const selectedContractor = contractors.find((c) => c.id === selected);
   const selectedStops = (assignments[selected] || []).map(jobById).filter(Boolean);
-  const route = useMemo(() => computeRoute(selectedContractor, selectedStops), [selectedContractor, selectedStops]);
+  const route = useMemo(() => computeRoute(selectedContractor, selectedStops, timeToday(dayStart)), [selectedContractor, selectedStops, dayStart]);
 
   const hoursWarn = (job, arrival) => {
     const client = clients.find((c) => c.id === job.client_id);
@@ -253,11 +308,23 @@ export default function RoutePlanning() {
           <h1 className="text-xl font-semibold flex items-center gap-2"><RouteIcon className="w-5 h-5 text-cyan-400" /> Route Planning</h1>
           <p className="text-sm text-slate-500">{autoMode ? "Auto mode — nearest crews assigned & optimized automatically" : "Manual mode — drag jobs to crews · toggle auto route plan to optimize automatically"}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
+            <Clock className="w-4 h-4 text-slate-500" />
+            <input type="time" value={dayStart} onChange={(e) => setDayStart(e.target.value)} className="bg-transparent text-sm text-slate-200 focus:outline-none w-[74px]" />
+            <span className="text-slate-600 text-xs">to</span>
+            <input type="time" value={dayEnd} onChange={(e) => setDayEnd(e.target.value)} className="bg-transparent text-sm text-slate-200 focus:outline-none w-[74px]" />
+          </div>
+          <button
+            onClick={generateDailyPlan}
+            className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400"
+          >
+            <Wand2 className="w-4 h-4" /> Generate daily plan
+          </button>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
             <Switch checked={autoMode} onCheckedChange={toggleAuto} />
             <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
-              <Wand2 className="w-4 h-4 text-cyan-400" /> Auto route plan
+              <Wand2 className="w-4 h-4 text-cyan-400" /> Auto
             </span>
           </div>
           <button
@@ -314,7 +381,7 @@ export default function RoutePlanning() {
             <div className="space-y-3">
               {contractors.map((c) => {
                 const stops = (assignments[c.id] || []).map(jobById).filter(Boolean);
-                const r = computeRoute(c, stops);
+                const r = computeRoute(c, stops, timeToday(dayStart));
                 const isSel = selected === c.id;
                 return (
                   <div key={c.id} className={`rounded-xl border bg-slate-900/60 ${isSel ? "border-cyan-500/40" : "border-slate-800"}`}>
