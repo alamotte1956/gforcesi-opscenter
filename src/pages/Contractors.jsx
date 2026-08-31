@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle } from "lucide-react";
+import DeleteRecord from "@/components/DeleteRecord";
 
 const statusDot = {
   available: "bg-emerald-400",
@@ -18,11 +19,14 @@ const onboardingStyles = {
 
 export default function Contractors() {
   const [contractors, setContractors] = useState([]);
+  const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isAdmin = me?.role === "admin";
 
   const load = async () => {
-    const data = await base44.entities.Contractor.list();
+    const [data, user] = await Promise.all([base44.entities.Contractor.list(), base44.auth.me().catch(() => null)]);
     setContractors(data);
+    setMe(user);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -63,6 +67,7 @@ export default function Contractors() {
                 <th className="px-4 py-3 font-medium">Skills</th>
                 <th className="px-4 py-3 font-medium">Pay</th>
                 <th className="px-4 py-3 font-medium">QB ID</th>
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -110,6 +115,9 @@ export default function Contractors() {
                     {c.pay_type === "hourly" ? `$${c.pay_rate}/hr` : c.pay_type === "salary" ? `$${c.pay_rate}/yr` : c.pay_type === "flat" ? `$${c.pay_rate} flat` : "—"}
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs font-mono">{c.quickbooks_id || "—"}</td>
+                  <td className="px-4 py-3 text-right">
+                    {isAdmin && <DeleteRecord entityName="Contractor" recordId={c.id} recordLabel={c.name} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
+                  </td>
                 </tr>
               ))}
             </tbody>

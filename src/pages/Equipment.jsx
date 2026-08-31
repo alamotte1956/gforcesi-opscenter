@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Boxes, Wrench, CalendarClock, AlertTriangle } from "lucide-react";
 import FormModal from "@/components/FormModal";
+import DeleteRecord from "@/components/DeleteRecord";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
@@ -98,9 +99,12 @@ export default function Equipment() {
                     <div className="text-xs text-slate-500">{it.type} · {it.serial_number}</div>
                   </div>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusStyles[it.status] || statusStyles.available}`}>
-                  {it.status.replace("_", " ")}
-                </span>
+                <div className="flex flex-col items-end gap-1.5">
+                  <span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusStyles[it.status] || statusStyles.available}`}>
+                    {it.status.replace("_", " ")}
+                  </span>
+                  {isAdmin && <DeleteRecord entityName="Equipment" recordId={it.id} recordLabel={it.name} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
+                </div>
               </div>
               <div className="mt-3 space-y-1.5 text-xs">
                 {it.assigned_to_contractor_name && (

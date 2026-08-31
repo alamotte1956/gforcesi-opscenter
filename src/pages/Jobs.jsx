@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { Plus, Search, Table as TableIcon, Clock, AlertCircle } from "lucide-react";
 import FormModal from "@/components/FormModal";
+import DeleteRecord from "@/components/DeleteRecord";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusOptions = [
@@ -168,6 +169,7 @@ export default function Jobs() {
                 <th className="px-3 py-2.5 font-medium whitespace-nowrap">Rate Type</th>
                 <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">Rate</th>
                 <th className="px-3 py-2.5 font-medium whitespace-nowrap">Deliverables</th>
+                <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -221,10 +223,13 @@ export default function Jobs() {
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap capitalize">{j.billable_rate_type || "—"}</td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-right">{j.billable_rate != null ? `$${j.billable_rate}` : "—"}</td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap max-w-[200px] truncate" title={j.deliverables}>{j.deliverables || "—"}</td>
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                    {isAdmin && <DeleteRecord entityName="Job" recordId={j.id} recordLabel={j.title} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={15} className="px-3 py-10 text-center text-slate-500">No jobs match your filters.</td></tr>
+                <tr><td colSpan={16} className="px-3 py-10 text-center text-slate-500">No jobs match your filters.</td></tr>
               )}
             </tbody>
           </table>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, FolderKanban } from "lucide-react";
 import FormModal from "@/components/FormModal";
+import DeleteRecord from "@/components/DeleteRecord";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
@@ -90,9 +91,12 @@ export default function Projects() {
                       <div className="text-xs text-slate-500">{p.client_name}</div>
                     </div>
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusStyles[p.status] || statusStyles.active}`}>
-                    {p.status.replace("_", " ")}
-                  </span>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusStyles[p.status] || statusStyles.active}`}>
+                      {p.status.replace("_", " ")}
+                    </span>
+                    {isAdmin && <DeleteRecord entityName="Project" recordId={p.id} recordLabel={p.name} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
+                  </div>
                 </div>
                 {p.description && <p className="text-sm text-slate-400 mt-3 line-clamp-2">{p.description}</p>}
                 <div className="mt-4">

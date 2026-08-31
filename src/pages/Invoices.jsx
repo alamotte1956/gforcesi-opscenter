@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, RefreshCw, FileText } from "lucide-react";
 import FormModal from "@/components/FormModal";
+import DeleteRecord from "@/components/DeleteRecord";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
@@ -120,6 +121,7 @@ export default function Invoices() {
                 <th className="px-4 py-3 font-medium text-right">Total</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">QB</th>
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -144,6 +146,9 @@ export default function Invoices() {
                         <FileText className="w-3 h-3" /> Sync
                       </button>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {isAdmin && <DeleteRecord entityName="Invoice" recordId={inv.id} recordLabel={inv.invoice_number} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
                   </td>
                 </tr>
               ))}

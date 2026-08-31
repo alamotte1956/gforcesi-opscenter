@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { ClipboardList, Plus, Check } from "lucide-react";
 import FormModal from "@/components/FormModal";
+import DeleteRecord from "@/components/DeleteRecord";
 
 const statusStyles = {
   draft: "bg-slate-700 text-slate-300",
@@ -100,9 +101,12 @@ export default function DailyReports() {
                   <td className="px-4 py-3 text-right text-slate-300">{r.crew_count || 0}</td>
                   <td className="px-4 py-3"><span className={`text-[10px] px-2 py-0.5 rounded capitalize ${statusStyles[r.status] || statusStyles.submitted}`}>{r.status}</span></td>
                   <td className="px-4 py-3 text-right">
-                    {r.status === "submitted" ? (
-                      <button onClick={() => setStatus(r.id, "reviewed")} className="text-xs text-emerald-400 hover:underline flex items-center gap-1 ml-auto"><Check className="w-3.5 h-3.5" /> Review</button>
-                    ) : <span className="text-xs text-slate-600">—</span>}
+                    <div className="flex items-center justify-end gap-2">
+                      {r.status === "submitted" && (
+                        <button onClick={() => setStatus(r.id, "reviewed")} className="text-xs text-emerald-400 hover:underline flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Review</button>
+                      )}
+                      <DeleteRecord entityName="DailyReport" recordId={r.id} recordLabel={r.job_title || r.report_date} onDeleted={load} className="text-slate-500 hover:text-rose-400" />
+                    </div>
                   </td>
                 </tr>
               ))}

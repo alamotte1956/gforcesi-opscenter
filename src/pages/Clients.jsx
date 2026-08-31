@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Globe, Shield, Clock } from "lucide-react";
 import FormModal from "@/components/FormModal";
+import DeleteRecord from "@/components/DeleteRecord";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -134,6 +135,7 @@ export default function Clients() {
                       <div className="flex items-center justify-end gap-3">
                         <button onClick={() => openHours(c)} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Hours</button>
                         <button onClick={() => openEdit(c)} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />Manage</button>
+                        {isAdmin && <DeleteRecord entityName="Client" recordId={c.id} recordLabel={c.name} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
                       </div>
                     </td>
                   </tr>

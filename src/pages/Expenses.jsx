@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Check, X, UploadCloud, Receipt, Filter, Loader2 } from "lucide-react";
+import DeleteRecord from "@/components/DeleteRecord";
 
 const statusStyles = {
   pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
@@ -168,16 +169,19 @@ export default function Expenses() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {isAdmin && e.status === "pending" && (
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => setStatus(e.id, "approved")} title="Approve" className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"><Check className="w-4 h-4" /></button>
-                        <button onClick={() => setStatus(e.id, "rejected")} title="Reject" className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"><X className="w-4 h-4" /></button>
-                      </div>
-                    )}
-                    {isAdmin && e.status === "approved" && (
-                      <button onClick={() => setStatus(e.id, "pending")} className="text-xs text-slate-400 hover:text-slate-200">Revoke</button>
-                    )}
-                    {(!isAdmin || (e.status !== "pending" && e.status !== "approved")) && <span className="text-xs text-slate-600">—</span>}
+                    <div className="flex items-center justify-end gap-1.5">
+                      {isAdmin && e.status === "pending" && (
+                        <>
+                          <button onClick={() => setStatus(e.id, "approved")} title="Approve" className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"><Check className="w-4 h-4" /></button>
+                          <button onClick={() => setStatus(e.id, "rejected")} title="Reject" className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"><X className="w-4 h-4" /></button>
+                        </>
+                      )}
+                      {isAdmin && e.status === "approved" && (
+                        <button onClick={() => setStatus(e.id, "pending")} className="text-xs text-slate-400 hover:text-slate-200">Revoke</button>
+                      )}
+                      {isAdmin && <DeleteRecord entityName="Expense" recordId={e.id} recordLabel={e.description} onDeleted={load} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400" />}
+                      {!isAdmin && <span className="text-xs text-slate-600">—</span>}
+                    </div>
                   </td>
                 </tr>
               ))}

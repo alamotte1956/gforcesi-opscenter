@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { AlertTriangle, Plus, Loader2 } from "lucide-react";
 import FormModal from "@/components/FormModal";
+import DeleteRecord from "@/components/DeleteRecord";
 
 const severityStyles = { low: "bg-slate-700 text-slate-300", medium: "bg-amber-500/15 text-amber-300", high: "bg-orange-500/15 text-orange-300", critical: "bg-rose-500/15 text-rose-300" };
 const statusStyles = { open: "bg-rose-500/15 text-rose-300", in_progress: "bg-blue-500/15 text-blue-300", resolved: "bg-emerald-500/15 text-emerald-300", closed: "bg-slate-700 text-slate-400" };
@@ -106,9 +107,12 @@ export default function Issues() {
                   <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{x.due_date || "—"}</td>
                   <td className="px-4 py-3"><span className={`text-[10px] px-2 py-0.5 rounded capitalize ${statusStyles[x.status] || statusStyles.open}`}>{x.status.replace("_", " ")}</span></td>
                   <td className="px-4 py-3 text-right">
-                    <select value={x.status} onChange={(e) => setStatus(x.id, e.target.value)} className="text-[11px] bg-slate-800 border border-slate-700 rounded px-2 py-1 capitalize">
-                      {["open", "in_progress", "resolved", "closed"].map((s) => <option key={s} value={s} className="bg-slate-800">{s.replace("_", " ")}</option>)}
-                    </select>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <select value={x.status} onChange={(e) => setStatus(x.id, e.target.value)} className="text-[11px] bg-slate-800 border border-slate-700 rounded px-2 py-1 capitalize">
+                        {["open", "in_progress", "resolved", "closed"].map((s) => <option key={s} value={s} className="bg-slate-800">{s.replace("_", " ")}</option>)}
+                      </select>
+                      <DeleteRecord entityName="Issue" recordId={x.id} recordLabel={x.title} onDeleted={load} className="text-slate-500 hover:text-rose-400" />
+                    </div>
                   </td>
                 </tr>
               ))}
