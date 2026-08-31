@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Boxes, Wrench, CalendarClock } from "lucide-react";
+import { Plus, Boxes, Wrench, CalendarClock, AlertTriangle } from "lucide-react";
 import FormModal from "@/components/FormModal";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -48,7 +48,15 @@ export default function Equipment() {
   };
 
   const today = new Date();
-  const dueSoon = (date) => date && (new Date(date) - today) / 86400000 < 14 && (new Date(date) - today) / 86400000 > 0;
+  const dueState = (date) => {
+    if (!date) return null;
+    const diff = (new Date(date) - today) / 86400000;
+    if (diff < 0) return "overdue";
+    if (diff < 14) return "soon";
+    return null;
+  };
+  const dueRowCls = (state) => state === "overdue" ? "text-rose-400 font-medium" : state === "soon" ? "text-rose-300 font-medium" : "text-slate-400";
+  const attentionItems = items.filter((it) => dueState(it.maintenance_due_date) || dueState(it.calibration_due_date));
 
   return (
     <div className="p-4 lg:p-6">
@@ -64,12 +72,22 @@ export default function Equipment() {
         )}
       </div>
 
+      {!loading && attentionItems.length > 0 && (
+        <div className="mb-4 flex items-center gap-2.5 bg-rose-500/10 border border-rose-500/40 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+          <div className="text-sm">
+            <span className="font-semibold text-rose-300">{attentionItems.length} asset{attentionItems.length > 1 ? "s" : ""} need attention</span>
+            <span className="text-rose-300/70"> — maintenance or calibration due now or overdue.</span>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" /></div>
       ) : (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {items.map((it) => (
-            <div key={it.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <div key={it.id} className={`bg-slate-900 border rounded-xl p-4 ${(dueState(it.maintenance_due_date) || dueState(it.calibration_due_date)) ? "border-rose-500/50" : "border-slate-800"}`}>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-cyan-400">
@@ -89,15 +107,21 @@ export default function Equipment() {
                   <div className="flex justify-between"><span className="text-slate-500">Assigned to</span><span className="text-slate-300">{it.assigned_to_contractor_name}</span></div>
                 )}
                 {it.maintenance_due_date && (
-                  <div className={`flex justify-between items-center ${dueSoon(it.maintenance_due_date) ? "text-amber-300" : "text-slate-400"}`}>
+                  <div className={`flex justify-between items-center ${dueRowCls(dueState(it.maintenance_due_date))}`}>
                     <span className="flex items-center gap-1"><Wrench className="w-3 h-3" /> Maintenance</span>
-                    <span>{it.maintenance_due_date}</span>
+                    <span className="flex items-center gap-1">
+                      {dueState(it.maintenance_due_date) === "overdue" && <AlertTriangle className="w-3 h-3 text-rose-400" />}
+                      {it.maintenance_due_date}
+                    </span>
                   </div>
                 )}
                 {it.calibration_due_date && (
-                  <div className={`flex justify-between items-center ${dueSoon(it.calibration_due_date) ? "text-amber-300" : "text-slate-400"}`}>
+                  <div className={`flex justify-between items-center ${dueRowCls(dueState(it.calibration_due_date))}`}>
                     <span className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> Calibration</span>
-                    <span>{it.calibration_due_date}</span>
+                    <span className="flex items-center gap-1">
+                      {dueState(it.calibration_due_date) === "overdue" && <AlertTriangle className="w-3 h-3 text-rose-400" />}
+                      {it.calibration_due_date}
+                    </span>
                   </div>
                 )}
               </div>
