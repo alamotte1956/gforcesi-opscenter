@@ -30,8 +30,9 @@ export default function RouteMap({ contractor, stops }) {
   return (
     <MapContainer center={line[0]} zoom={11} className="h-full w-full min-h-[300px]" style={{ background: "#0f172a" }}>
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; OpenStreetMap &copy; CARTO'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; OpenStreetMap contributors'
+        className="osm-dark-tiles"
       />
       {start && (
         <Marker position={start} icon={startIcon}>
