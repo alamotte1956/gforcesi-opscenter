@@ -1,0 +1,42 @@
+{
+  "name": "Job Status Push Notification",
+  "description": "Sends a mobile push notification to assigned field staff when a job is assigned (status 'scheduled') or marked on site.",
+  "trigger": {
+    "config": {
+      "trigger_type": "entity",
+      "entity_name": "Job",
+      "events": [
+        "create",
+        "update"
+      ]
+    },
+    "condition": "${ (.trigger.event_type == \"create\" and .trigger.data.status == \"scheduled\") or (.trigger.event_type == \"update\" and .trigger.data.status == \"on_site\" and .trigger.old_data.status != \"on_site\") or (.trigger.event_type == \"update\" and .trigger.data.status == \"scheduled\" and .trigger.old_data.status != \"scheduled\") }"
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "job_status_push",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "notify": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "notifyJobStatusPush",
+            "args": {
+              "job_id": "${ .trigger.entity_id }",
+              "status": "${ .trigger.data.status }"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Send push to field staff",
+            "description": "Notify assigned crew"
+          }
+        }
+      }
+    ]
+  }
+}
