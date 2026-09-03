@@ -1,0 +1,45 @@
+{
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 7 * * *",
+      "one_time_date": null,
+      "timezone": "America/Chicago",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "description": "Daily check of equipment maintenance/calibration due dates; emails dispatchers and admins about overdue and due-soon assets so they can be pulled from the field.",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "equipment_maintenance_alert",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "alert": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "notifyMaintenanceDue",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Scan equipment & alert dispatchers",
+            "description": "Emails overdue/due-soon maintenance to dispatchers and admins"
+          }
+        }
+      }
+    ]
+  },
+  "name": "Equipment Maintenance Alert"
+}
