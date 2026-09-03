@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate, Link } from "react-router-dom";
 import { Check, ChevronLeft, ChevronRight, UserCheck, ShieldCheck, FileText, DollarSign, Briefcase } from "lucide-react";
@@ -75,6 +75,8 @@ export default function ContractorOnboarding() {
   const [certInput, setCertInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [sigs, setSigs] = useState({});
+  const [editingId, setEditingId] = useState(null);
+  const [selfLoading, setSelfLoading] = useState(true);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const addTag = (k, val, reset) => {
@@ -84,6 +86,30 @@ export default function ContractorOnboarding() {
     reset("");
   };
   const removeTag = (k, idx) => setForm((f) => ({ ...f, [k]: f[k].filter((_, i) => i !== idx) }));
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const user = await base44.auth.me().catch(() => null);
+        if (user && user.role !== "admin") {
+          const list = await base44.entities.Contractor.filter({ email: user.email });
+          const rec = list.find((c) => ["pending", "in_progress"].includes(c.onboarding_status)) || list[0];
+          if (rec) {
+            setEditingId(rec.id);
+            setForm({
+              name: rec.name || "", email: rec.email || "", phone: rec.phone || "", role: rec.role || "Field Technician", region: rec.region || "",
+              skills: rec.skills || [], certifications: rec.certifications || [],
+              pay_type: rec.pay_type || "hourly", pay_rate: rec.pay_rate ?? 0, quickbooks_id: rec.quickbooks_id || "",
+              w9_on_file: !!rec.w9_on_file, i9_on_file: !!rec.i9_on_file, w4_on_file: !!rec.w4_on_file, w4mn_on_file: !!rec.w4mn_on_file,
+              contract_signed: !!rec.contract_signed, insurance_on_file: !!rec.insurance_on_file, mn_ic_exemption_on_file: !!rec.mn_ic_exemption_on_file, workers_comp_on_file: !!rec.workers_comp_on_file, esign_consent: !!rec.esign_consent,
+              emergency_contact: rec.emergency_contact || "",
+            });
+          }
+        }
+      } catch (e) {}
+      setSelfLoading(false);
+    })();
+  }, []);
 
   const handleSign = (key, value) => {
     setSigs((s) => ({ ...s, [key]: value }));
@@ -110,22 +136,37 @@ export default function ContractorOnboarding() {
       location_sharing: false,
     };
     try {
-      await base44.entities.Contractor.create(payload);
-      toast({ title: "Contractor onboarded", description: `${form.name} added. Grant app access from the Contractors page.` });
-      navigate("/contractors");
+      if (editingId) {
+        await base44.entities.Contractor.update(editingId, payload);
+        toast({ title: complianceReady ? "Onboarding complete" : "Progress saved", description: complianceReady ? "You're fully onboarded." : "Finish the remaining documents when ready." });
+        navigate("/contractor-portal");
+      } else {
+        await base44.entities.Contractor.create(payload);
+        toast({ title: "Contractor onboarded", description: `${form.name} added. Grant app access from the Contractors page.` });
+        navigate("/contractors");
+      }
     } catch (e) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
       setSaving(false);
     }
   };
 
+  if (selfLoading) {
+    return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" /></div>;
+  }
+
   return (
     <div className="p-4 lg:p-6 max-w-2xl">
-      <Link to="/contractors" className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-200 mb-4">
-        <ChevronLeft className="w-4 h-4" /> Back to contractors
+      <Link to={editingId ? "/contractor-portal" : "/contractors"} className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-200 mb-4">
+        <ChevronLeft className="w-4 h-4" /> {editingId ? "Back to portal" : "Back to contractors"}
       </Link>
-      <h1 className="text-xl font-semibold mb-1">Contractor Onboarding</h1>
-      <p className="text-sm text-slate-500 mb-6">Add a new contractor to the GForceSI field roster.</p>
+      <h1 className="text-xl font-semibold mb-1">{editingId ? "Complete Your Onboarding" : "Contractor Onboarding"}</h1>
+      <p className="text-sm text-slate-500 mb-6">{editingId ? "Fill out your details and sign each required legal form to finish onboarding." : "Add a new contractor to the GForceSI field roster."}</p>
+      {editingId && (
+        <div className="mb-6 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-sm text-cyan-200 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 shrink-0" /> You were invited to onboard — your details will be saved to your contractor record.
+        </div>
+      )}
 
       {/* Stepper */}
       <div className="flex items-center mb-8">
@@ -157,7 +198,7 @@ export default function ContractorOnboarding() {
             </Field>
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Email">
-                <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} className={inputCls} placeholder="jane@example.com" />
+                <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} disabled={!!editingId} className={`${inputCls} disabled:opacity-60`} placeholder="jane@example.com" />
               </Field>
               <Field label="Phone">
                 <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} placeholder="(415) 555-0100" />

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound } from "lucide-react";
+import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail } from "lucide-react";
 import DeleteRecord from "@/components/DeleteRecord";
 import { useToast } from "@/components/ui/use-toast";
 import { ACCESS_LEVELS } from "@/lib/accessLevels";
@@ -26,6 +26,9 @@ export default function Contractors() {
   const [grant, setGrant] = useState(null);
   const [grantLevel, setGrantLevel] = useState("viewer");
   const [granting, setGranting] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ name: "", email: "", role: "Field Technician" });
+  const [inviting, setInviting] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
 
@@ -74,6 +77,38 @@ export default function Contractors() {
     }
   };
 
+  const submitInvite = async () => {
+    const name = inviteForm.name.trim();
+    const email = inviteForm.email.trim();
+    if (!name || !email) {
+      toast({ title: "Name and email required", variant: "destructive" });
+      return;
+    }
+    setInviting(true);
+    try {
+      await base44.entities.Contractor.create({
+        name, email, role: inviteForm.role,
+        onboarding_status: "pending",
+        current_status: "off_duty", shift_status: "off_duty", location_sharing: false,
+      });
+      try { await base44.users.inviteUser(email, "user"); } catch {}
+      try {
+        const list = await base44.entities.User.list();
+        const found = list.find((u) => u.email === email);
+        if (found) await base44.entities.User.update(found.id, { access_level: "field" });
+      } catch {}
+      await base44.functions.invoke("inviteContractorToOnboard", { name, email });
+      toast({ title: "Invitation sent", description: `${name} (${email}) received an onboarding email.` });
+      setInviteOpen(false);
+      setInviteForm({ name: "", email: "", role: "Field Technician" });
+      load();
+    } catch (e) {
+      toast({ title: "Invite failed", description: e.message, variant: "destructive" });
+    } finally {
+      setInviting(false);
+    }
+  };
+
   const onboarded = contractors.filter((c) => c.onboarding_status === "complete").length;
 
   return (
@@ -83,12 +118,20 @@ export default function Contractors() {
           <h1 className="text-xl font-semibold">Contractors</h1>
           <p className="text-sm text-slate-500">{contractors.length} contractors · {onboarded} fully onboarded</p>
         </div>
-        <Link
-          to="/contractors/onboarding"
-          className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400"
-        >
-          <Plus className="w-4 h-4" /> Onboard Contractor
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setInviteOpen(true)}
+            className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400"
+          >
+            <Mail className="w-4 h-4" /> Invite to Onboard
+          </button>
+          <Link
+            to="/contractors/onboarding"
+            className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700"
+          >
+            <Plus className="w-4 h-4" /> Manual
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -188,6 +231,38 @@ export default function Contractors() {
               <button onClick={() => setGrant(null)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
               <button onClick={submitGrant} disabled={granting} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400 disabled:opacity-50">
                 {granting ? "Granting…" : "Invite & assign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {inviteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setInviteOpen(false)} />
+          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl">
+            <h2 className="text-base font-semibold mb-1 flex items-center gap-2"><Mail className="w-4 h-4 text-cyan-400" /> Invite contractor to onboard</h2>
+            <p className="text-sm text-slate-500 mb-4">We'll create their record and email them a link to complete onboarding themselves.</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Full name</label>
+                <input value={inviteForm.name} onChange={(e) => setInviteForm((f) => ({ ...f, name: e.target.value }))} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500" placeholder="Jane Doe" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Email</label>
+                <input type="email" value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500" placeholder="jane@example.com" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Role</label>
+                <select value={inviteForm.role} onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value }))} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500">
+                  {["Field Technician", "Field Pilot", "Dispatcher", "Billing Manager", "Admin"].map((r) => <option key={r}>{r}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <button onClick={() => setInviteOpen(false)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
+              <button onClick={submitInvite} disabled={inviting} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400 disabled:opacity-50 flex items-center gap-1.5">
+                {inviting ? "Sending…" : <><Mail className="w-4 h-4" /> Send invite</>}
               </button>
             </div>
           </div>
