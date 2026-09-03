@@ -101,17 +101,16 @@ export default function Layout() {
         const needsOnboarding = (c) => c && ["pending", "in_progress"].includes(c.onboarding_status);
         // Explicit access level takes precedence.
         if (level === "field") {
+          if (onOnboarding) return;
           const cons = await base44.entities.Contractor.filter({ email: u.email });
-          if (needsOnboarding(cons[0])) {
-            if (!onOnboarding) navigate("/contractors/onboarding", { replace: true });
-            return;
-          }
+          if (needsOnboarding(cons[0])) { navigate("/contractors/onboarding", { replace: true }); return; }
           navigate("/field", { replace: true });
           return;
         }
         if (level === "client") { navigate("/portal", { replace: true }); return; }
         // Legacy: no access level assigned yet — detect via linked records.
         if (!level && u.role !== "admin" && u.email) {
+          if (onOnboarding) return;
           const linked = await base44.entities.Client.filter({ portal_email: u.email });
           if (linked.length && linked[0].portal_access_level !== "none") {
             navigate("/portal", { replace: true });
@@ -119,10 +118,7 @@ export default function Layout() {
           }
           const cons = await base44.entities.Contractor.filter({ email: u.email });
           const c = cons[0];
-          if (needsOnboarding(c)) {
-            if (!onOnboarding) navigate("/contractors/onboarding", { replace: true });
-            return;
-          }
+          if (needsOnboarding(c)) { navigate("/contractors/onboarding", { replace: true }); return; }
           if (c && ["Field Technician", "Field Pilot"].includes(c.role)) {
             navigate("/field", { replace: true });
             return;
