@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Satellite, LogOut, ArrowLeft, Navigation, Clock, MapPin,
   CheckCircle2, Truck, Camera, Flag, User, Briefcase,
-  MessageSquare, Send, Mail, ClipboardList, Receipt, Loader2,
+  MessageSquare, Send, Mail, ClipboardList, Receipt, Loader2, X,
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";

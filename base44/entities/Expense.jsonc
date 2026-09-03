@@ -55,6 +55,9 @@
     "quickbooks_id": {
       "type": "string"
     },
+    "receipt_url": {
+      "type": "string"
+    },
     "notes": {
       "type": "string"
     }
