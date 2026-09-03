@@ -39,6 +39,7 @@ const navGroups = [
       { to: "/project-status", label: "Project Status", icon: Activity },
       { to: "/invoices", label: "Invoices", icon: FileText },
       { to: "/expenses", label: "Expenses", icon: Receipt },
+      { to: "/expense-approvals", label: "Expense Approvals", icon: ClipboardCheck },
       { to: "/billing-review", label: "Billing Review", icon: Sparkles },
     ],
   },

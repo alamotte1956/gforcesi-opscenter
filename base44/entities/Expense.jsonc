@@ -46,11 +46,15 @@
       "type": "string",
       "enum": [
         "pending",
+        "flagged",
         "approved",
         "rejected",
         "synced"
       ],
       "default": "pending"
+    },
+    "flag_note": {
+      "type": "string"
     },
     "quickbooks_id": {
       "type": "string"
