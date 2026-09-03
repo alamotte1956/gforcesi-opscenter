@@ -11,13 +11,25 @@ import GuideDownload from "@/components/GuideDownload";
 
 const navGroups = [
   {
-    label: "Operations",
+    label: "Overview",
     items: [
       { to: "/", label: "Live Map", icon: Map, end: true },
+    ],
+  },
+  {
+    label: "Setup & Resources",
+    items: [
+      { to: "/clients", label: "Clients", icon: Building2 },
+      { to: "/projects", label: "Projects", icon: FolderKanban },
+      { to: "/sites", label: "Sites", icon: MapPin },
+      { to: "/contractors", label: "Contractors", icon: Users },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
       { to: "/jobs", label: "Jobs", icon: KanbanSquare },
       { to: "/routes", label: "Route Planning", icon: RouteIcon },
-      { to: "/contractors", label: "Contractors", icon: Users },
-      { to: "/sites", label: "Sites", icon: MapPin },
       { to: "/messages", label: "Messages", icon: MessageSquare },
     ],
   },
@@ -32,15 +44,13 @@ const navGroups = [
     ],
   },
   {
-    label: "Business & Financials",
+    label: "Financials",
     items: [
-      { to: "/clients", label: "Clients", icon: Building2 },
-      { to: "/projects", label: "Projects", icon: FolderKanban },
-      { to: "/project-status", label: "Project Status", icon: Activity },
-      { to: "/invoices", label: "Invoices", icon: FileText },
       { to: "/expenses", label: "Expenses", icon: Receipt },
       { to: "/expense-approvals", label: "Expense Approvals", icon: ClipboardCheck },
+      { to: "/invoices", label: "Invoices", icon: FileText },
       { to: "/billing-review", label: "Billing Review", icon: Sparkles },
+      { to: "/project-status", label: "Project Status", icon: Activity },
     ],
   },
   {
@@ -63,7 +73,7 @@ const navGroups = [
     ],
   },
   {
-    label: "External",
+    label: "External & Personal",
     items: [
       { to: "/portal", label: "Client Portal", icon: Globe },
       { to: "/contractor-portal", label: "Contractor Portal", icon: DollarSign },
