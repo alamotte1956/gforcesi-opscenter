@@ -97,8 +97,17 @@ export default function Contractors() {
         const found = list.find((u) => u.email === email);
         if (found) await base44.entities.User.update(found.id, { access_level: "field" });
       } catch {}
-      await base44.functions.invoke("inviteContractorToOnboard", { name, email });
-      toast({ title: "Invitation sent", description: `${name} (${email}) received an onboarding email.` });
+      let onboardingEmailed = false;
+      try {
+        await base44.functions.invoke("inviteContractorToOnboard", { name, email });
+        onboardingEmailed = true;
+      } catch {}
+      toast({
+        title: "Invitation sent",
+        description: onboardingEmailed
+          ? `${name} (${email}) received an onboarding email with a direct link.`
+          : `${name} (${email}) received a platform invite — after sign-in they'll be taken straight to onboarding.`,
+      });
       setInviteOpen(false);
       setInviteForm({ name: "", email: "", role: "Field Technician" });
       load();
