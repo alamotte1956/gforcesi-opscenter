@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import {
   Plug, FileSpreadsheet, Calendar, Receipt, CheckCircle2, XCircle,
-  Loader2, ExternalLink, AlertCircle, RefreshCw, Link2, Unlink,
+  Loader2, ExternalLink, AlertCircle, RefreshCw, Link2, Unlink, Download,
 } from "lucide-react";
 import CredentialsHelp from "@/components/CredentialsHelp";
+import { useToast } from "@/components/ui/use-toast";
 
 const SHEETS_CONNECTOR_ID = "6a78afeef15cdc646169800c";
 
@@ -13,6 +14,8 @@ export default function Integrations() {
   const [status, setStatus] = useState({ sheets: false, quickbooks: false, calendar: false });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(""); // "sheets-connect" | "sheets-disconnect" | ""
+  const [qbBusy, setQbBusy] = useState("");
+  const { toast } = useToast();
 
   const fetchStatus = async () => {
     try {
@@ -59,6 +62,28 @@ export default function Integrations() {
       await fetchStatus();
     } catch {}
     setBusy("");
+  };
+
+  const pullCustomers = async () => {
+    setQbBusy("customers");
+    try {
+      const res = await base44.functions.invoke("syncQuickbooks", { action: "pullCustomers" });
+      const d = res.data || {};
+      toast({ title: "Customers pulled", description: `${d.pulled || 0} from QuickBooks (${d.created || 0} new, ${d.updated || 0} updated)` });
+    } catch (e) {
+      toast({ title: "Pull failed", description: e.response?.data?.error || e.message, variant: "destructive" });
+    } finally { setQbBusy(""); }
+  };
+
+  const pullInvoiceStatus = async () => {
+    setQbBusy("invoices");
+    try {
+      const res = await base44.functions.invoke("syncQuickbooks", { action: "pullInvoiceStatus" });
+      const d = res.data || {};
+      toast({ title: "Invoice status updated", description: `${d.paid || 0} marked paid` });
+    } catch (e) {
+      toast({ title: "Update failed", description: e.response?.data?.error || e.message, variant: "destructive" });
+    } finally { setQbBusy(""); }
   };
 
   if (loading) {
@@ -135,7 +160,16 @@ export default function Integrations() {
           connected={status.quickbooks}
           statusOnly
         >
-          {!status.quickbooks && (
+          {status.quickbooks ? (
+            <div className="flex items-center gap-2">
+              <button onClick={pullCustomers} disabled={!!qbBusy} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-200 hover:border-cyan-500/40 hover:text-cyan-300 flex items-center gap-1.5 disabled:opacity-50">
+                {qbBusy === "customers" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Pull customers
+              </button>
+              <button onClick={pullInvoiceStatus} disabled={!!qbBusy} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-200 hover:border-cyan-500/40 hover:text-cyan-300 flex items-center gap-1.5 disabled:opacity-50">
+                {qbBusy === "invoices" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Update invoice status
+              </button>
+            </div>
+          ) : (
             <span className="text-xs text-amber-300/90 flex items-center gap-1.5">
               <AlertCircle className="w-3.5 h-3.5" /> Not connected — connect it from the setup chat
             </span>

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Check, X, UploadCloud, Receipt, Filter, Loader2 } from "lucide-react";
 import DeleteRecord from "@/components/DeleteRecord";
+import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
   pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
@@ -33,6 +34,7 @@ export default function Expenses() {
   const [form, setForm] = useState({ description: "", amount: "", category: "labor", vendor_name: "", date: new Date().toISOString().slice(0, 10), job_id: "", notes: "" });
 
   const isAdmin = me?.role === "admin";
+  const { toast } = useToast();
 
   const load = async () => {
     const [exp, jbs, user] = await Promise.all([
@@ -68,16 +70,17 @@ export default function Expenses() {
     if (!approved.length) return;
     setSyncing(true);
     try {
-      const updates = approved.map((e) => ({ id: e.id, status: "synced", quickbooks_id: `QB-EXP-${e.id.slice(-6).toUpperCase()}` }));
-      await base44.entities.Expense.bulkUpdate(updates);
-      const logs = approved.map((e) => ({
-        sync_type: "expense", direction: "to_qb", status: "success",
-        entity_id: e.id, entity_type: "Expense", entity_label: e.description,
-        message: `Expense "${e.description}" (${fmtMoney(e.amount)}) synced to QuickBooks`,
-        timestamp: new Date().toISOString(),
-      }));
-      await base44.entities.SyncLog.bulkCreate(logs);
+      const res = await base44.functions.invoke("syncQuickbooks", { action: "pushExpenses", ids: approved.map((e) => e.id) });
+      const data = res.data || {};
+      const failed = (data.results || []).filter((r) => !r.ok);
+      if (failed.length) {
+        toast({ title: `${failed.length} expense(s) failed`, description: failed[0]?.error || "See sync log", variant: "destructive" });
+      } else {
+        toast({ title: "Synced to QuickBooks", description: `${approved.length} expense(s)` });
+      }
       await load();
+    } catch (e) {
+      toast({ title: "Sync failed", description: e.response?.data?.error || e.message, variant: "destructive" });
     } finally { setSyncing(false); }
   };
 

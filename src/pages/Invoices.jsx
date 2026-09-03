@@ -27,6 +27,7 @@ export default function Invoices() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm());
+  const [syncingId, setSyncingId] = useState(null);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
 
@@ -73,16 +74,16 @@ export default function Invoices() {
   };
 
   const syncInvoice = async (inv) => {
-    const qbId = `QB-INV-${inv.id.slice(-6).toUpperCase()}`;
-    await base44.entities.Invoice.update(inv.id, { quickbooks_invoice_id: qbId, status: "synced" });
-    await base44.entities.SyncLog.create({
-      sync_type: "invoice", direction: "to_qb", status: "success",
-      entity_id: inv.id, entity_type: "Invoice", entity_label: inv.invoice_number,
-      message: `Invoice ${inv.invoice_number} ($${(inv.total || 0).toLocaleString()}) synced to QuickBooks`,
-      timestamp: new Date().toISOString(),
-    });
-    toast({ title: "Synced to QuickBooks", description: inv.invoice_number });
-    load();
+    setSyncingId(inv.id);
+    try {
+      const res = await base44.functions.invoke("syncQuickbooks", { action: "pushInvoice", id: inv.id });
+      toast({ title: "Synced to QuickBooks", description: res.data?.docNumber || inv.invoice_number });
+      load();
+    } catch (e) {
+      toast({ title: "Sync failed", description: e.response?.data?.error || e.message, variant: "destructive" });
+    } finally {
+      setSyncingId(null);
+    }
   };
 
   return (
@@ -139,8 +140,12 @@ export default function Invoices() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {inv.quickbooks_invoice_id ? (
-                      <span className="text-xs text-emerald-400 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Synced</span>
+                    {syncingId === inv.id ? (
+                      <span className="text-xs text-slate-400 flex items-center gap-1"><RefreshCw className="w-3 h-3 animate-spin" /> Syncing…</span>
+                    ) : inv.quickbooks_invoice_id ? (
+                      <button onClick={() => syncInvoice(inv)} className="text-xs text-emerald-400 hover:underline flex items-center gap-1" title="Re-sync to QuickBooks">
+                        <RefreshCw className="w-3 h-3" /> Synced
+                      </button>
                     ) : (
                       <button onClick={() => syncInvoice(inv)} className="text-xs text-cyan-400 hover:underline flex items-center gap-1">
                         <FileText className="w-3 h-3" /> Sync
