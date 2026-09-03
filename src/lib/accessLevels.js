@@ -5,7 +5,7 @@
 
 export const ACCESS_LEVELS = {
   full: { label: "Admin · Full Access", description: "All modules + user management", role: "admin", routes: ["*"] },
-  dispatcher: { label: "Dispatcher", description: "Operations, field reporting, messaging", role: "user", routes: ["/", "/jobs", "/routes", "/contractors", "/sites", "/messages", "/daily-reports", "/issues", "/inspections", "/equipment", "/analytics", "/assignment-reports", "/admin", "/compliance"] },
+  dispatcher: { label: "Dispatcher", description: "Operations, field reporting, messaging", role: "user", routes: ["/", "/jobs", "/routes", "/contractors", "/sites", "/messages", "/daily-reports", "/issues", "/inspections", "/equipment", "/equipment-maintenance", "/analytics", "/assignment-reports", "/admin", "/compliance"] },
   billing: { label: "Billing & Finance", description: "Clients, projects, invoices, expenses", role: "user", routes: ["/clients", "/projects", "/project-status", "/invoices", "/expenses", "/billing-review", "/analytics", "/assignment-reports"] },
   viewer: { label: "Insights · Read-only", description: "Analytics & compliance dashboards", role: "user", routes: ["/analytics", "/compliance", "/project-status", "/assignment-reports"] },
   field: { label: "Field Crew", description: "Mobile field app + personal schedule", role: "user", routes: ["/field", "/my-schedule", "/contractor-portal", "/notifications"] },

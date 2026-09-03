@@ -46,6 +46,7 @@ import MySchedule from '@/pages/MySchedule';
 import ContractorPortal from '@/pages/ContractorPortal';
 import AdminDashboard from '@/pages/AdminDashboard';
 import AssignmentReports from '@/pages/AssignmentReports';
+import EquipmentMaintenance from '@/pages/EquipmentMaintenance';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -109,6 +110,7 @@ const AuthenticatedApp = () => {
           <Route path="/contractor-portal" element={<ContractorPortal />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/assignment-reports" element={<AssignmentReports />} />
+          <Route path="/equipment-maintenance" element={<EquipmentMaintenance />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
