@@ -116,3 +116,38 @@ export async function resolveBankAccountId(accessToken, realmId) {
   const accounts = q.Account || [];
   return accounts[0]?.Id || null;
 }
+
+// Push a single approved expense to QuickBooks as a Purchase, mark it synced,
+// and log the sync. Shared by syncQuickbooks (admin) and syncApprovedExpenses
+// (scheduled). Uses the service role for writes so it works without a user.
+export async function pushExpenseToQuickBooks(base44, accessToken, realmId, exp, bankId, expenseAccountId) {
+  const amount = Number(exp.amount || 0);
+  const body = {
+    PaymentType: "Cash",
+    AccountRef: { value: String(bankId) },
+    TxnDate: exp.date,
+    Line: [{
+      Amount: amount,
+      DetailType: "AccountBasedExpenseLineDetail",
+      Description: exp.description,
+      AccountBasedExpenseLineDetail: { AccountRef: { value: String(expenseAccountId) } },
+    }],
+  };
+  const created = await qbCreate(accessToken, realmId, "purchase", body);
+  const qbId = created?.Id;
+  await base44.asServiceRole.entities.Expense.update(exp.id, {
+    status: "synced",
+    quickbooks_id: qbId ? String(qbId) : undefined,
+  });
+  await base44.asServiceRole.entities.SyncLog.create({
+    sync_type: "expense",
+    direction: "to_qb",
+    status: "success",
+    entity_id: exp.id,
+    entity_type: "Expense",
+    entity_label: exp.description,
+    message: `Expense "${exp.description}" ($${amount.toLocaleString()}) synced to QuickBooks`,
+    timestamp: new Date().toISOString(),
+  });
+  return { ok: true, quickbooks_id: qbId ? String(qbId) : null };
+}

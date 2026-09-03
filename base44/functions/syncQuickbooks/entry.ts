@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import {
   getConnection, qbQuery, qbCreate, qbGet,
   ensureCustomerId, resolveItemId, resolveExpenseAccountId, resolveBankAccountId,
+  pushExpenseToQuickBooks,
 } from '../../shared/quickbooks.ts';
 
 // Real two-way QuickBooks Online sync. Admin-only. Requires the shared
@@ -103,24 +104,8 @@ async function pushExpenses(base44, accessToken, realmId, ids) {
     try {
       const exp = await base44.entities.Expense.get(id);
       if (!exp) { results.push({ id, ok: false, error: 'not found' }); continue; }
-      const amount = Number(exp.amount || 0);
-      const body = {
-        PaymentType: 'Cash',
-        AccountRef: { value: String(bankId) },
-        TxnDate: exp.date,
-        Line: [{
-          Amount: amount,
-          DetailType: 'AccountBasedExpenseLineDetail',
-          Description: exp.description,
-          AccountBasedExpenseLineDetail: { AccountRef: { value: String(expenseAccountId) } },
-        }],
-      };
-      const created = await qbCreate(accessToken, realmId, 'purchase', body);
-      const qbId = created?.Id;
-      await base44.entities.Expense.update(id, { status: 'synced', quickbooks_id: qbId ? String(qbId) : undefined });
-      await logSync(base44, 'expense', 'to_qb', 'success', id, 'Expense', exp.description,
-        `Expense "${exp.description}" ($${amount.toLocaleString()}) synced to QuickBooks`);
-      results.push({ id, ok: true, quickbooks_id: qbId ? String(qbId) : null });
+      const res = await pushExpenseToQuickBooks(base44, accessToken, realmId, exp, bankId, expenseAccountId);
+      results.push({ id, ...res });
     } catch (e) {
       results.push({ id, ok: false, error: e.message });
     }

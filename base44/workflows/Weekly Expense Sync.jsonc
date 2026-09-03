@@ -1,0 +1,45 @@
+{
+  "name": "Weekly Expense Sync",
+  "description": "Every Friday at 5pm Central, pushes all approved expense reports into QuickBooks as purchases for payroll and billing tracking.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 17 * * 5",
+      "one_time_date": null,
+      "timezone": "America/Chicago",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "weekly_expense_sync",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "sync": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "syncApprovedExpenses",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Push approved expenses to QuickBooks",
+            "description": "Syncs the week's approved expenses as QB purchases"
+          }
+        }
+      }
+    ]
+  }
+}

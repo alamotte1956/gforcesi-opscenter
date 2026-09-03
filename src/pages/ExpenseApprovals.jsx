@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { ClipboardCheck, Flag, Check, X, Receipt, Filter, Loader2, ImageOff, MessageSquare } from "lucide-react";
+import { ClipboardCheck, Flag, Check, X, Receipt, Filter, Loader2, ImageOff, MessageSquare, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
@@ -32,6 +32,7 @@ export default function ExpenseApprovals() {
   const [selected, setSelected] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [previewImg, setPreviewImg] = useState(null);
+  const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
 
   const load = async () => {
@@ -122,6 +123,25 @@ export default function ExpenseApprovals() {
     expenses.find((e) => e.id === id)?.status === "pending"
   ).length;
 
+  const syncToQb = async () => {
+    setSyncing(true);
+    try {
+      const res = await base44.functions.invoke("syncApprovedExpenses", {});
+      const data = res.data || {};
+      if (data.error) throw new Error(data.error);
+      if (!data.found) {
+        toast({ title: "Nothing to sync", description: "No approved expenses waiting for QuickBooks." });
+      } else {
+        toast({ title: "Synced to QuickBooks", description: `${data.pushed || 0} of ${data.found} expense(s) pushed.` });
+        await load();
+      }
+    } catch (e) {
+      toast({ title: "QuickBooks sync failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className="p-4 lg:p-6">
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
@@ -131,16 +151,26 @@ export default function ExpenseApprovals() {
           </h1>
           <p className="text-sm text-slate-500">Review contractor-submitted expenses, flag for follow-up, or approve for payroll</p>
         </div>
-        {pendingSelected > 0 && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={bulkApprove}
-            disabled={bulkBusy}
-            className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-emerald-400 disabled:opacity-50"
+            onClick={syncToQb}
+            disabled={syncing}
+            className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-500/20 disabled:opacity-50"
           >
-            {bulkBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            Approve {pendingSelected} for payroll
+            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Sync to QuickBooks
           </button>
-        )}
+          {pendingSelected > 0 && (
+            <button
+              onClick={bulkApprove}
+              disabled={bulkBusy}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-emerald-400 disabled:opacity-50"
+            >
+              {bulkBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              Approve {pendingSelected} for payroll
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
