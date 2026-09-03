@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { ClipboardList, Plus, Check } from "lucide-react";
+import { ClipboardList, Plus, Check, Download, Loader2 } from "lucide-react";
 import FormModal from "@/components/FormModal";
 import DeleteRecord from "@/components/DeleteRecord";
+import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
   draft: "bg-slate-700 text-slate-300",
@@ -18,6 +19,28 @@ export default function DailyReports() {
   const [filter, setFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ report_date: new Date().toISOString().slice(0, 10), job_id: "", filed_by_name: "", weather: "", work_completed: "", hours_worked: "", crew_count: "1", delays: "", notes: "" });
+  const [exportingId, setExportingId] = useState(null);
+  const { toast } = useToast();
+
+  const exportPdf = async (r) => {
+    setExportingId(r.id);
+    try {
+      const res = await base44.functions.invoke("exportDailyReport", { report_id: r.id });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `DailyReport-${r.report_date}-${(r.job_title || "site").replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast({ title: "Export failed", description: e.response?.data?.error || e.message, variant: "destructive" });
+    } finally {
+      setExportingId(null);
+    }
+  };
 
   const load = async () => {
     const [r, j] = await Promise.all([base44.entities.DailyReport.list("-report_date"), base44.entities.Job.list()]);
@@ -105,6 +128,9 @@ export default function DailyReports() {
                       {r.status === "submitted" && (
                         <button onClick={() => setStatus(r.id, "reviewed")} className="text-xs text-emerald-400 hover:underline flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Review</button>
                       )}
+                      <button onClick={() => exportPdf(r)} disabled={exportingId === r.id} className="text-xs text-cyan-400 hover:underline flex items-center gap-1 disabled:opacity-50">
+                        {exportingId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} PDF
+                      </button>
                       <DeleteRecord entityName="DailyReport" recordId={r.id} recordLabel={r.job_title || r.report_date} onDeleted={load} className="text-slate-500 hover:text-rose-400" />
                     </div>
                   </td>
