@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   Map, KanbanSquare, FolderKanban, Users, Building2, FileText,
-  Boxes, BarChart3,   Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog, Receipt, ClipboardList, AlertTriangle, ClipboardCheck, ScanLine, Plug, Sparkles, Activity
+  Boxes, BarChart3,   Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog, Receipt, ClipboardList, AlertTriangle, ClipboardCheck, ScanLine, Plug, Sparkles, Activity, MapPin, Bell, Calendar, DollarSign, LayoutDashboard, FileBarChart
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import { filterNavGroups, canAccessRoute, levelForUser, firstAllowedRoute } from "@/lib/accessLevels";
@@ -17,6 +17,7 @@ const navGroups = [
       { to: "/jobs", label: "Jobs", icon: KanbanSquare },
       { to: "/routes", label: "Route Planning", icon: RouteIcon },
       { to: "/contractors", label: "Contractors", icon: Users },
+      { to: "/sites", label: "Sites", icon: MapPin },
       { to: "/messages", label: "Messages", icon: MessageSquare },
     ],
   },
@@ -44,6 +45,8 @@ const navGroups = [
     label: "Insights & Admin",
     items: [
       { to: "/analytics", label: "Analytics", icon: BarChart3 },
+      { to: "/assignment-reports", label: "Assignment Reports", icon: FileBarChart },
+      { to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard },
       { to: "/compliance", label: "Compliance", icon: ShieldCheck },
       { to: "/users", label: "User Management", icon: UserCog },
     ],
@@ -61,9 +64,12 @@ const navGroups = [
     label: "External",
     items: [
       { to: "/portal", label: "Client Portal", icon: Globe },
+      { to: "/contractor-portal", label: "Contractor Portal", icon: DollarSign },
+      { to: "/my-schedule", label: "My Schedule", icon: Calendar },
+      { to: "/notifications", label: "Notification Settings", icon: Bell },
     ],
   },
-];
+  ];
 
 export default function Layout() {
   const [open, setOpen] = useState(false);

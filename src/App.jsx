@@ -40,6 +40,12 @@ import Matterport from '@/pages/Matterport';
 import Messages from '@/pages/Messages';
 import UserManagement from '@/pages/UserManagement';
 import Integrations from '@/pages/Integrations';
+import Sites from '@/pages/Sites';
+import NotificationSettings from '@/pages/NotificationSettings';
+import MySchedule from '@/pages/MySchedule';
+import ContractorPortal from '@/pages/ContractorPortal';
+import AdminDashboard from '@/pages/AdminDashboard';
+import AssignmentReports from '@/pages/AssignmentReports';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -97,6 +103,12 @@ const AuthenticatedApp = () => {
           <Route path="/messages" element={<Messages />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/integrations" element={<Integrations />} />
+          <Route path="/sites" element={<Sites />} />
+          <Route path="/notifications" element={<NotificationSettings />} />
+          <Route path="/my-schedule" element={<MySchedule />} />
+          <Route path="/contractor-portal" element={<ContractorPortal />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/assignment-reports" element={<AssignmentReports />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

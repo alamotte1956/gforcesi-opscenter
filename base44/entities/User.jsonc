@@ -19,6 +19,44 @@
         "field",
         "client"
       ]
+    },
+    "notification_preferences": {
+      "type": "object",
+      "description": "User-selected notification opt-ins and channel preferences",
+      "properties": {
+        "job_assigned": {
+          "type": "boolean"
+        },
+        "status_changed": {
+          "type": "boolean"
+        },
+        "maintenance_due": {
+          "type": "boolean"
+        },
+        "daily_report": {
+          "type": "boolean"
+        },
+        "expense_approved": {
+          "type": "boolean"
+        },
+        "expense_rejected": {
+          "type": "boolean"
+        },
+        "channels": {
+          "type": "object",
+          "properties": {
+            "push": {
+              "type": "boolean"
+            },
+            "email": {
+              "type": "boolean"
+            },
+            "in_app": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
     }
   },
   "required": [
