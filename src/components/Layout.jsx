@@ -150,7 +150,13 @@ export default function Layout() {
         <nav className="flex-1 overflow-y-auto py-4 px-3">
           {filterNavGroups(navGroups, me).map((group) => (
             <div key={group.label} className="mb-4 last:mb-0">
-              <div className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">{group.label}</div>
+              <div className="px-3 mb-1.5 flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">{group.label.split(" & ")[0]}</span>
+                {group.label.includes(" & ") && (
+                  <span className="text-[11px] font-normal text-slate-600 truncate">& {group.label.split(" & ").slice(1).join(" & ")}</span>
+                )}
+                <div className="flex-1 h-px bg-slate-800/80 ml-1" />
+              </div>
               <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const Icon = item.icon;
