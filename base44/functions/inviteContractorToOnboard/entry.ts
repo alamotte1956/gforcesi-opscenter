@@ -16,6 +16,7 @@ export default async function(req) {
 
     await base44.asServiceRole.integrations.Core.SendEmail({
       to: email,
+      from_name: "GForceSI Ops",
       subject: "You're invited to onboard with GForceSI",
       body: `Hello ${name},\n\nYou've been invited to join GForceSI as a field contractor. To complete your onboarding — your profile, pay details, and all required legal forms (I-9, W-4, W-4MN, W-9, and your independent contractor agreement) — please sign in and open your onboarding area:\n\n${ONBOARDING_URL}\n\nUse the email address this invitation was sent to. If you have any questions, reply to this email or contact the GForceSI operations team.\n\nWelcome aboard,\nThe GForceSI Team`,
     });
