@@ -115,6 +115,18 @@
       "type": "boolean",
       "default": false
     },
+    "i9_on_file": {
+      "type": "boolean",
+      "default": false
+    },
+    "w4_on_file": {
+      "type": "boolean",
+      "default": false
+    },
+    "w4mn_on_file": {
+      "type": "boolean",
+      "default": false
+    },
     "contract_signed": {
       "type": "boolean",
       "default": false

@@ -15,7 +15,7 @@ const blank = {
   name: "", email: "", phone: "", role: "Field Technician", region: "",
   skills: [], certifications: [],
   pay_type: "hourly", pay_rate: 0, quickbooks_id: "",
-  w9_on_file: false, contract_signed: false, insurance_on_file: false, mn_ic_exemption_on_file: false, workers_comp_on_file: false, esign_consent: false, emergency_contact: "",
+  w9_on_file: false, i9_on_file: false, w4_on_file: false, w4mn_on_file: false, contract_signed: false, insurance_on_file: false, mn_ic_exemption_on_file: false, workers_comp_on_file: false, esign_consent: false, emergency_contact: "",
 };
 
 const docs = [
@@ -28,6 +28,21 @@ const docs = [
     key: "w9_on_file",
     title: "IRS Form W-9 — Request for Taxpayer Identification",
     disclosure: `You must furnish a completed IRS Form W-9 providing your correct taxpayer identification number (TIN). GForceSI uses this information to file Form 1099-NEC with the Internal Revenue Service as required by federal tax law.\n\nUnder penalties of perjury, you certify that the information provided on Form W-9 is true, correct, and complete, and that you are not subject to backup withholding.`,
+  },
+  {
+    key: "i9_on_file",
+    title: "Form I-9 — Employment Eligibility Verification",
+    disclosure: `You must complete Section 1 of Form I-9 (Employment Eligibility Verification) and present acceptable documentation establishing your identity and employment authorization to an authorized GForceSI representative within three business days of your start date, as required by the Immigration Reform and Control Act (IRCA) and 8 CFR § 274a.2.\n\nBy signing, you attest under penalty of perjury that you are a citizen, national, lawful permanent resident, or alien authorized to work in the United States, and that the documentation you will present is genuine and relates to you. You understand that failure to provide the required documentation may result in termination of your engagement.`,
+  },
+  {
+    key: "w4_on_file",
+    title: "IRS Form W-4 — Employee's Withholding Certificate",
+    disclosure: `You must complete IRS Form W-4 (Employee's Withholding Certificate) so that GForceSI can withhold the correct federal income tax from your wages, as required by 26 U.S.C. § 3402.\n\nBy signing, you certify that the number of withholding allowances and any additional amount you have claimed is correct, and that you claim exemption from withholding only if you meet the criteria for exemption. You understand that you may file a new Form W-4 whenever your tax situation changes.`,
+  },
+  {
+    key: "w4mn_on_file",
+    title: "Form W-4MN — Minnesota Withholding Allowance Certificate",
+    disclosure: `You must complete Form W-4MN (Minnesota Withholding Exemption/Allowance Certificate) so that GForceSI can withhold the correct Minnesota income tax from your wages, as required by Minnesota Statutes § 290.92.\n\nBy signing, you certify that the Minnesota withholding allowances claimed are correct and that you claim exemption from Minnesota withholding only if you meet the criteria. You understand that you must file a new Form W-4MN whenever your situation changes.`,
   },
   {
     key: "mn_ic_exemption_on_file",
@@ -84,7 +99,7 @@ export default function ContractorOnboarding() {
 
   const submit = async () => {
     setSaving(true);
-    const complianceReady = form.w9_on_file && form.contract_signed && form.mn_ic_exemption_on_file && form.workers_comp_on_file && form.insurance_on_file && form.esign_consent;
+    const complianceReady = form.w9_on_file && form.i9_on_file && form.w4_on_file && form.w4mn_on_file && form.contract_signed && form.mn_ic_exemption_on_file && form.workers_comp_on_file && form.insurance_on_file && form.esign_consent;
     const payload = {
       ...form,
       pay_rate: Number(form.pay_rate) || 0,
@@ -217,12 +232,12 @@ export default function ContractorOnboarding() {
               <input value={form.emergency_contact} onChange={(e) => set("emergency_contact", e.target.value)} className={inputCls} placeholder="Name & phone" />
             </Field>
             <div className={`mt-2 p-3 rounded-lg text-xs flex items-center gap-2 ${
-              form.w9_on_file && form.contract_signed && form.mn_ic_exemption_on_file && form.workers_comp_on_file && form.insurance_on_file && form.esign_consent
+              form.w9_on_file && form.i9_on_file && form.w4_on_file && form.w4mn_on_file && form.contract_signed && form.mn_ic_exemption_on_file && form.workers_comp_on_file && form.insurance_on_file && form.esign_consent
                 ? "bg-emerald-500/10 text-emerald-300"
                 : "bg-amber-500/10 text-amber-300"
             }`}>
               <UserCheck className="w-4 h-4" />
-              {form.w9_on_file && form.contract_signed && form.mn_ic_exemption_on_file && form.workers_comp_on_file && form.insurance_on_file && form.esign_consent
+              {form.w9_on_file && form.i9_on_file && form.w4_on_file && form.w4mn_on_file && form.contract_signed && form.mn_ic_exemption_on_file && form.workers_comp_on_file && form.insurance_on_file && form.esign_consent
                 ? "All documents signed — contractor will be marked fully onboarded."
                 : "Incomplete — contractor will be saved as in_progress until all documents are signed."}
             </div>
