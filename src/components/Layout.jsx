@@ -97,11 +97,15 @@ export default function Layout() {
         setMe(u);
         if (!u) return;
         const level = levelForUser(u);
-        const needsOnboarding = (c) => c && ["pending", "in_progress"].includes(c.onboarding_status) && location.pathname !== "/contractors/onboarding";
+        const onOnboarding = location.pathname === "/contractors/onboarding";
+        const needsOnboarding = (c) => c && ["pending", "in_progress"].includes(c.onboarding_status);
         // Explicit access level takes precedence.
         if (level === "field") {
           const cons = await base44.entities.Contractor.filter({ email: u.email });
-          if (needsOnboarding(cons[0])) { navigate("/contractors/onboarding", { replace: true }); return; }
+          if (needsOnboarding(cons[0])) {
+            if (!onOnboarding) navigate("/contractors/onboarding", { replace: true });
+            return;
+          }
           navigate("/field", { replace: true });
           return;
         }
@@ -115,7 +119,10 @@ export default function Layout() {
           }
           const cons = await base44.entities.Contractor.filter({ email: u.email });
           const c = cons[0];
-          if (needsOnboarding(c)) { navigate("/contractors/onboarding", { replace: true }); return; }
+          if (needsOnboarding(c)) {
+            if (!onOnboarding) navigate("/contractors/onboarding", { replace: true });
+            return;
+          }
           if (c && ["Field Technician", "Field Pilot"].includes(c.role)) {
             navigate("/field", { replace: true });
             return;
