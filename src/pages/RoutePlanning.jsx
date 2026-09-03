@@ -3,7 +3,6 @@ import { base44 } from "@/api/base44Client";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical } from "lucide-react";
 import RouteMap from "@/components/operations/RouteMap";
-import { Switch } from "@/components/ui/switch";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
 const AVG_SPEED_MPH = 35;
@@ -334,11 +333,19 @@ export default function RoutePlanning() {
           >
             <Wand2 className="w-4 h-4" /> Generate daily plan
           </button>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
-            <Switch checked={autoMode} onCheckedChange={toggleAuto} />
-            <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
-              <Wand2 className="w-4 h-4 text-cyan-400" /> Auto
-            </span>
+          <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5">
+            <button
+              onClick={() => toggleAuto(false)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition ${!autoMode ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
+            >
+              <RouteIcon className="w-4 h-4" /> Manual
+            </button>
+            <button
+              onClick={() => toggleAuto(true)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition ${autoMode ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-slate-200"}`}
+            >
+              <Wand2 className="w-4 h-4" /> Automatic
+            </button>
           </div>
           <button
             onClick={optimizeAll}
