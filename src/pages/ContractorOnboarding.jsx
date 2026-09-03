@@ -96,7 +96,7 @@ export default function ContractorOnboarding() {
     };
     try {
       await base44.entities.Contractor.create(payload);
-      toast({ title: "Contractor onboarded", description: `${form.name} added to the roster.` });
+      toast({ title: "Contractor onboarded", description: `${form.name} added. Grant app access from the Contractors page.` });
       navigate("/contractors");
     } catch (e) {
       toast({ title: "Error", description: e.message, variant: "destructive" });

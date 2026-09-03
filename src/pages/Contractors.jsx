@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle } from "lucide-react";
+import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound } from "lucide-react";
 import DeleteRecord from "@/components/DeleteRecord";
+import { useToast } from "@/components/ui/use-toast";
+import { ACCESS_LEVELS } from "@/lib/accessLevels";
 
 const statusDot = {
   available: "bg-emerald-400",
@@ -21,6 +23,10 @@ export default function Contractors() {
   const [contractors, setContractors] = useState([]);
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [grant, setGrant] = useState(null);
+  const [grantLevel, setGrantLevel] = useState("viewer");
+  const [granting, setGranting] = useState(false);
+  const { toast } = useToast();
   const isAdmin = me?.role === "admin";
 
   const load = async () => {
@@ -34,6 +40,38 @@ export default function Contractors() {
   const changeRole = async (c, role) => {
     await base44.entities.Contractor.update(c.id, { role });
     setContractors((prev) => prev.map((x) => (x.id === c.id ? { ...x, role } : x)));
+  };
+
+  const openGrant = (c) => {
+    setGrant(c);
+    setGrantLevel(c.role === "Admin" ? "full" : "viewer");
+  };
+
+  const submitGrant = async () => {
+    if (!grant?.email) {
+      toast({ title: "No email on file", description: "Add an email to this contractor before granting access.", variant: "destructive" });
+      return;
+    }
+    setGranting(true);
+    try {
+      const def = ACCESS_LEVELS[grantLevel] || ACCESS_LEVELS.viewer;
+      try { await base44.users.inviteUser(grant.email.trim(), def.role); } catch {}
+      let assigned = false;
+      try {
+        const list = await base44.entities.User.list();
+        const found = list.find((u) => u.email === grant.email.trim());
+        if (found) {
+          await base44.entities.User.update(found.id, { role: def.role, access_level: grantLevel });
+          assigned = true;
+        }
+      } catch {}
+      toast({ title: assigned ? "Access granted" : "Invitation sent", description: `${grant.name} → ${def.label}` });
+      setGrant(null);
+    } catch (e) {
+      toast({ title: "Could not grant access", description: e.message, variant: "destructive" });
+    } finally {
+      setGranting(false);
+    }
   };
 
   const onboarded = contractors.filter((c) => c.onboarding_status === "complete").length;
@@ -116,12 +154,43 @@ export default function Contractors() {
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs font-mono">{c.quickbooks_id || "—"}</td>
                   <td className="px-4 py-3 text-right">
-                    {isAdmin && <DeleteRecord entityName="Contractor" recordId={c.id} recordLabel={c.name} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
+                    <div className="flex items-center justify-end gap-1.5">
+                      {isAdmin && c.onboarding_status === "complete" && (
+                        <button onClick={() => openGrant(c)} title="Grant app access" className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20">
+                          <KeyRound className="w-4 h-4" />
+                        </button>
+                      )}
+                      {isAdmin && <DeleteRecord entityName="Contractor" recordId={c.id} recordLabel={c.name} onDeleted={load} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400" />}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {grant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setGrant(null)} />
+          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl">
+            <h2 className="text-base font-semibold mb-1">Grant app access</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Invite <span className="text-slate-300">{grant.name}</span> ({grant.email || "no email on file"}) and assign a security level.
+            </p>
+            <label className="block text-xs text-slate-400 mb-1">Access level</label>
+            <select value={grantLevel} onChange={(e) => setGrantLevel(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:border-cyan-500">
+              {Object.entries(ACCESS_LEVELS).map(([k, v]) => (
+                <option key={k} value={k}>{v.label} — {v.description}</option>
+              ))}
+            </select>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setGrant(null)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
+              <button onClick={submitGrant} disabled={granting} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400 disabled:opacity-50">
+                {granting ? "Granting…" : "Invite & assign"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

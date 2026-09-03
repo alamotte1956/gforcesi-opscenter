@@ -7,6 +7,18 @@
         "admin",
         "user"
       ]
+    },
+    "access_level": {
+      "type": "string",
+      "description": "Security access level controlling which app modules the user can reach",
+      "enum": [
+        "full",
+        "dispatcher",
+        "billing",
+        "viewer",
+        "field",
+        "client"
+      ]
     }
   },
   "required": [

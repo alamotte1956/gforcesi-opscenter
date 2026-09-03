@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   Map, KanbanSquare, FolderKanban, Users, Building2, FileText,
   Boxes, BarChart3,   Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog, Receipt, ClipboardList, AlertTriangle, ClipboardCheck, ScanLine, Plug, Sparkles, Activity
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
+import { filterNavGroups, canAccessRoute, levelForUser, firstAllowedRoute } from "@/lib/accessLevels";
 import GuideDownload from "@/components/GuideDownload";
 
 const navGroups = [
@@ -66,26 +67,41 @@ const navGroups = [
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
+  const [me, setMe] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     (async () => {
       try {
-        const me = await base44.auth.me();
-        if (me && me.role !== "admin" && me.email) {
-          const linked = await base44.entities.Client.filter({ portal_email: me.email });
+        const u = await base44.auth.me();
+        setMe(u);
+        if (!u) return;
+        const level = levelForUser(u);
+        // Explicit access level takes precedence.
+        if (level === "field") { navigate("/field", { replace: true }); return; }
+        if (level === "client") { navigate("/portal", { replace: true }); return; }
+        // Legacy: no access level assigned yet — detect via linked records.
+        if (!level && u.role !== "admin" && u.email) {
+          const linked = await base44.entities.Client.filter({ portal_email: u.email });
           if (linked.length && linked[0].portal_access_level !== "none") {
             navigate("/portal", { replace: true });
             return;
           }
-          const cons = await base44.entities.Contractor.filter({ email: me.email });
+          const cons = await base44.entities.Contractor.filter({ email: u.email });
           if (cons.length && ["Field Technician", "Field Pilot"].includes(cons[0].role)) {
             navigate("/field", { replace: true });
+            return;
           }
+        }
+        // Guard: block routes outside the user's access level.
+        if (level && level !== "full" && !canAccessRoute(u, location.pathname)) {
+          const first = firstAllowedRoute(u);
+          if (first) navigate(first, { replace: true });
         }
       } catch {}
     })();
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 
   const handleLogout = async () => {
     await base44.auth.logout();
@@ -114,7 +130,7 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 overflow-y-auto py-4 px-3">
-          {navGroups.map((group) => (
+          {filterNavGroups(navGroups, me).map((group) => (
             <div key={group.label} className="mb-4 last:mb-0">
               <div className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">{group.label}</div>
               <div className="space-y-0.5">
