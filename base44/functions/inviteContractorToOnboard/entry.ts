@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
-const ONBOARDING_URL = 'https://gforcesi.base44.app/contractors/onboarding';
+const ONBOARDING_URL = 'https://scanprosoft.com/contractors/onboarding';
 
 export default async function(req) {
   try {
