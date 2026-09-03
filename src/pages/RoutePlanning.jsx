@@ -280,7 +280,20 @@ export default function RoutePlanning() {
       const mi = haversineMi({ lat: c.current_latitude, lng: c.current_longitude }, { lat: job.latitude, lng: job.longitude });
       if (mi != null && mi < bestMi) { bestMi = mi; best = c; }
     });
-    return best ? { contractor: best, mi: bestMi } : null;
+    if (!best) return null;
+    const driveMin = bestMi != null ? (bestMi / AVG_SPEED_MPH) * 60 : null;
+    return { contractor: best, mi: bestMi, driveMin };
+  };
+
+  const assignSuggested = (job) => {
+    const s = suggestContractor(job);
+    if (!s) return;
+    const next = { ...assignments };
+    next.pool = (next.pool || []).filter((id) => id !== job.id);
+    if (!next[s.contractor.id]) next[s.contractor.id] = [];
+    next[s.contractor.id] = [...next[s.contractor.id], job.id];
+    setAssignments(next);
+    base44.entities.Job.update(job.id, { assigned_contractor_ids: [s.contractor.id], assigned_contractor_names: [s.contractor.name] });
   };
 
   const selectedContractor = contractors.find((c) => c.id === selected);
@@ -359,7 +372,25 @@ export default function RoutePlanning() {
                                 <div className="min-w-0">
                                   <div className="text-sm font-medium text-slate-200 leading-snug">{job.title}</div>
                                   <div className="text-xs text-slate-500 truncate">{job.site_address}</div>
-                                  {(() => { const s = suggestContractor(job); return s ? <div className="text-[10px] text-cyan-400/80 mt-0.5 flex items-center gap-1"><Navigation className="w-3 h-3" />{s.contractor.name} · {s.mi.toFixed(1)} mi</div> : null; })()}
+                                  {(() => {
+                                    const s = suggestContractor(job);
+                                    if (!s) return null;
+                                    return (
+                                      <div className="mt-1.5 flex items-center gap-1.5">
+                                        <div className="text-[10px] text-cyan-400/90 flex items-center gap-1 flex-1 min-w-0">
+                                          <Navigation className="w-3 h-3 shrink-0" />
+                                          <span className="truncate">{s.contractor.name}</span>
+                                          <span className="text-slate-500 shrink-0">· {s.mi.toFixed(1)} mi{s.driveMin != null ? ` · ${Math.round(s.driveMin)}m` : ""}</span>
+                                        </div>
+                                        <button
+                                          onClick={() => assignSuggested(job)}
+                                          className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/30 font-medium shrink-0"
+                                        >
+                                          Assign
+                                        </button>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>
