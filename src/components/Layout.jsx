@@ -9,6 +9,21 @@ import AiAdvisor from "@/components/AiAdvisor";
 import { filterNavGroups, canAccessRoute, levelForUser, firstAllowedRoute } from "@/lib/accessLevels";
 import GuideDownload from "@/components/GuideDownload";
 
+// Gmail/Googlemail ignore dots in the local part; normalize so a user who
+// registered with one variant still matches a contractor/client record stored
+// under another (e.g. gretchen.codling@gmail.com vs gretchencodling@gmail.com).
+function normalizeEmail(email) {
+  const e = (email || "").trim().toLowerCase();
+  const at = e.indexOf("@");
+  if (at < 0) return e;
+  const local = e.slice(0, at);
+  const domain = e.slice(at + 1);
+  if (domain === "gmail.com" || domain === "googlemail.com") {
+    return `${local.replace(/\./g, "")}@${domain}`;
+  }
+  return e;
+}
+
 const navGroups = [
   {
     label: "Overview",
@@ -103,22 +118,29 @@ export default function Layout() {
         // Explicit access level takes precedence.
         if (level === "field") {
           if (onOnboarding) return;
-          const cons = await base44.entities.Contractor.filter({ email: u.email });
-          if (needsOnboarding(cons[0])) { navigate("/contractors/onboarding", { replace: true }); return; }
+          const cons = await base44.entities.Contractor.list();
+          const c = cons.find((co) => normalizeEmail(co.email) === normalizeEmail(u.email));
+          if (needsOnboarding(c)) { navigate("/contractors/onboarding", { replace: true }); return; }
           navigate("/field", { replace: true });
           return;
         }
         if (level === "client") { navigate("/portal", { replace: true }); return; }
         // Legacy: no access level assigned yet — detect via linked records.
+        // Use gmail-dot-insensitive matching so the redirect works on the very
+        // first login, before the Assign Access on Auth workflow has run.
         if (!level && u.role !== "admin" && u.email) {
           if (onOnboarding) return;
-          const linked = await base44.entities.Client.filter({ portal_email: u.email });
-          if (linked.length && linked[0].portal_access_level !== "none") {
+          const norm = normalizeEmail(u.email);
+          const [clients, cons] = await Promise.all([
+            base44.entities.Client.list(),
+            base44.entities.Contractor.list(),
+          ]);
+          const linked = clients.find((cl) => normalizeEmail(cl.portal_email) === norm);
+          if (linked && linked.portal_access_level !== "none") {
             navigate("/portal", { replace: true });
             return;
           }
-          const cons = await base44.entities.Contractor.filter({ email: u.email });
-          const c = cons[0];
+          const c = cons.find((co) => normalizeEmail(co.email) === norm);
           if (needsOnboarding(c)) { navigate("/contractors/onboarding", { replace: true }); return; }
           if (c && ["Field Technician", "Field Pilot"].includes(c.role)) {
             navigate("/field", { replace: true });
