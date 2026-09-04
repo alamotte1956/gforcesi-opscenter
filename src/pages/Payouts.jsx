@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, Download, Wallet, Clock, CheckCircle2, X } from "lucide-react";
+import { Plus, Download, Wallet, Clock, CheckCircle2, X, RefreshCw } from "lucide-react";
 
 const statusStyles = {
   pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
   approved: "bg-blue-500/15 text-blue-300 border-blue-500/30",
   paid: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  synced: "bg-violet-500/15 text-violet-300 border-violet-500/30",
 };
 const inputCls = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500";
 
@@ -22,6 +23,7 @@ export default function Payouts() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(blank);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [filterContractor, setFilterContractor] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterYear, setFilterYear] = useState("all");
@@ -57,7 +59,7 @@ export default function Payouts() {
   }), [payouts, filterContractor, filterStatus, filterYear]);
 
   const summary = useMemo(() => {
-    const owed = filtered.filter((p) => p.status !== "paid").reduce((s, p) => s + (p.amount || 0), 0);
+    const owed = filtered.filter((p) => !["paid", "synced"].includes(p.status)).reduce((s, p) => s + (p.amount || 0), 0);
     const ytd = String(new Date().getFullYear());
     const paidYTD = filtered.filter((p) => p.status === "paid" && (p.date || "").slice(0, 4) === ytd).reduce((s, p) => s + (p.amount || 0), 0);
     const pendingCount = filtered.filter((p) => p.status === "pending").length;
@@ -125,6 +127,19 @@ export default function Payouts() {
     }
   };
 
+  const syncToQb = async () => {
+    setSyncing(true);
+    try {
+      const res = await base44.functions.invoke("syncApprovedPayouts", {});
+      const d = res.data || {};
+      if (d.error) { toast({ title: "Sync failed", description: d.error, variant: "destructive" }); }
+      else { toast({ title: "Synced to QuickBooks", description: `${d.pushed || 0} of ${d.found || 0} approved payout(s) pushed.` }); load(); }
+    } catch (e) {
+      toast({ title: "Sync failed", description: e.message, variant: "destructive" });
+    }
+    setSyncing(false);
+  };
+
   const export1099 = () => {
     const year = new Date().getFullYear();
     const paid = payouts.filter((p) => p.status === "paid" && (p.date || "").slice(0, 4) === String(year));
@@ -159,6 +174,9 @@ export default function Payouts() {
         </div>
         {isAdmin && (
           <div className="flex gap-2">
+            <button onClick={syncToQb} disabled={syncing} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50">
+              {syncing ? <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" /> : <RefreshCw className="w-4 h-4" />} Sync to QB
+            </button>
             <button onClick={export1099} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700">
               <Download className="w-4 h-4" /> Export 1099
             </button>
@@ -185,6 +203,7 @@ export default function Payouts() {
           <option value="pending">Pending</option>
           <option value="approved">Approved</option>
           <option value="paid">Paid</option>
+          <option value="synced">Synced to QB</option>
         </select>
         <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200">
           {years.map((y) => <option key={y} value={y}>{y === "all" ? "All years" : y}</option>)}

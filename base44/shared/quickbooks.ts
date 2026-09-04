@@ -151,3 +151,79 @@ export async function pushExpenseToQuickBooks(base44, accessToken, realmId, exp,
   });
   return { ok: true, quickbooks_id: qbId ? String(qbId) : null };
 }
+
+// --- Contractor / 1099 vendor helpers ---
+// Contractors are pushed to QuickBooks as Vendors; payouts become Purchases
+// with the vendor as EntityRef, so they land in QB for payroll / 1099 tracking.
+
+export async function resolveVendorId(accessToken, realmId, name) {
+  if (!name) return null;
+  const q = await qbQuery(
+    accessToken, realmId,
+    `SELECT Id, DisplayName FROM Vendor WHERE DisplayName = '${escapeStr(name)}' MAXRESULTS 1`
+  );
+  const vendors = q.Vendor || [];
+  return vendors[0]?.Id || null;
+}
+
+export async function createVendor(accessToken, realmId, contractor) {
+  const body = {
+    DisplayName: contractor.name,
+    PrimaryEmailAddr: contractor.email ? { Address: contractor.email } : undefined,
+    PrimaryPhone: contractor.phone ? { FreeFormNumber: contractor.phone } : undefined,
+  };
+  const created = await qbCreate(accessToken, realmId, "vendor", body);
+  return created?.Id || null;
+}
+
+// Returns the QB vendor Id for a local Contractor, creating the vendor in QB
+// when no match exists. Stored back on the Contractor via the caller.
+export async function ensureVendorId(accessToken, realmId, contractor) {
+  if (contractor?.quickbooks_id) return String(contractor.quickbooks_id);
+  const existing = await resolveVendorId(accessToken, realmId, contractor?.name);
+  if (existing) return String(existing);
+  const created = await createVendor(accessToken, realmId, contractor);
+  return created ? String(created) : null;
+}
+
+// Push a single approved contractor payout to QuickBooks as a vendor Purchase,
+// mark it "synced", and log the sync. Shared by syncQuickbooks (admin) and
+// syncApprovedPayouts (scheduled). Uses the service role so it works without a user.
+export async function pushPayoutToQuickBooks(base44, accessToken, realmId, payout, contractor, bankId, expenseAccountId) {
+  const amount = Number(payout.amount || 0);
+  const vendorId = await ensureVendorId(accessToken, realmId, contractor);
+  if (!vendorId) throw new Error("Could not resolve or create a QuickBooks vendor for contractor " + (contractor?.name || "(unknown)"));
+  const desc = [payout.job_title, payout.hours ? `${payout.hours}h` : null].filter(Boolean).join(" — ") || "Contractor services";
+  const body = {
+    PaymentType: "Cash",
+    AccountRef: { value: String(bankId) },
+    EntityRef: { value: String(vendorId), type: "Vendor" },
+    TxnDate: payout.date,
+    Line: [{
+      Amount: amount,
+      DetailType: "AccountBasedExpenseLineDetail",
+      Description: desc,
+      AccountBasedExpenseLineDetail: { AccountRef: { value: String(expenseAccountId) } },
+    }],
+  };
+  const created = await qbCreate(accessToken, realmId, "purchase", body);
+  const qbId = created?.Id;
+  await base44.asServiceRole.entities.Payout.update(payout.id, {
+    status: "synced",
+    quickbooks_id: qbId ? String(qbId) : undefined,
+  });
+  if (contractor && !contractor.quickbooks_id && vendorId) {
+    await base44.asServiceRole.entities.Contractor.update(contractor.id, { quickbooks_id: String(vendorId) });
+  }
+  await base44.asServiceRole.entities.SyncLog.create({
+    sync_type: "payroll",
+    direction: "to_qb",
+    status: "success",
+    entity_id: payout.id,
+    entity_type: "Payout",
+    entity_label: payout.contractor_name,
+    message: `Payout to ${payout.contractor_name} ($${amount.toLocaleString()}) synced to QuickBooks`,
+    timestamp: new Date().toISOString(),
+  });
+  return { ok: true, quickbooks_id: qbId ? String(qbId) : null, vendor_id: vendorId };
+}

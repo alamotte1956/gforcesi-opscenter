@@ -1,0 +1,45 @@
+{
+  "name": "Weekly Payout Sync",
+  "description": "Every Monday at 9am Central, pushes the prior week's approved contractor payouts (time entries) into QuickBooks as vendor purchases for payroll.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 9 * * 1",
+      "one_time_date": null,
+      "timezone": "America/Chicago",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "weekly_payout_sync",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "sync": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "syncApprovedPayouts",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Push approved payouts to QuickBooks",
+            "description": "Syncs the week's approved contractor time entries as QB vendor purchases"
+          }
+        }
+      }
+    ]
+  }
+}
