@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail } from "lucide-react";
+import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail, Send } from "lucide-react";
 import DeleteRecord from "@/components/DeleteRecord";
 import { useToast } from "@/components/ui/use-toast";
 import { ACCESS_LEVELS } from "@/lib/accessLevels";
@@ -29,6 +29,10 @@ export default function Contractors() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({ name: "", email: "", role: "Field Technician" });
   const [inviting, setInviting] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [testName, setTestName] = useState("");
+  const [sending, setSending] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
 
@@ -118,6 +122,27 @@ export default function Contractors() {
     }
   };
 
+  const sendTestInvite = async () => {
+    const email = testEmail.trim();
+    const name = testName.trim() || "Test Recipient";
+    if (!email) {
+      toast({ title: "Email is required", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      await base44.functions.invoke("inviteContractorToOnboard", { name, email });
+      toast({ title: "Test invite sent", description: `Check ${email} (inbox and spam folder).` });
+      setTestOpen(false);
+      setTestEmail("");
+      setTestName("");
+    } catch (e) {
+      toast({ title: "Send failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
   const onboarded = contractors.filter((c) => c.onboarding_status === "complete").length;
 
   return (
@@ -128,6 +153,12 @@ export default function Contractors() {
           <p className="text-sm text-slate-500">{contractors.length} contractors · {onboarded} fully onboarded</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTestOpen(true)}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700"
+          >
+            <Send className="w-4 h-4" /> Send Test Invite
+          </button>
           <button
             onClick={() => setInviteOpen(true)}
             className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400"
@@ -240,6 +271,32 @@ export default function Contractors() {
               <button onClick={() => setGrant(null)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
               <button onClick={submitGrant} disabled={granting} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400 disabled:opacity-50">
                 {granting ? "Granting…" : "Invite & assign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {testOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setTestOpen(false)} />
+          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl">
+            <h2 className="text-base font-semibold mb-1 flex items-center gap-2"><Send className="w-4 h-4 text-cyan-400" /> Send Test Invite</h2>
+            <p className="text-sm text-slate-500 mb-4">Send a test onboarding invitation to any email address to verify deliverability (check inbox and spam).</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Recipient name (optional)</label>
+                <input value={testName} onChange={(e) => setTestName(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500" placeholder="Test Recipient" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Email address</label>
+                <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500" placeholder="you@example.com" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <button onClick={() => setTestOpen(false)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
+              <button onClick={sendTestInvite} disabled={sending} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400 disabled:opacity-50 flex items-center gap-1.5">
+                {sending ? "Sending…" : <><Send className="w-4 h-4" /> Send</>}
               </button>
             </div>
           </div>
