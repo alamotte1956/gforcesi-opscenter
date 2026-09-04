@@ -1,0 +1,44 @@
+{
+  "name": "Morning Field Summary",
+  "description": "Emails each field contractor their schedule and route for the day at 6am CT, pulled from their assigned jobs.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 6 * * *",
+      "one_time_date": null,
+      "timezone": "America/Chicago",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "morning_field_summary",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "send_summaries": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "sendMorningFieldSummary"
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Send morning field summaries",
+            "description": "Email each field contractor their day's schedule & route"
+          }
+        }
+      }
+    ]
+  }
+}

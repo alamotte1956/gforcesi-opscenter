@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { ctDate, ctTime, ctToday } from '../../shared/ctDateUtils.ts';
 
 export default async function(req) {
   try {
@@ -10,9 +11,7 @@ export default async function(req) {
     const input = await req.json().catch(() => ({}));
     const dryRun = !!input.dry_run;
 
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-    const ctDate = (v) => v ? new Date(v).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }) : null;
-    const ctTime = (v) => v ? new Date(v).toLocaleString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' }) : null;
+    const today = ctToday();
 
     const [jobs, issues, invoices, expenses, contractors, clients, equipment, reports, inspections, users] = await Promise.all([
       base44.asServiceRole.entities.Job.list(),
