@@ -24,6 +24,18 @@ export default function Dashboard() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [regionFilter, setRegionFilter] = useState("all");
+
+  // Derive a city/region label from a job's site address for filtering.
+  const cityFromAddress = (address) => {
+    if (!address) return null;
+    const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+    if (!parts.length) return null;
+    if (parts.length === 1) return parts[0];
+    let city = parts[parts.length - 2];
+    city = city.replace(/\s+[A-Z]{2}$/, "").trim();
+    return city || parts[0];
+  };
 
   const load = async () => {
     const [emps, jbs] = await Promise.all([
@@ -44,6 +56,20 @@ export default function Dashboard() {
   const filteredEmployees = useMemo(
     () => (statusFilter === "all" ? employees : employees.filter((e) => e.current_status === statusFilter)),
     [employees, statusFilter]
+  );
+
+  const jobRegions = useMemo(() => {
+    const set = new Set();
+    jobs.forEach((j) => {
+      const c = cityFromAddress(j.site_address) || j.project_name;
+      if (c) set.add(c);
+    });
+    return ["all", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [jobs]);
+
+  const filteredJobs = useMemo(
+    () => (regionFilter === "all" ? jobs : jobs.filter((j) => (cityFromAddress(j.site_address) || j.project_name) === regionFilter)),
+    [jobs, regionFilter]
   );
 
   const stats = useMemo(() => {
@@ -76,7 +102,7 @@ export default function Dashboard() {
           ) : (
             <OperationsMap
               employees={filteredEmployees}
-              jobs={jobs}
+              jobs={filteredJobs}
               selectedEmployeeId={selectedEmployee?.id}
               onSelectEmployee={setSelectedEmployee}
               onSelectJob={setSelectedJob}
@@ -101,24 +127,45 @@ export default function Dashboard() {
 
         {/* Side panel */}
         <div className="w-full lg:w-80 shrink-0 bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col max-h-[50vh] lg:max-h-none">
-          <div className="p-3 border-b border-slate-800">
-            <div className="flex items-center gap-2 mb-2 text-slate-300 text-sm font-medium">
-              <Filter className="w-4 h-4" /> Filter by status
+          <div className="p-3 border-b border-slate-800 space-y-3">
+            <div>
+              <div className="flex items-center gap-2 mb-2 text-slate-300 text-sm font-medium">
+                <Filter className="w-4 h-4" /> Filter by status
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {["all", "available", "en_route", "on_site", "off_duty"].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
+                    className={`px-2.5 py-1 rounded-md text-xs capitalize transition-colors ${
+                      statusFilter === s
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                        : "bg-slate-800 text-slate-400 border border-transparent hover:text-slate-200"
+                    }`}
+                  >
+                    {s.replace("_", " ")}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {["all", "available", "en_route", "on_site", "off_duty"].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-md text-xs capitalize transition-colors ${
-                    statusFilter === s
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                      : "bg-slate-800 text-slate-400 border border-transparent hover:text-slate-200"
-                  }`}
-                >
-                  {s.replace("_", " ")}
-                </button>
-              ))}
+            <div>
+              <div className="flex items-center gap-2 mb-2 text-slate-300 text-sm font-medium">
+                <MapPin className="w-4 h-4" /> Filter by city / region
+              </div>
+              <select
+                value={regionFilter}
+                onChange={(e) => setRegionFilter(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-md px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+              >
+                {jobRegions.map((r) => (
+                  <option key={r} value={r}>{r === "all" ? "All locations" : r}</option>
+                ))}
+              </select>
+              {regionFilter !== "all" && (
+                <div className="mt-1.5 text-[11px] text-cyan-300/80">
+                  Showing {filteredJobs.length} job{filteredJobs.length === 1 ? "" : "s"} in {regionFilter}
+                </div>
+              )}
             </div>
           </div>
 
