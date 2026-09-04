@@ -1,0 +1,41 @@
+{
+  "name": "Assign Access on Auth",
+  "description": "Auto-assigns the correct access_level when a user signs up or logs in, based on their linked Contractor or Client record (gmail-dot-insensitive matching).",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "app_user_auth",
+      "events": [
+        "signup",
+        "login"
+      ]
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "assign_access_on_auth",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "assign_level": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "assignAccessLevel",
+            "args": {
+              "email": "${ .trigger.email }",
+              "user_id": "${ .trigger.user_id }"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Assign access level",
+            "description": "Match user to contractor/client and set access_level"
+          }
+        }
+      }
+    ]
+  }
+}
