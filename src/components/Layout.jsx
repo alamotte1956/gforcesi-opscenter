@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   Map, KanbanSquare, FolderKanban, Users, Building2, FileText,
-  Boxes, BarChart3,   Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog, Receipt, ClipboardList, AlertTriangle, ClipboardCheck, ScanLine, Plug, Sparkles, Activity, MapPin, Bell, Calendar, DollarSign, LayoutDashboard, FileBarChart, Wrench, Gauge
+  Boxes, BarChart3,   Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog, Receipt, ClipboardList, AlertTriangle, ClipboardCheck, ScanLine, Plug, Sparkles, Activity, MapPin, Bell, Calendar, DollarSign, LayoutDashboard, FileBarChart, Wrench, Gauge, TrendingUp
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import { filterNavGroups, canAccessRoute, levelForUser, firstAllowedRoute } from "@/lib/accessLevels";
@@ -58,6 +58,7 @@ const navGroups = [
     items: [
       { to: "/analytics", label: "Analytics", icon: BarChart3 },
       { to: "/crew-performance", label: "Crew Performance", icon: Gauge },
+      { to: "/performance-report", label: "Performance Report", icon: TrendingUp },
       { to: "/assignment-reports", label: "Assignment Reports", icon: FileBarChart },
       { to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard },
       { to: "/compliance", label: "Compliance", icon: ShieldCheck },

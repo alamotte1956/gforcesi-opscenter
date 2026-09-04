@@ -50,6 +50,7 @@ import AssignmentReports from '@/pages/AssignmentReports';
 import EquipmentMaintenance from '@/pages/EquipmentMaintenance';
 import ExpenseApprovals from '@/pages/ExpenseApprovals';
 import CrewPerformance from '@/pages/CrewPerformance';
+import PerformanceReport from '@/pages/PerformanceReport';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -116,6 +117,7 @@ const AuthenticatedApp = () => {
           <Route path="/equipment-maintenance" element={<EquipmentMaintenance />} />
           <Route path="/expense-approvals" element={<ExpenseApprovals />} />
           <Route path="/crew-performance" element={<CrewPerformance />} />
+          <Route path="/performance-report" element={<PerformanceReport />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
