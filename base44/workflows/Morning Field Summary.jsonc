@@ -1,13 +1,13 @@
 {
   "name": "Morning Field Summary",
-  "description": "Emails each field contractor their schedule and route for the day at 6am CT, pulled from their assigned jobs.",
+  "description": "Emails each field contractor their schedule and route for the day at 7am CT, pulled from their assigned jobs.",
   "trigger": {
     "condition": null,
     "config": {
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "0 6 * * *",
+      "cron_expression": "0 7 * * *",
       "one_time_date": null,
       "timezone": "America/Chicago",
       "interval_value": null,
