@@ -184,7 +184,7 @@ export default function Contractors() {
                 <th className="px-4 py-3 font-medium">Contractor</th>
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Onboarding</th>
+                <th className="px-4 py-3 font-medium">Onboarding Status</th>
                 <th className="px-4 py-3 font-medium">Skills</th>
                 <th className="px-4 py-3 font-medium">Pay</th>
                 <th className="px-4 py-3 font-medium">QB ID</th>
@@ -226,9 +226,9 @@ export default function Contractors() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-[10px] px-2 py-0.5 rounded border capitalize inline-flex items-center gap-1 ${onboardingStyles[c.onboarding_status] || onboardingStyles.pending}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded border inline-flex items-center gap-1 ${onboardingStyles[c.onboarding_status] || onboardingStyles.pending}`}>
                       {c.onboarding_status === "complete" ? <UserCheck className="w-3 h-3" /> : c.onboarding_status === "in_progress" ? <Clock className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                      {c.onboarding_status?.replace("_", " ")}
+                      {c.onboarding_status === "complete" ? "Onboarded" : c.onboarding_status === "in_progress" ? "In Progress" : "Invitation Pending"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{(c.skills || []).join(", ") || "—"}</td>
