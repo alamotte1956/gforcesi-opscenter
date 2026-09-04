@@ -52,6 +52,7 @@ import ExpenseApprovals from '@/pages/ExpenseApprovals';
 import CrewPerformance from '@/pages/CrewPerformance';
 import PerformanceReport from '@/pages/PerformanceReport';
 import Payouts from '@/pages/Payouts';
+import PayoutReview from '@/pages/PayoutReview';
 import RecurringSchedules from '@/pages/RecurringSchedules';
 
 const AuthenticatedApp = () => {
@@ -121,6 +122,7 @@ const AuthenticatedApp = () => {
           <Route path="/crew-performance" element={<CrewPerformance />} />
           <Route path="/performance-report" element={<PerformanceReport />} />
           <Route path="/payouts" element={<Payouts />} />
+          <Route path="/payout-review" element={<PayoutReview />} />
           <Route path="/recurring-schedules" element={<RecurringSchedules />} />
         </Route>
       </Route>
