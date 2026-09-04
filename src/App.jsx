@@ -51,6 +51,8 @@ import EquipmentMaintenance from '@/pages/EquipmentMaintenance';
 import ExpenseApprovals from '@/pages/ExpenseApprovals';
 import CrewPerformance from '@/pages/CrewPerformance';
 import PerformanceReport from '@/pages/PerformanceReport';
+import Payouts from '@/pages/Payouts';
+import RecurringSchedules from '@/pages/RecurringSchedules';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -118,6 +120,8 @@ const AuthenticatedApp = () => {
           <Route path="/expense-approvals" element={<ExpenseApprovals />} />
           <Route path="/crew-performance" element={<CrewPerformance />} />
           <Route path="/performance-report" element={<PerformanceReport />} />
+          <Route path="/payouts" element={<Payouts />} />
+          <Route path="/recurring-schedules" element={<RecurringSchedules />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

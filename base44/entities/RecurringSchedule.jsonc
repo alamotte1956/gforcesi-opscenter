@@ -1,0 +1,125 @@
+{
+  "name": "RecurringSchedule",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "site_address": {
+      "type": "string"
+    },
+    "latitude": {
+      "type": "number"
+    },
+    "longitude": {
+      "type": "number"
+    },
+    "cadence": {
+      "type": "string",
+      "enum": [
+        "weekly",
+        "biweekly",
+        "monthly",
+        "quarterly"
+      ],
+      "default": "monthly"
+    },
+    "day_of_week": {
+      "type": "number"
+    },
+    "day_of_month": {
+      "type": "number"
+    },
+    "required_equipment": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assigned_contractor_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assigned_contractor_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "billable_rate_type": {
+      "type": "string",
+      "enum": [
+        "hourly",
+        "per_sqft",
+        "flat",
+        "daily"
+      ],
+      "default": "flat"
+    },
+    "billable_rate": {
+      "type": "number"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
+    },
+    "estimated_duration_hours": {
+      "type": "number"
+    },
+    "next_run_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "client_id",
+    "site_address",
+    "cadence",
+    "next_run_date"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

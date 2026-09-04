@@ -1,0 +1,44 @@
+{
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 6 * * *",
+      "one_time_date": null,
+      "timezone": "America/Chicago",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "name": "Recurring Job Generator",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "recurring_job_generator",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "generate": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "generateRecurringJobs"
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Generate recurring jobs",
+            "description": "Create jobs from due schedules"
+          }
+        }
+      }
+    ]
+  },
+  "description": "Creates scheduled jobs from active recurring scan schedules each morning at 6am CT"
+}

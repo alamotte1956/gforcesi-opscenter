@@ -1,0 +1,81 @@
+{
+  "name": "Payout",
+  "type": "object",
+  "properties": {
+    "contractor_id": {
+      "type": "string"
+    },
+    "contractor_name": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "hours": {
+      "type": "number"
+    },
+    "pay_type": {
+      "type": "string",
+      "enum": [
+        "hourly",
+        "flat",
+        "salary"
+      ],
+      "default": "hourly"
+    },
+    "pay_rate": {
+      "type": "number"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "paid"
+      ],
+      "default": "pending"
+    },
+    "quickbooks_id": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "contractor_id",
+    "contractor_name",
+    "amount",
+    "date"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

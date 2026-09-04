@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   Map, KanbanSquare, FolderKanban, Users, Building2, FileText,
-  Boxes, BarChart3,   Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog, Receipt, ClipboardList, AlertTriangle, ClipboardCheck, ScanLine, Plug, Sparkles, Activity, MapPin, Bell, Calendar, DollarSign, LayoutDashboard, FileBarChart, Wrench, Gauge, TrendingUp
+  Boxes, BarChart3,   Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog, Receipt, ClipboardList, AlertTriangle, ClipboardCheck, ScanLine, Plug, Sparkles, Activity, MapPin, Bell, Calendar, DollarSign, LayoutDashboard, FileBarChart, Wrench, Gauge, TrendingUp, Repeat, Wallet
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import { filterNavGroups, canAccessRoute, levelForUser, firstAllowedRoute } from "@/lib/accessLevels";
@@ -45,6 +45,7 @@ const navGroups = [
     items: [
       { to: "/jobs", label: "Jobs", icon: KanbanSquare },
       { to: "/routes", label: "Route Planning", icon: RouteIcon },
+      { to: "/recurring-schedules", label: "Recurring Scans", icon: Repeat },
       { to: "/messages", label: "Messages", icon: MessageSquare },
     ],
   },
@@ -63,6 +64,7 @@ const navGroups = [
     items: [
       { to: "/expenses", label: "Expenses", icon: Receipt },
       { to: "/expense-approvals", label: "Expense Approvals", icon: ClipboardCheck },
+      { to: "/payouts", label: "Contractor Payouts", icon: Wallet },
       { to: "/invoices", label: "Invoices", icon: FileText },
       { to: "/billing-review", label: "Billing Review", icon: Sparkles },
       { to: "/project-status", label: "Project Status", icon: Activity },
