@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Globe, Shield, Clock } from "lucide-react";
 import FormModal from "@/components/FormModal";
+import BulkCsvUpload from "@/components/BulkCsvUpload";
 import DeleteRecord from "@/components/DeleteRecord";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -83,9 +84,43 @@ export default function Clients() {
           <p className="text-sm text-slate-500">{clients.length} clients</p>
         </div>
         {isAdmin && (
-          <button onClick={() => setShowForm(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
-            <Plus className="w-4 h-4" /> New Client
-          </button>
+          <div className="flex items-center gap-2">
+            <BulkCsvUpload
+              entityName="Client"
+              onImported={load}
+              templateColumns={[
+                { key: "name", label: "name", example: "Acme Corp", required: true },
+                { key: "company", label: "company", example: "Acme Holdings" },
+                { key: "billing_contact_name", label: "billing_contact_name", example: "Jane Doe" },
+                { key: "billing_email", label: "billing_email", example: "billing@acme.com" },
+                { key: "billing_phone", label: "billing_phone", example: "555-0100" },
+                { key: "billing_address", label: "billing_address", example: "123 Main St, Minneapolis, MN" },
+                { key: "terms", label: "terms", example: "Net 30" },
+                { key: "default_rate", label: "default_rate", example: "150" },
+                { key: "quickbooks_customer_id", label: "quickbooks_customer_id", example: "QB-001" },
+                { key: "portal_email", label: "portal_email", example: "contact@acme.com" },
+                { key: "portal_access_level", label: "portal_access_level", example: "limited" },
+                { key: "notes", label: "notes", example: "Key account" },
+              ]}
+              transform={(r) => ({
+                name: r.name,
+                company: r.company || undefined,
+                billing_contact_name: r.billing_contact_name || undefined,
+                billing_email: r.billing_email || undefined,
+                billing_phone: r.billing_phone || undefined,
+                billing_address: r.billing_address || undefined,
+                terms: ["Net 15", "Net 30", "Net 45", "Due on Receipt"].includes(r.terms) ? r.terms : "Net 30",
+                default_rate: r.default_rate ? Number(r.default_rate) : undefined,
+                quickbooks_customer_id: r.quickbooks_customer_id || undefined,
+                portal_email: r.portal_email || undefined,
+                portal_access_level: ["none", "limited", "full"].includes(r.portal_access_level) ? r.portal_access_level : "none",
+                notes: r.notes || undefined,
+              })}
+            />
+            <button onClick={() => setShowForm(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
+              <Plus className="w-4 h-4" /> New Client
+            </button>
+          </div>
         )}
       </div>
 

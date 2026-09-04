@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, FolderKanban } from "lucide-react";
 import FormModal from "@/components/FormModal";
+import BulkCsvUpload from "@/components/BulkCsvUpload";
 import DeleteRecord from "@/components/DeleteRecord";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -65,9 +66,41 @@ export default function Projects() {
           <p className="text-sm text-slate-500">{projects.length} projects</p>
         </div>
         {isAdmin && (
-          <button onClick={() => setShowForm(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
-            <Plus className="w-4 h-4" /> New Project
-          </button>
+          <div className="flex items-center gap-2">
+            <BulkCsvUpload
+              entityName="Project"
+              onImported={load}
+              ctx={{ clients }}
+              templateColumns={[
+                { key: "name", label: "name", example: "Downtown Renovation", required: true },
+                { key: "client_name", label: "client_name", example: "Acme Corp", required: true },
+                { key: "description", label: "description", example: "Full 3D scan of building" },
+                { key: "status", label: "status", example: "active" },
+                { key: "region", label: "region", example: "Minneapolis" },
+                { key: "start_date", label: "start_date", example: "2026-01-15" },
+                { key: "end_date", label: "end_date", example: "2026-06-30" },
+                { key: "notes", label: "notes", example: "Priority project" },
+              ]}
+              transform={(r, ctx) => {
+                const client = ctx.clients.find((c) => c.name.toLowerCase() === (r.client_name || "").toLowerCase());
+                if (!client) return null;
+                return {
+                  name: r.name,
+                  client_id: client.id,
+                  client_name: client.name,
+                  description: r.description || undefined,
+                  status: ["active", "on_hold", "completed"].includes(r.status) ? r.status : "active",
+                  region: r.region || undefined,
+                  start_date: r.start_date || undefined,
+                  end_date: r.end_date || undefined,
+                  notes: r.notes || undefined,
+                };
+              }}
+            />
+            <button onClick={() => setShowForm(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
+              <Plus className="w-4 h-4" /> New Project
+            </button>
+          </div>
         )}
       </div>
 
