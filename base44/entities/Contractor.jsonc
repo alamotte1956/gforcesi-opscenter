@@ -177,7 +177,7 @@
         },
         {
           "user_condition": {
-            "access_level": "full"
+            "data.access_level": "full"
           }
         }
       ]
@@ -191,7 +191,7 @@
         },
         {
           "user_condition": {
-            "access_level": "full"
+            "data.access_level": "full"
           }
         }
       ]
