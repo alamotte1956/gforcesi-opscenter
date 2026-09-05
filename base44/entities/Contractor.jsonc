@@ -161,9 +161,18 @@
   ],
   "rls": {
     "create": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.access_level": "full"
+          }
+        }
+      ]
     },
     "update": {
       "$or": [
