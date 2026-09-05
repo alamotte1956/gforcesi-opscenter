@@ -35,6 +35,7 @@ export default function Contractors() {
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
+  const isFullAccess = isAdmin || me?.access_level === "full";
 
   const load = async () => {
     const [data, user] = await Promise.all([base44.entities.Contractor.list(), base44.auth.me().catch(() => null)]);
@@ -243,7 +244,7 @@ export default function Contractors() {
                           <KeyRound className="w-4 h-4" />
                         </button>
                       )}
-                      {isAdmin && <DeleteRecord entityName="Contractor" recordId={c.id} recordLabel={c.name} onDeleted={load} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400" />}
+                      {isFullAccess && <DeleteRecord entityName="Contractor" recordId={c.id} recordLabel={c.name} onDeleted={load} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400" />}
                     </div>
                   </td>
                 </tr>
