@@ -44,6 +44,7 @@ export default function Payouts() {
   useEffect(() => { load(); }, []);
 
   const isAdmin = me?.role === "admin";
+  const isFullAccess = isAdmin || me?.access_level === "full";
   const contractorById = (id) => contractors.find((c) => c.id === id);
 
   const years = useMemo(() => {
@@ -140,6 +141,22 @@ export default function Payouts() {
     setSyncing(false);
   };
 
+  const exportApprovedCsv = () => {
+    const approved = filtered.filter((p) => p.status === "approved");
+    if (!approved.length) { toast({ title: "No approved payouts", description: "No approved payouts match the current filters." }); return; }
+    const header = ["Date", "Contractor", "Job", "Project", "Hours", "Pay Type", "Rate", "Amount", "Status", "Notes"];
+    const rows = approved.map((p) => [
+      p.date || "", p.contractor_name || "", p.job_title || "", p.project_name || "",
+      p.hours ?? "", p.pay_type || "", p.pay_rate ?? "", (p.amount || 0).toFixed(2), p.status || "", p.notes || "",
+    ]);
+    const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `approved-payouts-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const export1099 = () => {
     const year = new Date().getFullYear();
     const paid = payouts.filter((p) => p.status === "paid" && (p.date || "").slice(0, 4) === String(year));
@@ -172,19 +189,26 @@ export default function Payouts() {
           <h1 className="text-xl font-semibold">Contractor Payouts</h1>
           <p className="text-sm text-slate-500">1099 payout ledger & year-end export</p>
         </div>
-        {isAdmin && (
-          <div className="flex gap-2">
-            <button onClick={syncToQb} disabled={syncing} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50">
-              {syncing ? <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" /> : <RefreshCw className="w-4 h-4" />} Sync to QB
+        <div className="flex items-center gap-2">
+          {isFullAccess && (
+            <button onClick={exportApprovedCsv} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700">
+              <Download className="w-4 h-4" /> Approved CSV
             </button>
-            <button onClick={export1099} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700">
-              <Download className="w-4 h-4" /> Export 1099
-            </button>
-            <button onClick={() => { setForm(blank); setShowForm(true); }} className="px-3 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-medium flex items-center gap-1.5 hover:bg-cyan-400">
-              <Plus className="w-4 h-4" /> New Payout
-            </button>
-          </div>
-        )}
+          )}
+          {isAdmin && (
+            <div className="flex gap-2">
+              <button onClick={syncToQb} disabled={syncing} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50">
+                {syncing ? <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" /> : <RefreshCw className="w-4 h-4" />} Sync to QB
+              </button>
+              <button onClick={export1099} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700">
+                <Download className="w-4 h-4" /> Export 1099
+              </button>
+              <button onClick={() => { setForm(blank); setShowForm(true); }} className="px-3 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-medium flex items-center gap-1.5 hover:bg-cyan-400">
+                <Plus className="w-4 h-4" /> New Payout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
