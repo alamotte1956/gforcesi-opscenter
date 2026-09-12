@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, Download, Wallet, Clock, CheckCircle2, X, RefreshCw } from "lucide-react";
 import DeleteRecord from "@/components/DeleteRecord";
+import PayoutAnalytics from "@/components/payouts/PayoutAnalytics";
 
 const statusStyles = {
   pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
@@ -234,6 +235,8 @@ export default function Payouts() {
           {years.map((y) => <option key={y} value={y}>{y === "all" ? "All years" : y}</option>)}
         </select>
       </div>
+
+      <PayoutAnalytics payouts={filtered} />
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden overflow-x-auto">
         <table className="w-full text-sm min-w-[640px]">
