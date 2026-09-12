@@ -86,48 +86,38 @@ export default function Equipment() {
       {loading ? (
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" /></div>
       ) : (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="space-y-2">
           {items.map((it) => (
-            <div key={it.id} className={`bg-slate-900 border rounded-xl p-4 ${(dueState(it.maintenance_due_date) || dueState(it.calibration_due_date)) ? "border-rose-500/50" : "border-slate-800"}`}>
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-cyan-400">
-                    <Boxes className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-medium">{it.name}</div>
-                    <div className="text-xs text-slate-500">{it.type} · {it.serial_number}</div>
-                  </div>
+            <div key={it.id} className={`bg-slate-900 border rounded-xl p-4 ${(dueState(it.maintenance_due_date) || dueState(it.calibration_due_date)) ? "border-rose-500/50" : "border-slate-800"} hover:border-slate-700 transition-colors flex flex-col lg:flex-row lg:items-center gap-3`}>
+              <div className="flex items-center gap-3 min-w-0 lg:w-64">
+                <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-cyan-400 shrink-0">
+                  <Boxes className="w-5 h-5" />
                 </div>
-                <div className="flex flex-col items-end gap-1.5">
-                  <span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusStyles[it.status] || statusStyles.available}`}>
-                    {it.status.replace("_", " ")}
-                  </span>
-                  {isAdmin && <DeleteRecord entityName="Equipment" recordId={it.id} recordLabel={it.name} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{it.name}</div>
+                  <div className="text-xs text-slate-500 truncate">{it.type} · {it.serial_number}</div>
                 </div>
               </div>
-              <div className="mt-3 space-y-1.5 text-xs">
+              <div className="flex-1 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
                 {it.assigned_to_contractor_name && (
-                  <div className="flex justify-between"><span className="text-slate-500">Assigned to</span><span className="text-slate-300">{it.assigned_to_contractor_name}</span></div>
+                  <div className="flex gap-2"><span className="text-slate-500">Assigned to</span><span className="text-slate-300">{it.assigned_to_contractor_name}</span></div>
                 )}
                 {it.maintenance_due_date && (
-                  <div className={`flex justify-between items-center ${dueRowCls(dueState(it.maintenance_due_date))}`}>
-                    <span className="flex items-center gap-1"><Wrench className="w-3 h-3" /> Maintenance</span>
-                    <span className="flex items-center gap-1">
-                      {dueState(it.maintenance_due_date) === "overdue" && <AlertTriangle className="w-3 h-3 text-rose-400" />}
-                      {it.maintenance_due_date}
-                    </span>
+                  <div className={`flex items-center gap-1 ${dueRowCls(dueState(it.maintenance_due_date))}`}>
+                    <Wrench className="w-3 h-3" /> Maint: {it.maintenance_due_date}
+                    {dueState(it.maintenance_due_date) === "overdue" && <AlertTriangle className="w-3 h-3 text-rose-400" />}
                   </div>
                 )}
                 {it.calibration_due_date && (
-                  <div className={`flex justify-between items-center ${dueRowCls(dueState(it.calibration_due_date))}`}>
-                    <span className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> Calibration</span>
-                    <span className="flex items-center gap-1">
-                      {dueState(it.calibration_due_date) === "overdue" && <AlertTriangle className="w-3 h-3 text-rose-400" />}
-                      {it.calibration_due_date}
-                    </span>
+                  <div className={`flex items-center gap-1 ${dueRowCls(dueState(it.calibration_due_date))}`}>
+                    <CalendarClock className="w-3 h-3" /> Calib: {it.calibration_due_date}
+                    {dueState(it.calibration_due_date) === "overdue" && <AlertTriangle className="w-3 h-3 text-rose-400" />}
                   </div>
                 )}
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusStyles[it.status] || statusStyles.available}`}>{it.status.replace("_", " ")}</span>
+                {isAdmin && <DeleteRecord entityName="Equipment" recordId={it.id} recordLabel={it.name} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
               </div>
             </div>
           ))}

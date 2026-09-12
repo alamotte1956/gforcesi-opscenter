@@ -96,21 +96,26 @@ export default function Sites() {
           <div className="text-sm text-slate-400">No sites found.</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="space-y-2">
           {filtered.map((s) => (
-            <div key={s.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors">
-              <div className="flex items-start justify-between mb-2">
+            <div key={s.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors flex flex-col lg:flex-row lg:items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0 lg:w-60">
+                <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-cyan-400 shrink-0">
+                  <MapPin className="w-5 h-5" />
+                </div>
                 <div className="min-w-0">
                   <div className="font-medium text-slate-200 truncate">{s.name}</div>
                   {s.client_name && <div className="text-xs text-cyan-400/80 truncate">{s.client_name}</div>}
                 </div>
-                {isAdmin && <DeleteRecord entityName="Site" recordId={s.id} recordLabel={s.name} onDeleted={load} className="p-1 rounded text-slate-500 hover:text-rose-400" />}
               </div>
-              <div className="flex items-start gap-1.5 text-xs text-slate-400 mb-2">
-                <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                <span>{s.address || "—"}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start gap-1.5 text-sm text-slate-400">
+                  <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-slate-500" />
+                  <span className="truncate">{s.address || "—"}</span>
+                </div>
+                {s.access_notes && <div className="text-xs text-slate-500 mt-1 truncate ml-5">{s.access_notes}</div>}
               </div>
-              <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 shrink-0">
                 {(s.opening_time || s.closing_time) && (
                   <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{s.opening_time || "—"} – {s.closing_time || "—"}</span>
                 )}
@@ -118,13 +123,13 @@ export default function Sites() {
                   <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{s.contact_phone}</span>
                 )}
                 <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{jobCountBySite[s.address] || 0} jobs</span>
+                {s.latitude && s.longitude && (
+                  <a href={`https://www.google.com/maps?q=${s.latitude},${s.longitude}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-cyan-400 hover:underline">
+                    <Navigation2 className="w-3.5 h-3.5" /> Maps
+                  </a>
+                )}
+                {isAdmin && <DeleteRecord entityName="Site" recordId={s.id} recordLabel={s.name} onDeleted={load} className="p-1 rounded text-slate-500 hover:text-rose-400" />}
               </div>
-              {s.access_notes && <div className="mt-2 text-xs text-slate-500 bg-slate-800/50 rounded p-2">{s.access_notes}</div>}
-              {s.latitude && s.longitude && (
-                <a href={`https://www.google.com/maps?q=${s.latitude},${s.longitude}`} target="_blank" rel="noreferrer" className="mt-2 flex items-center gap-1.5 text-cyan-400 text-xs hover:underline">
-                  <Navigation2 className="w-3.5 h-3.5" /> Open in Maps
-                </a>
-              )}
             </div>
           ))}
         </div>
