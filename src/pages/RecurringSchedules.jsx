@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
-import { Repeat, Plus, X, Calendar, Power, Trash2, MapPin } from "lucide-react";
+import { Repeat, Plus, X, Calendar, Power, MapPin } from "lucide-react";
+import DeleteRecord from "@/components/DeleteRecord";
 
 const cadenceLabels = { weekly: "Weekly", biweekly: "Biweekly", monthly: "Monthly", quarterly: "Quarterly" };
 const inputCls = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500";
@@ -97,15 +98,6 @@ export default function RecurringSchedules() {
     } catch (e) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
   };
 
-  const remove = async (s) => {
-    if (!confirm(`Delete recurring schedule "${s.name}"?`)) return;
-    try {
-      await base44.entities.RecurringSchedule.delete(s.id);
-      toast({ title: "Schedule deleted" });
-      load();
-    } catch (e) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
-  };
-
   const runNow = async () => {
     try {
       const res = await base44.functions.invoke("generateRecurringJobs", {});
@@ -156,7 +148,7 @@ export default function RecurringSchedules() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button onClick={() => toggleActive(s)} title={s.active ? "Pause" : "Activate"} className="p-2 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-slate-800"><Power className="w-4 h-4" /></button>
                     <button onClick={() => openEdit(s)} className="px-3 py-1.5 rounded-lg text-xs text-slate-300 bg-slate-800 hover:bg-slate-700">Edit</button>
-                    <button onClick={() => remove(s)} className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-slate-800"><Trash2 className="w-4 h-4" /></button>
+                    <DeleteRecord entityName="RecurringSchedule" recordId={s.id} recordLabel={s.name} onDeleted={load} className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-slate-800" />
                   </div>
                 )}
               </div>

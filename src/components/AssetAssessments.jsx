@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { ClipboardCheck, Plus, Loader2, Trash2, Camera } from "lucide-react";
+import { ClipboardCheck, Plus, Loader2, Camera } from "lucide-react";
 import { Image } from "@/components/ui/image";
+import DeleteRecord from "@/components/DeleteRecord";
 
 const conditionStyles = {
   good: "bg-emerald-500/15 text-emerald-300",
@@ -60,11 +61,6 @@ export default function AssetAssessments({ job, assessedByName }) {
     } finally {
       setSaving(false);
     }
-  };
-
-  const remove = async (id) => {
-    await base44.entities.AssetAssessment.delete(id);
-    load();
   };
 
   return (
@@ -136,7 +132,7 @@ export default function AssetAssessments({ job, assessedByName }) {
                   {a.notes && <div className="text-xs text-slate-400 mt-1 whitespace-pre-wrap">{a.notes}</div>}
                   <div className="text-[10px] text-slate-500 mt-1">{a.assessed_by_name || "Field"} · {fmt(a.assessed_at)}</div>
                 </div>
-                <button onClick={() => remove(a.id)} className="text-slate-600 hover:text-rose-400 shrink-0"><Trash2 className="w-4 h-4" /></button>
+                <DeleteRecord entityName="AssetAssessment" recordId={a.id} recordLabel={a.asset_name} onDeleted={load} className="text-slate-600 hover:text-rose-400 shrink-0" />
               </div>
             ))}
           </div>

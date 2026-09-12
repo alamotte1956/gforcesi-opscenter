@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, Download, Wallet, Clock, CheckCircle2, X, RefreshCw } from "lucide-react";
+import DeleteRecord from "@/components/DeleteRecord";
 
 const statusStyles = {
   pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
@@ -261,7 +262,8 @@ export default function Payouts() {
                 {isAdmin && (
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     {p.status === "pending" && <button onClick={() => updateStatus(p, "approved")} className="text-xs text-blue-300 hover:text-blue-200 mr-2">Approve</button>}
-                    {p.status !== "paid" && <button onClick={() => updateStatus(p, "paid")} className="text-xs text-emerald-300 hover:text-emerald-200">Mark paid</button>}
+                    {p.status !== "paid" && <button onClick={() => updateStatus(p, "paid")} className="text-xs text-emerald-300 hover:text-emerald-200 mr-2">Mark paid</button>}
+                    <DeleteRecord entityName="Payout" recordId={p.id} recordLabel={`${p.contractor_name} · $${(p.amount || 0).toFixed(2)}`} onDeleted={load} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400" />
                   </td>
                 )}
               </tr>
