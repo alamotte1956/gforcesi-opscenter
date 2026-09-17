@@ -1,0 +1,157 @@
+{
+  "name": "Trip",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "origin_city": {
+      "type": "string"
+    },
+    "destination_city": {
+      "type": "string"
+    },
+    "depart_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "return_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "crew_count": {
+      "type": "number",
+      "default": 1
+    },
+    "flight_options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "airline": {
+            "type": "string"
+          },
+          "flight_no": {
+            "type": "string"
+          },
+          "depart_time": {
+            "type": "string"
+          },
+          "arrive_time": {
+            "type": "string"
+          },
+          "stops": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "booking_url": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "selected_flight_index": {
+      "type": "number",
+      "default": -1
+    },
+    "ground_transport_cost": {
+      "type": "number"
+    },
+    "lodging_cost_per_night": {
+      "type": "number"
+    },
+    "lodging_nights": {
+      "type": "number"
+    },
+    "per_diem_rate": {
+      "type": "number"
+    },
+    "per_diem_days": {
+      "type": "number"
+    },
+    "other_costs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "estimate_flight_typical": {
+      "type": "number"
+    },
+    "estimate_lodging_per_night": {
+      "type": "number"
+    },
+    "estimate_per_diem": {
+      "type": "number"
+    },
+    "estimate_notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "estimated",
+        "quoted",
+        "booked",
+        "completed"
+      ],
+      "default": "draft"
+    },
+    "total_cost": {
+      "type": "number"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "origin_city",
+    "destination_city",
+    "depart_date",
+    "crew_count"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

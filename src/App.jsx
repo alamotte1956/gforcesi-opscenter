@@ -61,6 +61,7 @@ import Proposals from '@/pages/Proposals';
 import RecurringSchedules from '@/pages/RecurringSchedules';
 import LogisticsQuickStart from '@/pages/LogisticsQuickStart';
 import ContractorBoard from '@/pages/ContractorBoard';
+import Travel from '@/pages/Travel';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -138,6 +139,7 @@ const AuthenticatedApp = () => {
           <Route path="/recurring-schedules" element={<RecurringSchedules />} />
           <Route path="/quick-start" element={<LogisticsQuickStart />} />
           <Route path="/contractor-board" element={<ContractorBoard />} />
+          <Route path="/travel" element={<Travel />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

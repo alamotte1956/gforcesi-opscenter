@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag, ExternalLink, Link2, ScanLine, ShieldCheck, X, ChevronLeft, ChevronRight, UploadCloud, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag, ExternalLink, Link2, ScanLine, ShieldCheck, X, ChevronLeft, ChevronRight, UploadCloud, Loader2, RefreshCw, Plane } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { parseMatterportUrl } from "@/lib/matterport";
 import AssetAssessments from "@/components/AssetAssessments";
@@ -134,6 +134,11 @@ export default function JobDetail() {
                 {uploading7g ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
                 {uploading7g ? "Uploading…" : "Upload to 7G"}
               </button>
+            )}
+            {isAdmin && (
+              <Link to={`/travel?job_id=${job.id}`} className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:border-cyan-500/40 hover:text-cyan-300 flex items-center gap-1.5 whitespace-nowrap">
+                <Plane className="w-3.5 h-3.5" /> Plan Travel
+              </Link>
             )}
           </div>
           {uploadMsg && <div className={`text-xs ${uploadMsg.startsWith("Uploaded") ? "text-emerald-400" : "text-rose-400"}`}>{uploadMsg}</div>}

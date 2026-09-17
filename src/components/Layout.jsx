@@ -52,6 +52,7 @@ const navGroups = [
       { to: "/routes", label: "Route Planning", icon: RouteIcon },
       { to: "/recurring-schedules", label: "Recurring Scans", icon: Repeat },
       { to: "/messages", label: "Messages", icon: MessageSquare },
+      { to: "/travel", label: "Travel", icon: Plane },
     ],
   },
   {
