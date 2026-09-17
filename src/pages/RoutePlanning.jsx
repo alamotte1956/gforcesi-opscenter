@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical, Loader2, Home, Calendar, Users, Link2, AlertTriangle, Coffee } from "lucide-react";
+import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical, Loader2, Home, Calendar, Users, Link2, AlertTriangle, Coffee, DollarSign } from "lucide-react";
 import RouteMap from "@/components/operations/RouteMap";
 import { geocodeAddress } from "@/lib/geocode";
 import { useToast } from "@/components/ui/use-toast";
@@ -159,6 +159,24 @@ export default function RoutePlanning() {
 
   const jobById = (id) => jobs.find((j) => j.id === id);
 
+  // Estimated field labor $/hr — used to approximate job profit (revenue − labor).
+  const avgPayRate = (() => {
+    const rates = contractors.filter((c) => c.pay_type === "hourly" && c.pay_rate).map((c) => c.pay_rate);
+    return rates.length ? rates.reduce((s, r) => s + r, 0) / rates.length : 45;
+  })();
+  const fmtMoney = (v) => `$${Math.round(Number(v) || 0).toLocaleString()}`;
+  const profitOf = (job) => {
+    const hours = job.estimated_duration_hours || (SERVICE_MIN / 60);
+    const crew = job.crew_size_required || 1;
+    const rate = Number(job.billable_rate) || 0;
+    let revenue = 0;
+    if (job.billable_rate_type === "hourly") revenue = rate * hours;
+    else if (job.billable_rate_type === "flat") revenue = rate;
+    else if (job.billable_rate_type === "daily") revenue = rate * Math.max(1, hours / 8);
+    else if (job.billable_rate_type === "per_sqft") revenue = rate;
+    return revenue - hours * crew * avgPayRate;
+  };
+
   const missingCoords = jobs.filter((j) => j.site_address && (j.latitude == null || j.longitude == null)).length;
   const missingBases = contractors.filter((c) => c.base_address && (c.base_latitude == null || c.base_longitude == null)).length;
 
@@ -279,8 +297,10 @@ export default function RoutePlanning() {
       const job = jobById(id);
       if (job && !seen.has(job.id)) { seen.add(job.id); candidates.push(job); }
     });
-    // Priority / SLA order, with dependencies pulled before their dependents.
+    // Profitability first, then priority / SLA, with dependencies pulled before their dependents.
     candidates.sort((a, b) => {
+      const profA = profitOf(a), profB = profitOf(b);
+      if (profB !== profA) return profB - profA;
       const pa = prio[a.priority] ?? 2, pb = prio[b.priority] ?? 2;
       if (pa !== pb) return pa - pb;
       const sa = a.sla_due_date ? new Date(a.sla_due_date).getTime() : Infinity;
@@ -483,6 +503,7 @@ export default function RoutePlanning() {
 
   const JobBadges = ({ job }) => (
     <>
+      {(() => { const p = profitOf(job); return p > 0 ? <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 flex items-center gap-0.5"><DollarSign className="w-2.5 h-2.5" />{fmtMoney(p)}</span> : null; })()}
       {job.crew_size_required > 1 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300 border border-violet-500/20 flex items-center gap-0.5"><Users className="w-2.5 h-2.5" />{job.crew_size_required} crew</span>}
       {job.depends_on_job_id && <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-300 border border-orange-500/20 flex items-center gap-0.5"><Link2 className="w-2.5 h-2.5" />dep</span>}
       {reasons[job.id]?.some((r) => r.includes("deferred")) && <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20 flex items-center gap-0.5"><AlertTriangle className="w-2.5 h-2.5" />{reasons[job.id][0]}</span>}
@@ -554,7 +575,7 @@ export default function RoutePlanning() {
 
       <div className="flex flex-wrap items-center gap-1.5 mb-4 text-[10px] text-slate-500">
         <span className="text-slate-600">Suggested plan weighs:</span>
-        {["Priority", "SLA due date", "Distance / drive time", "Crew availability", "Crew shift", "Daily capacity", "Day-of-week", "Site hours", "Scheduled start", "Region match", "Equipment match", "Equipment availability", "Skills match", "Crew size", "Dependencies", "Break window", "Return to base", "Workload balance"].map((f) => (
+        {["Profitability", "Priority", "SLA due date", "Distance / drive time", "Crew availability", "Crew shift", "Daily capacity", "Day-of-week", "Site hours", "Scheduled start", "Region match", "Equipment match", "Equipment availability", "Skills match", "Crew size", "Dependencies", "Break window", "Return to base", "Workload balance"].map((f) => (
           <span key={f} className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">{f}</span>
         ))}
       </div>
