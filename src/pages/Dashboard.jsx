@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import OperationsMap from "@/components/operations/OperationsMap";
-import { Filter, Radio, MapPin, Users, Activity, X, Navigation2, ShieldAlert } from "lucide-react";
+import { Filter, Radio, MapPin, Users, Activity, X, Navigation2, ShieldAlert, Rocket } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const statusStyles = {
   available: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
@@ -84,7 +85,10 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col h-screen">
       {/* Stat bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 p-4 bg-slate-950 border-b border-slate-800">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 p-4 bg-slate-950 border-b border-slate-800 relative">
+        <Link to="/quick-start" className="hidden lg:flex absolute top-3 right-4 items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs font-medium hover:bg-cyan-500/20 transition-colors z-10">
+          <Rocket className="w-3.5 h-3.5" /> Quick Start
+        </Link>
         <StatCard icon={Users} label="On Duty" value={stats.onDuty} accent="text-emerald-400" />
         <StatCard icon={Activity} label="Active Jobs" value={stats.activeJobs} accent="text-amber-400" />
         <StatCard icon={MapPin} label="Scheduled" value={stats.scheduled} accent="text-blue-400" />
