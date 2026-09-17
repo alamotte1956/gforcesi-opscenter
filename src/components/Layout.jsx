@@ -131,7 +131,7 @@ export default function Layout() {
           const cons = await base44.entities.Contractor.list();
           const c = cons.find((co) => normalizeEmail(co.email) === normalizeEmail(u.email));
           if (needsOnboarding(c)) { navigate("/contractors/onboarding", { replace: true }); return; }
-          navigate("/field", { replace: true });
+          navigate("/contractor-portal", { replace: true });
           return;
         }
         if (level === "client") { navigate("/portal", { replace: true }); return; }
@@ -153,7 +153,7 @@ export default function Layout() {
           const c = cons.find((co) => normalizeEmail(co.email) === norm);
           if (needsOnboarding(c)) { navigate("/contractors/onboarding", { replace: true }); return; }
           if (c && ["Field Technician", "Field Pilot"].includes(c.role)) {
-            navigate("/field", { replace: true });
+            navigate("/contractor-portal", { replace: true });
             return;
           }
         }

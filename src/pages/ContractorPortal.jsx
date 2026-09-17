@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight } from "lucide-react";
+import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight, Radio, Navigation } from "lucide-react";
+import ManualLocation from "@/components/field/ManualLocation";
+import { logContractorEvent, captureGeolocation } from "@/lib/contractorStatus";
 
 const statusStyles = {
   scheduled: "text-blue-400 bg-blue-500/10 border-blue-500/20",
@@ -14,6 +16,14 @@ const statusStyles = {
 };
 
 const fmtMoney = (v) => v != null ? `$${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—";
+const fmtTime = (v) => v ? new Date(v).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+
+const myStatuses = [
+  { key: "available", label: "Available", color: "bg-emerald-500" },
+  { key: "en_route", label: "En Route", color: "bg-blue-400" },
+  { key: "on_site", label: "On Site", color: "bg-amber-400" },
+  { key: "off_duty", label: "Off Duty", color: "bg-slate-500" },
+];
 
 export default function ContractorPortal() {
   const [me, setMe] = useState(null);
@@ -21,23 +31,38 @@ export default function ContractorPortal() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const user = await base44.auth.me();
-        setMe(user);
-        if (!user?.email) { setLoading(false); return; }
-        const cons = await base44.entities.Contractor.filter({ email: user.email });
-        const myContractor = cons[0] || null;
-        setContractor(myContractor);
-        if (myContractor) {
-          const allJobs = await base44.entities.Job.list();
-          setJobs(allJobs.filter((j) => (j.assigned_contractor_ids || []).includes(myContractor.id)));
-        }
-      } catch {}
-      setLoading(false);
-    })();
-  }, []);
+  const [statusSaving, setStatusSaving] = useState(false);
+
+  const load = async () => {
+    try {
+      const user = await base44.auth.me();
+      setMe(user);
+      if (!user?.email) { setLoading(false); return; }
+      const cons = await base44.entities.Contractor.filter({ email: user.email });
+      const myContractor = cons[0] || null;
+      setContractor(myContractor);
+      if (myContractor) {
+        const allJobs = await base44.entities.Job.list();
+        setJobs(allJobs.filter((j) => (j.assigned_contractor_ids || []).includes(myContractor.id)));
+      }
+    } catch {}
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const setStatus = async (status) => {
+    if (!contractor) return;
+    setStatusSaving(true);
+    const geo = await captureGeolocation().catch(() => null);
+    const patch = { current_status: status, last_status_at: new Date().toISOString() };
+    if (geo) { patch.current_latitude = geo.latitude; patch.current_longitude = geo.longitude; patch.last_location_at = new Date().toISOString(); }
+    setContractor((c) => ({ ...c, ...patch }));
+    try {
+      await base44.entities.Contractor.update(contractor.id, patch);
+      await logContractorEvent({ ...contractor, ...patch }, "status_change", { status, latitude: geo?.latitude, longitude: geo?.longitude, note: `Status set to ${status}` });
+    } catch {}
+    setStatusSaving(false);
+  };
 
   const completedJobs = useMemo(() => jobs.filter((j) => ["complete", "invoiced"].includes(j.status)), [jobs]);
   const activeJobs = useMemo(() => jobs.filter((j) => ["en_route", "on_site", "scanning", "processing"].includes(j.status)), [jobs]);
@@ -85,6 +110,30 @@ export default function ContractorPortal() {
 
       {contractor && (
         <>
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium text-slate-300 flex items-center gap-2"><Radio className="w-4 h-4 text-cyan-400" /> My Status & Location</h2>
+              <Link to="/field" className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">Open Field App <Navigation className="w-3.5 h-3.5" /></Link>
+            </div>
+            <div className="text-xs text-slate-500 mb-3">
+              Current status: <span className="capitalize text-slate-200 font-medium">{contractor.current_status?.replace("_", " ") || "off duty"}</span>
+              {contractor.last_status_at && <> · updated {fmtTime(contractor.last_status_at)}</>}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              {myStatuses.map((s) => (
+                <button key={s.key} onClick={() => setStatus(s.key)} disabled={statusSaving} className={`py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-50 ${contractor.current_status === s.key ? "bg-cyan-500 text-slate-950" : "bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"}`}>
+                  <span className={`w-2.5 h-2.5 rounded-full ${s.color}`} /> {s.label}
+                </button>
+              ))}
+            </div>
+            <ManualLocation contractor={contractor} onUpdated={load} />
+            {contractor.current_latitude != null && (
+              <div className="text-xs text-slate-500 mt-3 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5" /> Last reported: {contractor.current_latitude.toFixed(4)}, {contractor.current_longitude.toFixed(4)}
+                {contractor.last_location_at && <> · {fmtTime(contractor.last_location_at)}</>}
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <StatCard icon={DollarSign} label="Earned (Completed)" value={fmtMoney(estimatedEarnings)} accent="text-emerald-400" />
             <StatCard icon={TrendingUp} label="Pending (Active)" value={fmtMoney(pendingEarnings)} accent="text-amber-400" />
