@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical } from "lucide-react";
+import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical, Loader2 } from "lucide-react";
 import RouteMap from "@/components/operations/RouteMap";
+import { geocodeAddress } from "@/lib/geocode";
 import { useToast } from "@/components/ui/use-toast";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
@@ -66,6 +67,7 @@ export default function RoutePlanning() {
   const [autoMode, setAutoMode] = useState(false);
   const [dayStart, setDayStart] = useState("08:00");
   const [dayEnd, setDayEnd] = useState("17:00");
+  const [geocoding, setGeocoding] = useState(false);
   const { toast } = useToast();
 
   const load = async () => {
@@ -91,6 +93,31 @@ export default function RoutePlanning() {
   useEffect(() => { load(); }, []);
 
   const jobById = (id) => jobs.find((j) => j.id === id);
+
+  const missingCoords = jobs.filter((j) => j.site_address && (j.latitude == null || j.longitude == null)).length;
+
+  const geocodeAllSites = async () => {
+    const missing = jobs.filter((j) => j.site_address && (j.latitude == null || j.longitude == null));
+    if (missing.length === 0) {
+      toast({ title: "All set", description: "Every job site already has coordinates." });
+      return;
+    }
+    setGeocoding(true);
+    let done = 0, failed = 0;
+    for (const job of missing) {
+      const coords = await geocodeAddress(job.site_address);
+      if (coords) {
+        await base44.entities.Job.update(job.id, { latitude: coords.latitude, longitude: coords.longitude });
+        done++;
+      } else {
+        failed++;
+      }
+      await new Promise((r) => setTimeout(r, 1100)); // respect Nominatim ~1 req/sec
+    }
+    setGeocoding(false);
+    await load();
+    toast({ title: "Geocoding complete", description: `${done} site(s) geocoded${failed ? `, ${failed} not found` : ""}.` });
+  };
 
   const onDragEnd = (result) => {
     const { source, destination } = result;
@@ -406,6 +433,13 @@ export default function RoutePlanning() {
               <Wand2 className="w-4 h-4" /> Automatic
             </button>
           </div>
+          <button
+            onClick={geocodeAllSites}
+            disabled={geocoding}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50"
+          >
+            {geocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />} Geocode sites{missingCoords > 0 ? ` (${missingCoords})` : ""}
+          </button>
           <button
             onClick={optimizeAll}
             className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700"
