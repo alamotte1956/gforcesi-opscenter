@@ -94,7 +94,7 @@ export default function RoutePlanning() {
 
   const onDragEnd = (result) => {
     const { source, destination } = result;
-    if (autoMode || !destination || (source.droppableId === destination.droppableId && source.index === destination.index)) return;
+    if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) return;
     const srcList = [...(assignments[source.droppableId] || [])];
     const [movedId] = srcList.splice(source.index, 1);
     const destList = [...(assignments[destination.droppableId] || [])];
@@ -377,7 +377,7 @@ export default function RoutePlanning() {
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2"><RouteIcon className="w-5 h-5 text-cyan-400" /> Route Planning</h1>
-          <p className="text-sm text-slate-500">{autoMode ? "Auto mode — nearest crews assigned & optimized automatically" : "Manual mode — drag jobs to crews · toggle auto route plan to optimize automatically"}</p>
+          <p className="text-sm text-slate-500">{autoMode ? "Suggested plan generated — drag any job to override" : "Manual mode — drag jobs to crews · click Automatic to generate a suggested plan"}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
@@ -437,7 +437,7 @@ export default function RoutePlanning() {
                       const job = jobById(id);
                       if (!job) return null;
                       return (
-                        <Draggable key={job.id} draggableId={job.id} index={i} isDragDisabled={autoMode}>
+                        <Draggable key={job.id} draggableId={job.id} index={i} isDragDisabled={false}>
                           {(p) => (
                             <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps} className="bg-slate-800 border border-slate-700 rounded-lg p-2.5 hover:border-slate-600 cursor-grab active:cursor-grabbing">
                               <div className="flex items-start gap-1.5">
@@ -518,7 +518,7 @@ export default function RoutePlanning() {
                         {(provided) => (
                           <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-1.5 min-h-[40px]">
                             {stops.map((job, i) => (
-                              <Draggable key={job.id} draggableId={job.id} index={i} isDragDisabled={autoMode}>
+                              <Draggable key={job.id} draggableId={job.id} index={i} isDragDisabled={false}>
                                 {(p) => (
                                   <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps} className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg p-2 hover:border-slate-600 cursor-grab active:cursor-grabbing">
                                     <span className="w-5 h-5 rounded-full bg-cyan-500 text-slate-950 text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
