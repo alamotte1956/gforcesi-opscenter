@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail, Send, History } from "lucide-react";
-import DeleteRecord from "@/components/DeleteRecord";
+import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail, Send, History, Archive } from "lucide-react";
+import CrudActions from "@/components/CrudActions";
 import StatusTimeline from "@/components/contractors/StatusTimeline";
 import { useToast } from "@/components/ui/use-toast";
 import { ACCESS_LEVELS } from "@/lib/accessLevels";
@@ -35,6 +35,7 @@ export default function Contractors() {
   const [testName, setTestName] = useState("");
   const [sending, setSending] = useState(false);
   const [timelineFor, setTimelineFor] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
   const isFullAccess = isAdmin || me?.access_level === "full";
@@ -153,7 +154,12 @@ export default function Contractors() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-semibold">Contractors</h1>
-          <p className="text-sm text-slate-500">{contractors.length} contractors · {onboarded} fully onboarded</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">{contractors.length} contractors · {onboarded} fully onboarded</p>
+            <button onClick={() => setShowArchived((v) => !v)} className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${showArchived ? "bg-amber-500/15 text-amber-300 border border-amber-500/30" : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"}`}>
+              <Archive className="w-4 h-4" /> {showArchived ? "Showing archived" : "Show archived"}
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -195,7 +201,7 @@ export default function Contractors() {
               </tr>
             </thead>
             <tbody>
-              {contractors.map((c) => (
+              {contractors.filter((c) => (showArchived ? c.archived : !c.archived)).map((c) => (
                 <tr key={c.id} className="border-b border-slate-800/60 hover:bg-slate-800/40">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -249,7 +255,7 @@ export default function Contractors() {
                           <KeyRound className="w-4 h-4" />
                         </button>
                       )}
-                      {isFullAccess && <DeleteRecord entityName="Contractor" recordId={c.id} recordLabel={c.name} onDeleted={load} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400" />}
+                      {isFullAccess && <CrudActions entityName="Contractor" record={c} label={c.name} onSaved={load} fields={contractorFields} />}
                     </div>
                   </td>
                 </tr>
@@ -345,3 +351,17 @@ export default function Contractors() {
     </div>
   );
 }
+
+const contractorFields = [
+  { key: "name", label: "Name", type: "text" },
+  { key: "email", label: "Email", type: "text" },
+  { key: "phone", label: "Phone", type: "text" },
+  { key: "role", label: "Role", type: "select", options: ["Field Technician", "Field Pilot", "Dispatcher", "Billing Manager", "Admin"] },
+  { key: "region", label: "Region", type: "text" },
+  { key: "pay_type", label: "Pay type", type: "select", options: ["hourly", "flat", "salary"] },
+  { key: "pay_rate", label: "Pay rate", type: "number" },
+  { key: "quickbooks_id", label: "QuickBooks ID", type: "text" },
+  { key: "skills", label: "Skills (comma-separated)", type: "tags" },
+  { key: "certifications", label: "Certifications (comma-separated)", type: "tags" },
+  { key: "emergency_contact", label: "Emergency contact", type: "text" },
+];

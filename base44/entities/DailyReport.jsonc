@@ -56,6 +56,10 @@
     },
     "notes": {
       "type": "string"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [

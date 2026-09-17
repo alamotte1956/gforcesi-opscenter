@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, MapPin, Clock, Phone, Navigation2, Search } from "lucide-react";
+import { Plus, MapPin, Clock, Phone, Navigation2, Search, Archive } from "lucide-react";
 import FormModal from "@/components/FormModal";
-import DeleteRecord from "@/components/DeleteRecord";
+import CrudActions from "@/components/CrudActions";
 import { useToast } from "@/components/ui/use-toast";
 
 const inputClass = "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500";
@@ -16,6 +16,7 @@ export default function Sites() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm());
+  const [showArchived, setShowArchived] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
 
@@ -42,12 +43,13 @@ export default function Sites() {
 
   const filtered = useMemo(
     () => sites.filter((s) =>
-      !search ||
+      (showArchived ? s.archived : !s.archived) &&
+      (!search ||
       s.name?.toLowerCase().includes(search.toLowerCase()) ||
       s.address?.toLowerCase().includes(search.toLowerCase()) ||
-      s.client_name?.toLowerCase().includes(search.toLowerCase())
+      s.client_name?.toLowerCase().includes(search.toLowerCase()))
     ),
-    [sites, search]
+    [sites, search, showArchived]
   );
 
   const submit = async () => {
@@ -76,7 +78,12 @@ export default function Sites() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-semibold">Sites</h1>
-          <p className="text-sm text-slate-500">{sites.length} locations · {filtered.length} shown</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">{sites.length} locations · {filtered.length} shown</p>
+            <button onClick={() => setShowArchived((v) => !v)} className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${showArchived ? "bg-amber-500/15 text-amber-300 border border-amber-500/30" : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"}`}>
+              <Archive className="w-4 h-4" /> {showArchived ? "Showing archived" : "Show archived"}
+            </button>
+          </div>
         </div>
         {isAdmin && (
           <button onClick={() => { setForm(emptyForm()); setShowForm(true); }} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
@@ -128,7 +135,7 @@ export default function Sites() {
                     <Navigation2 className="w-3.5 h-3.5" /> Maps
                   </a>
                 )}
-                {isAdmin && <DeleteRecord entityName="Site" recordId={s.id} recordLabel={s.name} onDeleted={load} className="p-1 rounded text-slate-500 hover:text-rose-400" />}
+                {isAdmin && <CrudActions entityName="Site" record={s} label={s.name} onSaved={load} fields={siteFields} />}
               </div>
             </div>
           ))}
@@ -179,6 +186,19 @@ export default function Sites() {
     </div>
   );
 }
+
+const siteFields = [
+  { key: "name", label: "Site name", type: "text" },
+  { key: "address", label: "Address", type: "text" },
+  { key: "latitude", label: "Latitude", type: "number" },
+  { key: "longitude", label: "Longitude", type: "number" },
+  { key: "opening_time", label: "Opening time", type: "time" },
+  { key: "closing_time", label: "Closing time", type: "time" },
+  { key: "contact_name", label: "Site contact", type: "text" },
+  { key: "contact_phone", label: "Contact phone", type: "text" },
+  { key: "access_notes", label: "Access notes", type: "textarea" },
+  { key: "notes", label: "Notes", type: "textarea" },
+];
 
 function emptyForm() {
   return { name: "", address: "", latitude: "", longitude: "", client_id: "", opening_time: "", closing_time: "", contact_name: "", contact_phone: "", access_notes: "", notes: "" };

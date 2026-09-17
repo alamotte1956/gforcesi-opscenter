@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
-import { Repeat, Plus, X, Calendar, Power, MapPin } from "lucide-react";
+import { Repeat, Plus, X, Calendar, Power, MapPin, Archive } from "lucide-react";
 import DeleteRecord from "@/components/DeleteRecord";
 
 const cadenceLabels = { weekly: "Weekly", biweekly: "Biweekly", monthly: "Monthly", quarterly: "Quarterly" };
@@ -27,6 +27,7 @@ export default function RecurringSchedules() {
   const [form, setForm] = useState(blank);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const load = async () => {
     try {
@@ -98,6 +99,14 @@ export default function RecurringSchedules() {
     } catch (e) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
   };
 
+  const toggleArchive = async (s) => {
+    try {
+      await base44.entities.RecurringSchedule.update(s.id, { archived: !s.archived });
+      toast({ title: s.archived ? "Restored" : "Archived", description: s.name });
+      load();
+    } catch (e) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
+
   const runNow = async () => {
     try {
       const res = await base44.functions.invoke("generateRecurringJobs", {});
@@ -113,7 +122,12 @@ export default function RecurringSchedules() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-semibold">Recurring Scan Schedules</h1>
-          <p className="text-sm text-slate-500">Auto-generate jobs on a cadence (progress captures, periodic re-scans)</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">Auto-generate jobs on a cadence (progress captures, periodic re-scans)</p>
+            <button onClick={() => setShowArchived((v) => !v)} className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${showArchived ? "bg-amber-500/15 text-amber-300 border border-amber-500/30" : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"}`}>
+              <Archive className="w-4 h-4" /> {showArchived ? "Showing archived" : "Show archived"}
+            </button>
+          </div>
         </div>
         {isAdmin && (
           <div className="flex gap-2">
@@ -131,7 +145,7 @@ export default function RecurringSchedules() {
         </div>
       ) : (
         <div className="space-y-3">
-          {schedules.map((s) => (
+          {schedules.filter((s) => (showArchived ? s.archived : !s.archived)).map((s) => (
             <div key={s.id} className={`bg-slate-900 border rounded-xl p-4 ${s.active ? "border-slate-800" : "border-slate-800 opacity-60"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -147,6 +161,7 @@ export default function RecurringSchedules() {
                 {isAdmin && (
                   <div className="flex items-center gap-1 shrink-0">
                     <button onClick={() => toggleActive(s)} title={s.active ? "Pause" : "Activate"} className="p-2 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-slate-800"><Power className="w-4 h-4" /></button>
+                    <button onClick={() => toggleArchive(s)} title={s.archived ? "Restore" : "Archive"} className="p-2 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800"><Archive className="w-4 h-4" /></button>
                     <button onClick={() => openEdit(s)} className="px-3 py-1.5 rounded-lg text-xs text-slate-300 bg-slate-800 hover:bg-slate-700">Edit</button>
                     <DeleteRecord entityName="RecurringSchedule" recordId={s.id} recordLabel={s.name} onDeleted={load} className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-slate-800" />
                   </div>

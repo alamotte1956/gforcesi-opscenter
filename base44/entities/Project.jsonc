@@ -42,6 +42,10 @@
     },
     "matterport_share_url": {
       "type": "string"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [

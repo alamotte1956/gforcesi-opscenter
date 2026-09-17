@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, FolderKanban } from "lucide-react";
+import { Plus, FolderKanban, Archive } from "lucide-react";
 import FormModal from "@/components/FormModal";
 import BulkCsvUpload from "@/components/BulkCsvUpload";
-import DeleteRecord from "@/components/DeleteRecord";
+import CrudActions from "@/components/CrudActions";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
@@ -22,6 +22,7 @@ export default function Projects() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm());
+  const [showArchived, setShowArchived] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
 
@@ -63,7 +64,12 @@ export default function Projects() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-semibold">Projects</h1>
-          <p className="text-sm text-slate-500">{projects.length} projects</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">{projects.length} projects</p>
+            <button onClick={() => setShowArchived((v) => !v)} className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${showArchived ? "bg-amber-500/15 text-amber-300 border border-amber-500/30" : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"}`}>
+              <Archive className="w-4 h-4" /> {showArchived ? "Showing archived" : "Show archived"}
+            </button>
+          </div>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
@@ -108,7 +114,7 @@ export default function Projects() {
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" /></div>
       ) : (
         <div className="space-y-2">
-          {projects.map((p) => {
+          {projects.filter((p) => (showArchived ? p.archived : !p.archived)).map((p) => {
             const pJobs = jobs.filter((j) => j.project_id === p.id);
             const done = pJobs.filter((j) => ["complete", "invoiced"].includes(j.status)).length;
             const pct = pJobs.length ? Math.round((done / pJobs.length) * 100) : 0;
@@ -137,7 +143,7 @@ export default function Projects() {
                   <span className="text-xs text-slate-500">📍 {p.region || "—"}</span>
                   <span className="text-xs text-slate-500">{pJobs.length} jobs</span>
                   <span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusStyles[p.status] || statusStyles.active}`}>{p.status.replace("_", " ")}</span>
-                  {isAdmin && <DeleteRecord entityName="Project" recordId={p.id} recordLabel={p.name} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
+                  {isAdmin && <CrudActions entityName="Project" record={p} label={p.name} onSaved={load} fields={projectFields} />}
                 </div>
               </div>
             );
@@ -173,6 +179,16 @@ export default function Projects() {
     </div>
   );
 }
+
+const projectFields = [
+  { key: "name", label: "Project name", type: "text" },
+  { key: "description", label: "Description", type: "textarea" },
+  { key: "status", label: "Status", type: "select", options: ["active", "on_hold", "completed"] },
+  { key: "region", label: "Region", type: "text" },
+  { key: "start_date", label: "Start date", type: "date" },
+  { key: "end_date", label: "End date", type: "date" },
+  { key: "notes", label: "Notes", type: "textarea" },
+];
 
 function Field({ label, children }) {
   return (<div><label className="block text-xs text-slate-400 mb-1">{label}</label>{children}</div>);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { Send, Mail, MessageSquare, Search, Clock } from "lucide-react";
+import { Send, Mail, MessageSquare, Search, Clock, Trash2 } from "lucide-react";
 
 export default function Messages() {
   const [me, setMe] = useState(null);
@@ -37,6 +37,14 @@ export default function Messages() {
   const matched = contractors.find((c) => c.email && me?.email && c.email.toLowerCase() === me.email.toLowerCase());
   const myId = matched?.id || me?.id;
   const myName = matched?.name || me?.full_name || me?.email || "Me";
+  const isAdmin = me?.role === "admin";
+
+  const deleteMsg = async (id) => {
+    try {
+      await base44.entities.Message.delete(id);
+      load();
+    } catch (e) {}
+  };
 
   const partners = useMemo(() => {
     const cons = contractors.filter((c) => c.id !== myId).map((c) => ({ id: c.id, name: c.name, role: c.role, type: "crew" }));
@@ -163,7 +171,7 @@ export default function Messages() {
                 {thread.map((m) => {
                   const mine = m.sender_id === myId;
                   return (
-                    <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                    <div key={m.id} className={`group flex items-end gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[70%] rounded-xl px-3 py-2 ${mine ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-200"}`}>
                         <div className="text-sm whitespace-pre-wrap">{m.body}</div>
                         <div className={`text-[10px] mt-1 flex items-center gap-1 ${mine ? "text-slate-700" : "text-slate-500"}`}>
@@ -171,6 +179,11 @@ export default function Messages() {
                           {fmtTime(m.created_date)}
                         </div>
                       </div>
+                      {(mine || isAdmin) && (
+                        <button onClick={() => deleteMsg(m.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-slate-500 hover:text-rose-400" title="Delete message">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   );
                 })}

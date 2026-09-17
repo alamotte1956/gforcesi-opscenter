@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, Search, Table as TableIcon, Clock, AlertCircle, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, Table as TableIcon, Clock, AlertCircle, FileSpreadsheet, Archive } from "lucide-react";
 import FormModal from "@/components/FormModal";
-import DeleteRecord from "@/components/DeleteRecord";
+import CrudActions from "@/components/CrudActions";
 import ImportJobsFromSheet from "@/components/jobs/ImportJobsFromSheet";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -41,6 +41,7 @@ export default function Jobs() {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [form, setForm] = useState({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", notes: "" });
+  const [showArchived, setShowArchived] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
 
@@ -84,12 +85,13 @@ export default function Jobs() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return jobs.filter((j) => {
+      if (showArchived ? !j.archived : j.archived) return false;
       if (statusFilter !== "all" && j.status !== statusFilter) return false;
       if (!q) return true;
       return [j.title, j.project_name, j.client_name, j.site_address, ...(j.assigned_contractor_names || [])]
         .filter(Boolean).join(" ").toLowerCase().includes(q);
     });
-  }, [jobs, query, statusFilter]);
+  }, [jobs, query, statusFilter, showArchived]);
 
   const updateField = async (id, patch) => {
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
@@ -121,7 +123,12 @@ export default function Jobs() {
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2"><TableIcon className="w-5 h-5 text-cyan-400" /> Jobs</h1>
-          <p className="text-sm text-slate-500">{filtered.length} of {jobs.length} jobs</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">{filtered.length} of {jobs.length} jobs</p>
+            <button onClick={() => setShowArchived((v) => !v)} className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${showArchived ? "bg-amber-500/15 text-amber-300 border border-amber-500/30" : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"}`}>
+              <Archive className="w-4 h-4" /> {showArchived ? "Showing archived" : "Show archived"}
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -231,7 +238,7 @@ export default function Jobs() {
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-right">{j.billable_rate != null ? `$${j.billable_rate}` : "—"}</td>
                   <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap max-w-[200px] truncate" title={j.deliverables}>{j.deliverables || "—"}</td>
                   <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                    {isAdmin && <DeleteRecord entityName="Job" recordId={j.id} recordLabel={j.title} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
+                    {isAdmin && <CrudActions entityName="Job" record={j} label={j.title} onSaved={load} fields={jobFields} />}
                   </td>
                 </tr>
               ))}
@@ -288,6 +295,22 @@ export default function Jobs() {
     </div>
   );
 }
+
+const jobFields = [
+  { key: "title", label: "Title", type: "text" },
+  { key: "site_address", label: "Site address", type: "text" },
+  { key: "status", label: "Status", type: "select", options: statusOptions },
+  { key: "priority", label: "Priority", type: "select", options: ["low", "medium", "high", "urgent"] },
+  { key: "scheduled_start", label: "Scheduled start", type: "datetime" },
+  { key: "scheduled_end", label: "Scheduled end", type: "datetime" },
+  { key: "sla_due_date", label: "SLA due date", type: "datetime" },
+  { key: "estimated_duration_hours", label: "Est. hours", type: "number" },
+  { key: "billable_rate_type", label: "Rate type", type: "select", options: ["hourly", "per_sqft", "flat", "daily"] },
+  { key: "billable_rate", label: "Billable rate", type: "number" },
+  { key: "required_equipment", label: "Equipment (comma-separated)", type: "tags" },
+  { key: "deliverables", label: "Deliverables", type: "text" },
+  { key: "notes", label: "Notes", type: "textarea" },
+];
 
 const inputCls = "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500";
 function Field({ label, children }) {

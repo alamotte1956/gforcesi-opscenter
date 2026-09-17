@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { ClipboardList, Plus, Check, Download, Loader2 } from "lucide-react";
+import { ClipboardList, Plus, Check, Download, Loader2, Archive } from "lucide-react";
 import FormModal from "@/components/FormModal";
-import DeleteRecord from "@/components/DeleteRecord";
+import CrudActions from "@/components/CrudActions";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
@@ -20,6 +20,7 @@ export default function DailyReports() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ report_date: new Date().toISOString().slice(0, 10), job_id: "", filed_by_name: "", weather: "", work_completed: "", hours_worked: "", crew_count: "1", delays: "", notes: "" });
   const [exportingId, setExportingId] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
   const { toast } = useToast();
 
   const exportPdf = async (r) => {
@@ -48,7 +49,7 @@ export default function DailyReports() {
   };
   useEffect(() => { load(); }, []);
 
-  const filtered = useMemo(() => (filter === "all" ? reports : reports.filter((r) => r.status === filter)), [reports, filter]);
+  const filtered = useMemo(() => reports.filter((r) => (showArchived ? r.archived : !r.archived) && (filter === "all" || r.status === filter)), [reports, filter, showArchived]);
   const stats = useMemo(() => ({
     submitted: reports.filter((r) => r.status === "submitted").length,
     reviewed: reports.filter((r) => r.status === "reviewed").length,
@@ -88,7 +89,12 @@ export default function DailyReports() {
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2"><ClipboardList className="w-5 h-5 text-cyan-400" /> Daily Reports</h1>
-          <p className="text-sm text-slate-500">Field daily logs filed by crews</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">Field daily logs filed by crews</p>
+            <button onClick={() => setShowArchived((v) => !v)} className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${showArchived ? "bg-amber-500/15 text-amber-300 border border-amber-500/30" : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"}`}>
+              <Archive className="w-4 h-4" /> {showArchived ? "Showing archived" : "Show archived"}
+            </button>
+          </div>
         </div>
         <button onClick={() => setShowForm(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400"><Plus className="w-4 h-4" /> New Report</button>
       </div>
@@ -131,7 +137,7 @@ export default function DailyReports() {
                       <button onClick={() => exportPdf(r)} disabled={exportingId === r.id} className="text-xs text-cyan-400 hover:underline flex items-center gap-1 disabled:opacity-50">
                         {exportingId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} PDF
                       </button>
-                      <DeleteRecord entityName="DailyReport" recordId={r.id} recordLabel={r.job_title || r.report_date} onDeleted={load} className="text-slate-500 hover:text-rose-400" />
+                      <CrudActions entityName="DailyReport" record={r} label={r.job_title || r.report_date} onSaved={load} fields={reportFields} />
                     </div>
                   </td>
                 </tr>
@@ -161,6 +167,18 @@ export default function DailyReports() {
     </div>
   );
 }
+
+const reportFields = [
+  { key: "report_date", label: "Date", type: "date" },
+  { key: "filed_by_name", label: "Filed by", type: "text" },
+  { key: "weather", label: "Weather", type: "text" },
+  { key: "work_completed", label: "Work completed", type: "textarea", rows: 3 },
+  { key: "hours_worked", label: "Hours", type: "number" },
+  { key: "crew_count", label: "Crew count", type: "number" },
+  { key: "delays", label: "Delays / issues", type: "text" },
+  { key: "status", label: "Status", type: "select", options: ["draft", "submitted", "reviewed"] },
+  { key: "notes", label: "Notes", type: "textarea" },
+];
 
 function Card({ label, value, accent }) {
   return (

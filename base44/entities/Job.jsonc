@@ -146,6 +146,10 @@
     "matterport_synced_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [

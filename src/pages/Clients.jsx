@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Globe, Shield, Clock } from "lucide-react";
+import { Plus, Globe, Shield, Clock, Archive } from "lucide-react";
 import FormModal from "@/components/FormModal";
 import BulkCsvUpload from "@/components/BulkCsvUpload";
-import DeleteRecord from "@/components/DeleteRecord";
+import CrudActions from "@/components/CrudActions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -30,6 +30,7 @@ export default function Clients() {
   const [portalForm, setPortalForm] = useState({ portal_email: "", portal_access_level: "none" });
   const [hoursClient, setHoursClient] = useState(null);
   const [hoursForm, setHoursForm] = useState({ opening_time: "", closing_time: "", access_notes: "" });
+  const [showArchived, setShowArchived] = useState(false);
 
   const openHours = (c) => {
     setHoursClient(c);
@@ -76,12 +77,19 @@ export default function Clients() {
     load();
   };
 
+  const visible = clients.filter((c) => (showArchived ? c.archived : !c.archived));
+
   return (
     <div className="p-4 lg:p-6">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-semibold">Clients</h1>
-          <p className="text-sm text-slate-500">{clients.length} clients</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">{clients.length} clients</p>
+            <button onClick={() => setShowArchived((v) => !v)} className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${showArchived ? "bg-amber-500/15 text-amber-300 border border-amber-500/30" : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"}`}>
+              <Archive className="w-4 h-4" /> {showArchived ? "Showing archived" : "Show archived"}
+            </button>
+          </div>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
@@ -146,7 +154,7 @@ export default function Clients() {
               </tr>
             </thead>
             <tbody>
-              {clients.map((c) => {
+              {visible.map((c) => {
                 const cInv = invoices.filter((i) => i.client_id === c.id);
                 const outstanding = cInv.filter((i) => ["sent", "synced", "overdue"].includes(i.status)).reduce((s, i) => s + (i.total || 0), 0);
                 return (
@@ -170,7 +178,7 @@ export default function Clients() {
                       <div className="flex items-center justify-end gap-3">
                         <button onClick={() => openHours(c)} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Hours</button>
                         <button onClick={() => openEdit(c)} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />Manage</button>
-                        {isAdmin && <DeleteRecord entityName="Client" recordId={c.id} recordLabel={c.name} onDeleted={load} className="text-slate-500 hover:text-rose-400" />}
+                        {isAdmin && <CrudActions entityName="Client" record={c} label={c.name} onSaved={load} fields={clientFields} />}
                       </div>
                     </td>
                   </tr>
@@ -286,6 +294,21 @@ export default function Clients() {
     </div>
   );
 }
+
+const clientFields = [
+  { key: "name", label: "Name", type: "text" },
+  { key: "company", label: "Company", type: "text" },
+  { key: "billing_contact_name", label: "Billing contact", type: "text" },
+  { key: "billing_email", label: "Billing email", type: "text" },
+  { key: "billing_phone", label: "Billing phone", type: "text" },
+  { key: "billing_address", label: "Billing address", type: "text" },
+  { key: "terms", label: "Terms", type: "select", options: ["Net 15", "Net 30", "Net 45", "Due on Receipt"] },
+  { key: "default_rate", label: "Default rate ($)", type: "number" },
+  { key: "quickbooks_customer_id", label: "QB Customer ID", type: "text" },
+  { key: "portal_email", label: "Portal email", type: "text" },
+  { key: "portal_access_level", label: "Portal access", type: "select", options: ["none", "limited", "full"] },
+  { key: "notes", label: "Notes", type: "textarea" },
+];
 
 const inputCls = "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500";
 function Field({ label, children }) {

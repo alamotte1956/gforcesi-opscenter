@@ -161,6 +161,10 @@
     "onboarded_date": {
       "type": "string",
       "format": "date"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [
