@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, Search, Table as TableIcon, Clock, AlertCircle } from "lucide-react";
+import { Plus, Search, Table as TableIcon, Clock, AlertCircle, FileSpreadsheet } from "lucide-react";
 import FormModal from "@/components/FormModal";
 import DeleteRecord from "@/components/DeleteRecord";
+import ImportJobsFromSheet from "@/components/jobs/ImportJobsFromSheet";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusOptions = [
@@ -38,6 +39,7 @@ export default function Jobs() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [form, setForm] = useState({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", notes: "" });
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
@@ -140,9 +142,14 @@ export default function Jobs() {
             {statusOptions.map((s) => <option key={s} value={s} className="capitalize">{s.replace("_", " ")}</option>)}
           </select>
           {isAdmin && (
-            <button onClick={() => setShowForm(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
-              <Plus className="w-4 h-4" /> New Job
-            </button>
+            <>
+              <button onClick={() => setShowImport(true)} className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-400" /> Import from Sheet
+              </button>
+              <button onClick={() => setShowForm(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
+                <Plus className="w-4 h-4" /> New Job
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -234,6 +241,10 @@ export default function Jobs() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {showImport && (
+        <ImportJobsFromSheet projects={projects} onImported={load} onClose={() => setShowImport(false)} />
       )}
 
       {showForm && (
