@@ -1,0 +1,115 @@
+{
+  "name": "FlightLog",
+  "type": "object",
+  "properties": {
+    "contractor_id": {
+      "type": "string"
+    },
+    "contractor_name": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "flight_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "location": {
+      "type": "string"
+    },
+    "duration_minutes": {
+      "type": "number"
+    },
+    "airspace_class": {
+      "type": "string",
+      "enum": [
+        "controlled",
+        "uncontrolled",
+        "controlled_laanc"
+      ],
+      "default": "uncontrolled"
+    },
+    "laanc_approved": {
+      "type": "boolean",
+      "default": false
+    },
+    "weather_conditions": {
+      "type": "string"
+    },
+    "weather_minimums_met": {
+      "type": "boolean",
+      "default": false
+    },
+    "preflight_checklist": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "jha_completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "incidents": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "contractor_id",
+    "flight_date"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": null,
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

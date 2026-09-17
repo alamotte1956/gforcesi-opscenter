@@ -1,0 +1,90 @@
+{
+  "name": "Lead",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "company": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "referral",
+        "website",
+        "outbound",
+        "event",
+        "other"
+      ],
+      "default": "referral"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "qualified",
+        "proposal_sent",
+        "won",
+        "lost"
+      ],
+      "default": "new"
+    },
+    "estimated_value": {
+      "type": "number"
+    },
+    "site_address": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "next_follow_up": {
+      "type": "string",
+      "format": "date"
+    },
+    "proposal_id": {
+      "type": "string"
+    },
+    "converted_client_id": {
+      "type": "string"
+    },
+    "converted_project_id": {
+      "type": "string"
+    },
+    "lost_reason": {
+      "type": "string"
+    },
+    "won_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "name",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

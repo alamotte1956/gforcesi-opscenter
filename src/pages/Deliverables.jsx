@@ -87,6 +87,7 @@ export default function Deliverables() {
     setBusy(d.id);
     try {
       await base44.entities.Deliverable.update(d.id, { status: "delivered", delivered_at: new Date().toISOString() });
+      try { await base44.functions.invoke("notifyClientDeliverableReady", { deliverable_id: d.id }); } catch {}
       toast({ title: "Delivered to client", description: d.job_title });
       load();
     } catch (e) { toast({ title: "Deliver failed", description: e.message, variant: "destructive" }); }

@@ -5,10 +5,10 @@
 
 export const ACCESS_LEVELS = {
   full: { label: "Admin · Full Access", description: "All modules + user management", role: "admin", routes: ["*"] },
-  dispatcher: { label: "Dispatcher", description: "Operations, field reporting, messaging", role: "user", routes: ["/", "/jobs", "/deliverables", "/routes", "/recurring-schedules", "/contractors", "/sites", "/messages", "/daily-reports", "/issues", "/inspections", "/equipment", "/equipment-maintenance", "/analytics", "/assignment-reports", "/admin", "/compliance"] },
-  billing: { label: "Billing & Finance", description: "Clients, projects, invoices, expenses", role: "user", routes: ["/clients", "/projects", "/proposals", "/project-status", "/invoices", "/expenses", "/expense-approvals", "/payouts", "/payout-review", "/recurring-schedules", "/billing-review", "/analytics", "/assignment-reports"] },
+  dispatcher: { label: "Dispatcher", description: "Operations, field reporting, messaging", role: "user", routes: ["/", "/jobs", "/deliverables", "/routes", "/recurring-schedules", "/contractors", "/sites", "/messages", "/daily-reports", "/issues", "/inspections", "/drone-compliance", "/equipment", "/equipment-maintenance", "/analytics", "/profitability", "/assignment-reports", "/admin", "/compliance"] },
+  billing: { label: "Billing & Finance", description: "Clients, projects, invoices, expenses", role: "user", routes: ["/clients", "/projects", "/proposals", "/leads", "/project-status", "/invoices", "/expenses", "/expense-approvals", "/payouts", "/payout-review", "/recurring-schedules", "/billing-review", "/analytics", "/profitability", "/assignment-reports"] },
   viewer: { label: "Insights · Read-only", description: "Analytics & compliance dashboards", role: "user", routes: ["/analytics", "/compliance", "/project-status", "/assignment-reports"] },
-  field: { label: "Field Crew", description: "Mobile field app + personal schedule", role: "user", routes: ["/field", "/my-schedule", "/contractor-portal", "/contractors/onboarding", "/notifications"] },
+  field: { label: "Field Crew", description: "Mobile field app + personal schedule", role: "user", routes: ["/field", "/my-schedule", "/contractor-portal", "/contractors/onboarding", "/notifications", "/drone-compliance"] },
   client: { label: "Client Portal", description: "Client portal only", role: "user", routes: ["/portal", "/notifications"] },
 };
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
-  Map, KanbanSquare, FolderKanban, Users, Building2, FileText, Calculator,
+  Map, KanbanSquare, FolderKanban, Users, Building2, FileText, Calculator, PieChart, Plane, Target,
   Boxes, BarChart3,   Settings, LogOut, Satellite, Menu, X, ChevronRight, ShieldCheck, Globe, Route as RouteIcon, FileSpreadsheet, MessageSquare, UserCog, Receipt, ClipboardList, AlertTriangle, ClipboardCheck, ScanLine, Plug, Sparkles, Activity, MapPin, Bell, Calendar, DollarSign, LayoutDashboard, FileBarChart, Wrench, Gauge, TrendingUp, Repeat, Wallet, ListChecks, Rocket, Radio
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
@@ -41,6 +41,7 @@ const navGroups = [
       { to: "/sites", label: "Sites", icon: MapPin },
       { to: "/contractors", label: "Contractors", icon: Users },
       { to: "/contractor-board", label: "Status Board", icon: Radio },
+      { to: "/leads", label: "Leads", icon: Target },
     ],
   },
   {
@@ -59,6 +60,7 @@ const navGroups = [
       { to: "/daily-reports", label: "Daily Reports", icon: ClipboardList },
       { to: "/issues", label: "Issues", icon: AlertTriangle },
       { to: "/inspections", label: "Inspections", icon: ClipboardCheck },
+      { to: "/drone-compliance", label: "Drone Compliance", icon: Plane },
       { to: "/equipment", label: "Equipment", icon: Boxes },
       { to: "/equipment-maintenance", label: "Maintenance", icon: Wrench },
     ],
@@ -79,6 +81,7 @@ const navGroups = [
     label: "Insights & Reports",
     items: [
       { to: "/analytics", label: "Analytics", icon: BarChart3 },
+      { to: "/profitability", label: "Profitability", icon: PieChart },
       { to: "/project-status", label: "Project Status", icon: Activity },
       { to: "/crew-performance", label: "Crew Performance", icon: Gauge },
       { to: "/performance-report", label: "Performance Report", icon: TrendingUp },

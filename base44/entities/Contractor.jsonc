@@ -31,6 +31,13 @@
         "type": "string"
       }
     },
+    "part107_cert_number": {
+      "type": "string"
+    },
+    "part107_expiry": {
+      "type": "string",
+      "format": "date"
+    },
     "skills": {
       "type": "array",
       "items": {

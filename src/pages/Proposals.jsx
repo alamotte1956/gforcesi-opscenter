@@ -115,7 +115,7 @@ export default function Proposals() {
       const sqft = p.actual_sqft || p.estimated_sqft;
       const total = p.actual_total != null ? p.actual_total : p.estimated_total;
       const invNumber = `INV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-      await base44.entities.Invoice.create({
+      const created = await base44.entities.Invoice.create({
         invoice_number: invNumber,
         client_id: p.client_id, client_name: p.client_name,
         project_name: p.project_name,
@@ -125,6 +125,7 @@ export default function Proposals() {
         line_items: [{ description: `${p.project_name || "3D Scan"} — ${Number(sqft).toLocaleString()} sqft @ ${money(p.rate_per_sqft)}/sqft`, quantity: sqft, unit_price: p.rate_per_sqft, amount: total }],
         subtotal: total, total,
       });
+      try { await base44.functions.invoke("notifyClientInvoiceSent", { invoice_id: created?.id || "" }); } catch {}
       toast({ title: "Invoice created", description: invNumber });
       load();
     } catch (e) { toast({ title: "Invoice failed", description: e.message, variant: "destructive" }); }
