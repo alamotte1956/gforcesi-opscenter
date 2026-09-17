@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail, Send, History, Archive } from "lucide-react";
+import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail, Send, History, Archive, Loader2 } from "lucide-react";
 import CrudActions from "@/components/CrudActions";
 import StatusTimeline from "@/components/contractors/StatusTimeline";
 import { useToast } from "@/components/ui/use-toast";
@@ -24,6 +24,8 @@ export default function Contractors() {
   const [contractors, setContractors] = useState([]);
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [invitingAll, setInvitingAll] = useState(false);
   const [grant, setGrant] = useState(null);
   const [grantLevel, setGrantLevel] = useState("viewer");
   const [granting, setGranting] = useState(false);
@@ -40,9 +42,13 @@ export default function Contractors() {
   const isAdmin = me?.role === "admin";
   const isFullAccess = isAdmin || me?.access_level === "full";
 
+  const normalizeEmail = (e) => (e || "").trim().toLowerCase().replace(/\+.*@/, "@").replace(/@(googlemail|gmail)\.com$/, "@gmail.com");
+  const accountReady = (c) => !!(c.email && users.some((u) => normalizeEmail(u.email) === normalizeEmail(c.email)));
+
   const load = async () => {
-    const [data, user] = await Promise.all([base44.entities.Contractor.list(), base44.auth.me().catch(() => null)]);
+    const [data, userList, user] = await Promise.all([base44.entities.Contractor.list(), base44.entities.User.list().catch(() => []), base44.auth.me().catch(() => null)]);
     setContractors(data);
+    setUsers(userList);
     setMe(user);
     setLoading(false);
   };
@@ -147,6 +153,22 @@ export default function Contractors() {
     }
   };
 
+  const withAccount = contractors.filter((c) => accountReady(c)).length;
+  const missingAccount = contractors.filter((c) => c.email && !accountReady(c));
+
+  const inviteAll = async () => {
+    if (missingAccount.length === 0) { toast({ title: "All set", description: "Every contractor with an email already has a sign-in account." }); return; }
+    setInvitingAll(true);
+    let ok = 0, fail = 0;
+    for (const c of missingAccount) {
+      try { await base44.users.inviteUser(c.email.trim(), "user"); ok++; }
+      catch { fail++; }
+    }
+    setInvitingAll(false);
+    await load();
+    toast({ title: "Invitations sent", description: `${ok} contractor(s) invited to create their sign-in${fail ? `, ${fail} failed` : ""}.` });
+  };
+
   const onboarded = contractors.filter((c) => c.onboarding_status === "complete").length;
 
   return (
@@ -155,13 +177,22 @@ export default function Contractors() {
         <div>
           <h1 className="text-xl font-semibold">Contractors</h1>
           <div className="flex items-center gap-3">
-            <p className="text-sm text-slate-500">{contractors.length} contractors · {onboarded} fully onboarded</p>
+            <p className="text-sm text-slate-500">{contractors.length} contractors · {onboarded} fully onboarded · {withAccount}/{contractors.length} have sign-in</p>
             <button onClick={() => setShowArchived((v) => !v)} className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${showArchived ? "bg-amber-500/15 text-amber-300 border border-amber-500/30" : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"}`}>
               <Archive className="w-4 h-4" /> {showArchived ? "Showing archived" : "Show archived"}
             </button>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={inviteAll}
+            disabled={invitingAll || missingAccount.length === 0}
+            className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-medium text-sm flex items-center gap-1.5 hover:bg-emerald-500/25 disabled:opacity-50"
+            title={missingAccount.length ? `${missingAccount.length} contractor(s) without a sign-in account` : "All contractors have sign-in access"}
+          >
+            {invitingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+            Invite all ({missingAccount.length})
+          </button>
           <button
             onClick={() => setTestOpen(true)}
             className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700"
@@ -194,6 +225,7 @@ export default function Contractors() {
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Onboarding Status</th>
+                <th className="px-4 py-3 font-medium">Sign-in</th>
                 <th className="px-4 py-3 font-medium">Skills / Days</th>
                 <th className="px-4 py-3 font-medium">Pay</th>
                 <th className="px-4 py-3 font-medium">QB ID</th>
@@ -239,6 +271,15 @@ export default function Contractors() {
                       {c.onboarding_status === "complete" ? <UserCheck className="w-3 h-3" /> : c.onboarding_status === "in_progress" ? <Clock className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
                       {c.onboarding_status === "complete" ? "Onboarded" : c.onboarding_status === "in_progress" ? "In Progress" : "Invitation Pending"}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {accountReady(c) ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-300 border-emerald-500/30 inline-flex items-center gap-1"><UserCheck className="w-3 h-3" />Ready</span>
+                    ) : c.email ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded border bg-amber-500/15 text-amber-300 border-amber-500/30 inline-flex items-center gap-1"><AlertCircle className="w-3 h-3" />No account</span>
+                    ) : (
+                      <span className="text-[10px] px-2 py-0.5 rounded border bg-rose-500/15 text-rose-300 border-rose-500/30 inline-flex items-center gap-1"><AlertCircle className="w-3 h-3" />No email</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-400 text-xs">
                     <div>{(c.skills || []).join(", ") || "—"}</div>
