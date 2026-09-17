@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight, Radio, Navigation } from "lucide-react";
+import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight, Radio, Navigation, ShieldCheck } from "lucide-react";
 import ManualLocation from "@/components/field/ManualLocation";
 import { logContractorEvent, captureGeolocation } from "@/lib/contractorStatus";
 
@@ -108,7 +108,13 @@ export default function ContractorPortal() {
         </div>
       )}
 
-      {contractor && (
+      {contractor && me && me.role !== "admin" && !me.access_level ? (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
+          <ShieldCheck className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+          <div className="text-sm text-slate-400">Your portal access is pending.</div>
+          <div className="text-xs text-slate-500 mt-1">Once an administrator assigns your security level after your onboarding is complete, your portal will be available. You may need to sign out and back in after access is granted.</div>
+        </div>
+      ) : contractor && (
         <>
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6">
             <div className="flex items-center justify-between mb-3">

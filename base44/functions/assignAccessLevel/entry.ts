@@ -44,6 +44,7 @@ export default async function(req) {
     const contractors = await base44.asServiceRole.entities.Contractor.list();
     const c = contractors.find((x) => normalizeEmail(x.email) === target);
     if (c && ROLE_TO_LEVEL[c.role]) {
+      if (c.onboarding_status !== 'complete') return Response.json({ assigned: false, reason: 'onboarding incomplete', contractor: c.name, onboarding_status: c.onboarding_status });
       await base44.asServiceRole.entities.User.update(u.id, { access_level: ROLE_TO_LEVEL[c.role] });
       return Response.json({ assigned: true, access_level: ROLE_TO_LEVEL[c.role], contractor: c.name, contractor_role: c.role });
     }

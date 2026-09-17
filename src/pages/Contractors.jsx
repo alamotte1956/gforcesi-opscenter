@@ -106,11 +106,6 @@ export default function Contractors() {
         current_status: "off_duty", shift_status: "off_duty", location_sharing: false,
       });
       try { await base44.users.inviteUser(email, "user"); } catch {}
-      try {
-        const list = await base44.entities.User.list();
-        const found = list.find((u) => u.email === email);
-        if (found) await base44.entities.User.update(found.id, { access_level: "field" });
-      } catch {}
       let onboardingEmailed = false;
       try {
         await base44.functions.invoke("inviteContractorToOnboard", { name, email });
