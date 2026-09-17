@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight, Radio, Navigation, ShieldCheck, FileSignature } from "lucide-react";
+import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight, Radio, Navigation, ShieldCheck, FileSignature, Archive } from "lucide-react";
 import ManualLocation from "@/components/field/ManualLocation";
 import { logContractorEvent, captureGeolocation } from "@/lib/contractorStatus";
 import { useToast } from "@/components/ui/use-toast";
@@ -42,6 +42,7 @@ export default function ContractorPortal() {
   const [sigIrs, setSigIrs] = useState(false);
   const [sigEsign, setSigEsign] = useState(false);
   const [sigSaving, setSigSaving] = useState(false);
+  const [viewingContract, setViewingContract] = useState(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -85,13 +86,12 @@ export default function ContractorPortal() {
     if (!sigInsurance || !sigIrs || !sigEsign) { toast({ title: "Acknowledge all required terms", variant: "destructive" }); return; }
     setSigSaving(true);
     try {
-      await base44.entities.JobContract.update(signingContract.id, {
-        status: "signed",
-        signed_at: new Date().toISOString(),
+      await base44.functions.invoke("signJobContract", {
+        contract_id: signingContract.id,
         signature_name: sigName.trim(),
-        esign_consent: true,
         insurance_acknowledged: true,
         irs_acknowledged: true,
+        esign_consent: true,
       });
       toast({ title: "Contract signed", description: signingContract.job_title });
       setSigningContract(null); setSigName(""); setSigInsurance(false); setSigIrs(false); setSigEsign(false);
@@ -213,6 +213,24 @@ export default function ContractorPortal() {
               </div>
             </div>
           )}
+          {contracts.filter((c) => c.status !== "pending").length > 0 && (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6">
+              <h2 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2"><Archive className="w-4 h-4 text-slate-400" /> Archived Contracts</h2>
+              <div className="space-y-2">
+                {contracts.filter((c) => c.status !== "pending").map((c) => (
+                  <div key={c.id} className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-200 flex items-center gap-2">{c.job_title}
+                        {c.status === "signed" ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Signed</span> : <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">Declined</span>}
+                      </div>
+                      <div className="text-xs text-slate-500">{c.client_name} · {c.site_address}{c.signed_at ? ` · Signed ${new Date(c.signed_at).toLocaleDateString()}` : ""}</div>
+                    </div>
+                    <button onClick={() => setViewingContract(c)} className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-700 shrink-0">View</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium text-slate-300 flex items-center gap-2"><Radio className="w-4 h-4 text-cyan-400" /> My Status & Location</h2>
@@ -329,6 +347,29 @@ export default function ContractorPortal() {
             <div className="flex justify-end gap-2 pt-4">
               <button onClick={() => setSigningContract(null)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
               <button onClick={signContract} disabled={sigSaving} className="px-4 py-2 rounded-lg bg-amber-500 text-slate-950 font-medium text-sm hover:bg-amber-400 disabled:opacity-50">{sigSaving ? "Signing…" : "Sign Contract"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingContract && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setViewingContract(null)} />
+          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold">Contract — {viewingContract.job_title}</h2>
+              <button onClick={() => setViewingContract(null)} className="text-slate-400 hover:text-slate-200">✕</button>
+            </div>
+            <pre className="text-xs text-slate-300 whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-[60vh] overflow-y-auto font-sans">{viewingContract.terms}</pre>
+            {viewingContract.status === "signed" && (
+              <div className="mt-3 text-xs text-slate-400 space-y-0.5">
+                <div>Signed by: <span className="text-slate-200">{viewingContract.signature_name}</span></div>
+                <div>Date: {viewingContract.signed_at ? new Date(viewingContract.signed_at).toLocaleString() : "—"}</div>
+                <div>Acknowledgments: Insurance ✓ · IRS/Tax ✓ · E-sign consent ✓</div>
+              </div>
+            )}
+            <div className="flex justify-end pt-4">
+              <button onClick={() => setViewingContract(null)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Close</button>
             </div>
           </div>
         </div>
