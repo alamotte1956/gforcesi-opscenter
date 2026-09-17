@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical } from "lucide-react";
 import RouteMap from "@/components/operations/RouteMap";
+import { useToast } from "@/components/ui/use-toast";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
 const AVG_SPEED_MPH = 35;
@@ -63,6 +64,7 @@ export default function RoutePlanning() {
   const [autoMode, setAutoMode] = useState(false);
   const [dayStart, setDayStart] = useState("08:00");
   const [dayEnd, setDayEnd] = useState("17:00");
+  const { toast } = useToast();
 
   const load = async () => {
     const [j, c, cls] = await Promise.all([base44.entities.Job.list(), base44.entities.Contractor.list(), base44.entities.Client.list()]);
@@ -133,10 +135,8 @@ export default function RoutePlanning() {
     Promise.all(updates);
   };
 
-  const optimize = (cid) => {
-    const c = contractors.find((x) => x.id === cid);
-    const list = (assignments[cid] || []).map(jobById).filter(Boolean);
-    let prev = c ? { lat: c.current_latitude, lng: c.current_longitude } : null;
+  const nearestNeighborOrder = (start, list) => {
+    let prev = start;
     const ordered = [];
     const remaining = [...list];
     while (remaining.length) {
@@ -149,30 +149,49 @@ export default function RoutePlanning() {
       ordered.push(j);
       prev = { lat: j.latitude, lng: j.longitude };
     }
+    return ordered;
+  };
+
+  const optimize = (cid) => {
+    const c = contractors.find((x) => x.id === cid);
+    const list = (assignments[cid] || []).map(jobById).filter(Boolean);
+    if (list.length < 2) return;
+    const start = c ? { lat: c.current_latitude, lng: c.current_longitude } : null;
+    const before = computeRoute(c, list, timeToday(dayStart)).totalDrive;
+    const ordered = nearestNeighborOrder(start, list);
+    const after = computeRoute(c, ordered, timeToday(dayStart)).totalDrive;
     setAssignments({ ...assignments, [cid]: ordered.map((j) => j.id) });
+    if (before === 0 && after === 0) {
+      toast({ title: "Can't optimize", description: "These jobs are missing coordinates — add lat/long to optimize routing.", variant: "destructive" });
+    } else if (after >= before) {
+      toast({ title: "Already optimal", description: `${c?.name || "Route"} is already in the best order (${before.toFixed(1)} mi).` });
+    } else {
+      toast({ title: "Route optimized", description: `${c?.name || "Route"}: ${before.toFixed(1)} → ${after.toFixed(1)} mi (saved ${(before - after).toFixed(1)} mi).` });
+    }
   };
 
   const optimizeAll = () => {
     const next = { ...assignments };
+    let optimizedCount = 0, totalSaved = 0, noCoordCount = 0;
     contractors.forEach((c) => {
       const list = (assignments[c.id] || []).map(jobById).filter(Boolean);
       if (list.length < 2) return;
-      let prev = { lat: c.current_latitude, lng: c.current_longitude };
-      const ordered = [];
-      const remaining = [...list];
-      while (remaining.length) {
-        let bi = 0, bd = Infinity;
-        remaining.forEach((j, i) => {
-          const d = haversineMi(prev, { lat: j.latitude, lng: j.longitude }) ?? Infinity;
-          if (d < bd) { bd = d; bi = i; }
-        });
-        const j = remaining.splice(bi, 1)[0];
-        ordered.push(j);
-        prev = { lat: j.latitude, lng: j.longitude };
-      }
+      const start = { lat: c.current_latitude, lng: c.current_longitude };
+      const before = computeRoute(c, list, timeToday(dayStart)).totalDrive;
+      const ordered = nearestNeighborOrder(start, list);
+      const after = computeRoute(c, ordered, timeToday(dayStart)).totalDrive;
       next[c.id] = ordered.map((j) => j.id);
+      if (before === 0 && after === 0) noCoordCount++;
+      else if (after < before) { optimizedCount++; totalSaved += before - after; }
     });
     setAssignments(next);
+    if (optimizedCount === 0 && noCoordCount > 0) {
+      toast({ title: "Can't optimize", description: "Jobs are missing coordinates — add lat/long to optimize routing.", variant: "destructive" });
+    } else if (optimizedCount === 0) {
+      toast({ title: "Already optimal", description: "All crew routes are already in their best order." });
+    } else {
+      toast({ title: "Routes optimized", description: `${optimizedCount} crew route(s) improved — saved ${totalSaved.toFixed(1)} miles total.${noCoordCount ? ` ${noCoordCount} crew(s) skipped (missing coordinates).` : ""}` });
+    }
   };
 
   const generateDailyPlan = () => {
