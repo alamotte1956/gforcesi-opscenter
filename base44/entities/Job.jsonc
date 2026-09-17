@@ -53,6 +53,12 @@
       "type": "string",
       "format": "date-time"
     },
+    "scan_window_start": {
+      "type": "string"
+    },
+    "scan_window_end": {
+      "type": "string"
+    },
     "sla_due_date": {
       "type": "string",
       "format": "date-time"

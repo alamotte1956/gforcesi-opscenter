@@ -269,12 +269,14 @@ export default function RoutePlanning() {
         const client = clients.find((cl) => cl.id === job.client_id);
         const rs = [`${(mi ?? 0).toFixed(1)} mi`];
         let penalty = 0;
-        // Client site hours
-        if (client && client.opening_time && client.closing_time) {
-          const open = toMin(client.opening_time), close = toMin(client.closing_time);
-          if (arrival > close) penalty = 1000; // after hours — avoid
-          else if (arrival < open) { penalty = (open - arrival) * 2; rs.push(`wait until ${client.opening_time}`); }
-          else rs.push("within site hours");
+        // Allowed time window: job scan window takes precedence, else client site hours
+        const winStart = job.scan_window_start || client?.opening_time;
+        const winEnd = job.scan_window_end || client?.closing_time;
+        if (winStart && winEnd) {
+          const open = toMin(winStart), close = toMin(winEnd);
+          if (arrival > close) penalty = 1000; // after window — avoid
+          else if (arrival < open) { penalty = (open - arrival) * 2; rs.push(`wait until ${winStart}`); }
+          else rs.push("within window");
         }
         // Scheduled start alignment
         if (job.scheduled_start) {
@@ -387,11 +389,13 @@ export default function RoutePlanning() {
 
   const hoursWarn = (job, arrival) => {
     const client = clients.find((c) => c.id === job.client_id);
-    if (!client || !client.opening_time || !client.closing_time) return null;
+    const winStart = job.scan_window_start || client?.opening_time;
+    const winEnd = job.scan_window_end || client?.closing_time;
+    if (!winStart || !winEnd) return null;
     const mins = arrival.getHours() * 60 + arrival.getMinutes();
-    const [oh, om] = client.opening_time.split(":").map(Number);
-    const [ch, cm] = client.closing_time.split(":").map(Number);
-    if (mins < oh * 60 + om || mins > ch * 60 + cm) return `${client.opening_time}–${client.closing_time}`;
+    const [oh, om] = winStart.split(":").map(Number);
+    const [ch, cm] = winEnd.split(":").map(Number);
+    if (mins < oh * 60 + om || mins > ch * 60 + cm) return `${winStart}–${winEnd}`;
     return null;
   };
 

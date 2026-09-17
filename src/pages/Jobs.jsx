@@ -41,7 +41,7 @@ export default function Jobs() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [form, setForm] = useState({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", estimated_duration_hours: "", required_equipment: "", notes: "" });
+  const [form, setForm] = useState({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", estimated_duration_hours: "", required_equipment: "", scan_window_start: "", scan_window_end: "", notes: "" });
   const [showArchived, setShowArchived] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
@@ -78,11 +78,13 @@ export default function Jobs() {
       status_history: [{ status: form.status, entered_at: new Date().toISOString() }],
       estimated_duration_hours: form.estimated_duration_hours ? Number(form.estimated_duration_hours) : undefined,
       required_equipment: form.required_equipment ? form.required_equipment.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      scan_window_start: form.scan_window_start || undefined,
+      scan_window_end: form.scan_window_end || undefined,
       billable_rate_type: form.billable_rate_type,
       billable_rate: form.billable_rate ? Number(form.billable_rate) : undefined,
       notes: form.notes || undefined,
     });
-    setForm({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", estimated_duration_hours: "", required_equipment: "", notes: "" });
+    setForm({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", estimated_duration_hours: "", required_equipment: "", scan_window_start: "", scan_window_end: "", notes: "" });
     setShowForm(false);
     toast({ title: "Job created", description: coords ? `${title} — coordinates set for routing` : `${title} — address not geocoded; add coordinates for routing` });
     load();
@@ -291,8 +293,12 @@ export default function Jobs() {
           <div className="grid grid-cols-2 gap-3">
             <Field label="Est. duration (hrs)"><input type="number" value={form.estimated_duration_hours} onChange={(e) => setForm({ ...form, estimated_duration_hours: e.target.value })} className={inputCls} placeholder="4" /></Field>
             <Field label="Required equipment"><input value={form.required_equipment} onChange={(e) => setForm({ ...form, required_equipment: e.target.value })} className={inputCls} placeholder="LiDAR Scanner, Drone" /></Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+            <Field label="Scan window start"><input type="time" value={form.scan_window_start} onChange={(e) => setForm({ ...form, scan_window_start: e.target.value })} className={inputCls} /></Field>
+            <Field label="Scan window end"><input type="time" value={form.scan_window_end} onChange={(e) => setForm({ ...form, scan_window_end: e.target.value })} className={inputCls} /></Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
             <Field label="Rate type">
               <select value={form.billable_rate_type} onChange={(e) => setForm({ ...form, billable_rate_type: e.target.value })} className={inputCls}>
                 {["hourly", "per_sqft", "flat", "daily"].map((r) => <option key={r} value={r} className="capitalize">{r.replace("_", "/")}</option>)}
@@ -317,6 +323,8 @@ const jobFields = [
   { key: "scheduled_start", label: "Scheduled start", type: "datetime" },
   { key: "scheduled_end", label: "Scheduled end", type: "datetime" },
   { key: "sla_due_date", label: "SLA due date", type: "datetime" },
+  { key: "scan_window_start", label: "Scan window start", type: "time" },
+  { key: "scan_window_end", label: "Scan window end", type: "time" },
   { key: "estimated_duration_hours", label: "Est. hours", type: "number" },
   { key: "billable_rate_type", label: "Rate type", type: "select", options: ["hourly", "per_sqft", "flat", "daily"] },
   { key: "billable_rate", label: "Billable rate", type: "number" },
