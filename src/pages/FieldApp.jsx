@@ -59,6 +59,7 @@ export default function FieldApp() {
   const [expForm, setExpForm] = useState({ description: "", amount: "", category: "labor", vendor_name: "", date: new Date().toISOString().slice(0, 10), job_id: "", notes: "" });
   const [expSaving, setExpSaving] = useState(false);
   const [expSaved, setExpSaved] = useState(false);
+  const [expReceipt, setExpReceipt] = useState(null);
   const [uploadingJobId, setUploadingJobId] = useState(null);
   const [mpScanInput, setMpScanInput] = useState("");
   const { isOnline, queue, enqueue, flush } = useOfflineQueue();
@@ -322,6 +323,13 @@ export default function FieldApp() {
   const submitExpense = async () => {
     if (!expForm.description || !expForm.amount) return;
     setExpSaving(true);
+    let receipt_url;
+    if (expReceipt) {
+      try {
+        const up = await base44.integrations.Core.UploadFile({ file: expReceipt });
+        receipt_url = up.file_url;
+      } catch (e) {}
+    }
     const job = myJobs.find((j) => j.id === expForm.job_id);
     await base44.entities.Expense.create({
       description: expForm.description,
@@ -336,9 +344,11 @@ export default function FieldApp() {
       filed_by_name: contractor.name,
       status: "pending",
       notes: expForm.notes,
+      receipt_url,
     });
     setExpenses(await base44.entities.Expense.list("-date"));
     setExpForm({ description: "", amount: "", category: "labor", vendor_name: "", date: new Date().toISOString().slice(0, 10), job_id: "", notes: "" });
+    setExpReceipt(null);
     setExpSaving(false);
     setExpSaved(true);
     setTimeout(() => setExpSaved(false), 2500);
@@ -494,7 +504,21 @@ export default function FieldApp() {
             </div>
             <div><label className="block text-xs text-slate-400 mb-1">Job</label><select value={expForm.job_id} onChange={(e) => setExpForm({ ...expForm, job_id: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm"><option value="">— General / no specific job —</option>{myJobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}</select></div>
             <div><label className="block text-xs text-slate-400 mb-1">Notes</label><textarea value={expForm.notes} onChange={(e) => setExpForm({ ...expForm, notes: e.target.value })} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm resize-none" /></div>
-            <button onClick={submitExpense} disabled={expSaving || !expForm.description || !expForm.amount} className="w-full py-2.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm disabled:opacity-50">Submit Expense</button>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Receipt photo</label>
+              {expReceipt ? (
+                <div className="relative">
+                  <img src={URL.createObjectURL(expReceipt)} alt="Receipt" className="w-full max-h-48 object-contain rounded-lg border border-slate-700" />
+                  <button onClick={() => setExpReceipt(null)} className="absolute top-1.5 right-1.5 bg-slate-900/80 rounded-full p-1 text-slate-300 hover:text-rose-400"><X className="w-4 h-4" /></button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center gap-2 w-full py-3 rounded-lg bg-slate-800 border border-dashed border-slate-700 text-sm text-slate-400 hover:border-cyan-500 hover:text-cyan-300 cursor-pointer">
+                  <Camera className="w-4 h-4" /> Take / upload receipt photo
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setExpReceipt(e.target.files?.[0] || null)} />
+                </label>
+              )}
+            </div>
+            <button onClick={submitExpense} disabled={expSaving || !expForm.description || !expForm.amount} className="w-full py-2.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm disabled:opacity-50">{expSaving ? "Submitting…" : "Submit Expense"}</button>
           </div>
           <div className="text-xs font-medium text-slate-400 mb-2 mt-4">Your Submitted Expenses</div>
           {myExpenses.length === 0 ? (
@@ -513,6 +537,11 @@ export default function FieldApp() {
                       <span className={`text-[10px] px-2 py-0.5 rounded capitalize ${e.status === "pending" ? "bg-amber-500/15 text-amber-300" : e.status === "approved" ? "bg-emerald-500/15 text-emerald-300" : e.status === "rejected" ? "bg-rose-500/15 text-rose-300" : "bg-cyan-500/15 text-cyan-300"}`}>{e.status}</span>
                     </div>
                   </div>
+                  {e.receipt_url && (
+                    <a href={e.receipt_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300">
+                      <Camera className="w-3.5 h-3.5" /> View receipt
+                    </a>
+                  )}
                 </div>
               ))}
             </div>

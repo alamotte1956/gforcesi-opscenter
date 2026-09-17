@@ -152,6 +152,7 @@ export default function Expenses() {
                 <th className="px-4 py-3 font-medium">Category</th>
                 <th className="px-4 py-3 font-medium">Vendor / Contractor</th>
                 <th className="px-4 py-3 font-medium">Job</th>
+                <th className="px-4 py-3 font-medium">Receipt</th>
                 <th className="px-4 py-3 font-medium text-right">Amount</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
@@ -165,6 +166,13 @@ export default function Expenses() {
                   <td className="px-4 py-3"><span className={`text-[10px] px-2 py-0.5 rounded capitalize ${categoryStyles[e.category] || categoryStyles.other}`}>{e.category}</span></td>
                   <td className="px-4 py-3 text-slate-400">{e.vendor_name || e.filed_by_name || "—"}</td>
                   <td className="px-4 py-3 text-slate-400 max-w-[160px] truncate" title={e.job_title}>{e.job_title || "—"}</td>
+                  <td className="px-4 py-3">
+                    {e.receipt_url ? (
+                      <a href={e.receipt_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300">
+                        <Receipt className="w-3.5 h-3.5" /> View
+                      </a>
+                    ) : <span className="text-xs text-slate-600">—</span>}
+                  </td>
                   <td className="px-4 py-3 text-right font-medium text-slate-200">{fmtMoney(e.amount)}</td>
                   <td className="px-4 py-3">
                     <span className={`text-[10px] px-2 py-0.5 rounded border capitalize whitespace-nowrap ${statusStyles[e.status] || statusStyles.pending}`}>
@@ -188,7 +196,7 @@ export default function Expenses() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">No expenses {filter !== "all" ? `with status "${filter}"` : ""}.</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={9} className="px-4 py-10 text-center text-slate-500">No expenses {filter !== "all" ? `with status "${filter}"` : ""}.</td></tr>}
             </tbody>
           </table>
         </div>
