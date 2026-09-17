@@ -363,5 +363,6 @@ const contractorFields = [
   { key: "quickbooks_id", label: "QuickBooks ID", type: "text" },
   { key: "skills", label: "Skills (comma-separated)", type: "tags" },
   { key: "certifications", label: "Certifications (comma-separated)", type: "tags" },
+  { key: "assigned_equipment", label: "Assigned equipment (comma-separated)", type: "tags" },
   { key: "emergency_contact", label: "Emergency contact", type: "text" },
 ];

@@ -5,6 +5,7 @@ import { Plus, Search, Table as TableIcon, Clock, AlertCircle, FileSpreadsheet, 
 import FormModal from "@/components/FormModal";
 import CrudActions from "@/components/CrudActions";
 import ImportJobsFromSheet from "@/components/jobs/ImportJobsFromSheet";
+import { geocodeAddress } from "@/lib/geocode";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusOptions = [
@@ -40,7 +41,7 @@ export default function Jobs() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [form, setForm] = useState({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", notes: "" });
+  const [form, setForm] = useState({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", estimated_duration_hours: "", required_equipment: "", notes: "" });
   const [showArchived, setShowArchived] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
@@ -59,6 +60,7 @@ export default function Jobs() {
     if (!form.title || !form.project_id || !form.site_address) return;
     const project = projects.find((p) => p.id === form.project_id);
     const title = form.title;
+    const coords = await geocodeAddress(form.site_address);
     await base44.entities.Job.create({
       title,
       project_id: form.project_id,
@@ -66,19 +68,23 @@ export default function Jobs() {
       client_id: project?.client_id,
       client_name: project?.client_name,
       site_address: form.site_address,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
       priority: form.priority,
       scheduled_start: form.scheduled_start ? new Date(form.scheduled_start).toISOString() : undefined,
       scheduled_end: form.scheduled_end ? new Date(form.scheduled_end).toISOString() : undefined,
       sla_due_date: form.sla_due_date ? new Date(form.sla_due_date).toISOString() : undefined,
       status: form.status,
       status_history: [{ status: form.status, entered_at: new Date().toISOString() }],
+      estimated_duration_hours: form.estimated_duration_hours ? Number(form.estimated_duration_hours) : undefined,
+      required_equipment: form.required_equipment ? form.required_equipment.split(",").map((s) => s.trim()).filter(Boolean) : [],
       billable_rate_type: form.billable_rate_type,
       billable_rate: form.billable_rate ? Number(form.billable_rate) : undefined,
       notes: form.notes || undefined,
     });
-    setForm({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", notes: "" });
+    setForm({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", estimated_duration_hours: "", required_equipment: "", notes: "" });
     setShowForm(false);
-    toast({ title: "Job created", description: title });
+    toast({ title: "Job created", description: coords ? `${title} — coordinates set for routing` : `${title} — address not geocoded; add coordinates for routing` });
     load();
   };
 
@@ -256,6 +262,7 @@ export default function Jobs() {
 
       {showForm && (
         <FormModal title="New Job" onClose={() => setShowForm(false)} onSubmit={createJob} submitLabel="Create Job">
+          <div className="text-[11px] text-slate-500 bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2">Site address is auto-geocoded for the route planner. Duration & equipment drive ETAs and crew matching.</div>
           <Field label="Job title"><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputCls} placeholder="Job title" /></Field>
           <Field label="Project">
             <select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} className={inputCls}>
@@ -282,6 +289,10 @@ export default function Jobs() {
           </div>
           <Field label="SLA due date"><input type="datetime-local" value={form.sla_due_date} onChange={(e) => setForm({ ...form, sla_due_date: e.target.value })} className={inputCls} /></Field>
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Est. duration (hrs)"><input type="number" value={form.estimated_duration_hours} onChange={(e) => setForm({ ...form, estimated_duration_hours: e.target.value })} className={inputCls} placeholder="4" /></Field>
+            <Field label="Required equipment"><input value={form.required_equipment} onChange={(e) => setForm({ ...form, required_equipment: e.target.value })} className={inputCls} placeholder="LiDAR Scanner, Drone" /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Rate type">
               <select value={form.billable_rate_type} onChange={(e) => setForm({ ...form, billable_rate_type: e.target.value })} className={inputCls}>
                 {["hourly", "per_sqft", "flat", "daily"].map((r) => <option key={r} value={r} className="capitalize">{r.replace("_", "/")}</option>)}
@@ -299,6 +310,8 @@ export default function Jobs() {
 const jobFields = [
   { key: "title", label: "Title", type: "text" },
   { key: "site_address", label: "Site address", type: "text" },
+  { key: "latitude", label: "Latitude", type: "number" },
+  { key: "longitude", label: "Longitude", type: "number" },
   { key: "status", label: "Status", type: "select", options: statusOptions },
   { key: "priority", label: "Priority", type: "select", options: ["low", "medium", "high", "urgent"] },
   { key: "scheduled_start", label: "Scheduled start", type: "datetime" },
