@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag, ExternalLink, Link2, ScanLine, ShieldCheck, X, ChevronLeft, ChevronRight, UploadCloud, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, User, Camera, Building2, FolderKanban, Clock, Flag, ExternalLink, Link2, ScanLine, ShieldCheck, X, ChevronLeft, ChevronRight, UploadCloud, Loader2, RefreshCw } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { parseMatterportUrl } from "@/lib/matterport";
 import AssetAssessments from "@/components/AssetAssessments";
@@ -28,6 +28,9 @@ export default function JobDetail() {
   const [lightbox, setLightbox] = useState(null);
   const [uploading7g, setUploading7g] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
+  const [mpRefreshing, setMpRefreshing] = useState(false);
+  const [mpGenDeliv, setMpGenDeliv] = useState(false);
+  const [mpMsg, setMpMsg] = useState("");
 
   const isAdmin = me?.role === "admin";
 
@@ -76,6 +79,28 @@ export default function JobDetail() {
       setUploading7g(false);
       setTimeout(() => setUploadMsg(""), 5000);
     }
+  };
+
+  const refreshMatterport = async () => {
+    setMpRefreshing(true); setMpMsg("");
+    try {
+      const res = await base44.functions.invoke("refreshMatterportStatus", { job_id: job.id });
+      const d = res.data || {};
+      setMpMsg(`Status: ${d.state} → ${d.status}`);
+      const j = await base44.entities.Job.get(job.id);
+      setJob(j);
+    } catch (e) { setMpMsg(`Failed: ${e.message || "unknown error"}`); }
+    finally { setMpRefreshing(false); setTimeout(() => setMpMsg(""), 6000); }
+  };
+
+  const generateDeliverable = async () => {
+    setMpGenDeliv(true); setMpMsg("");
+    try {
+      const res = await base44.functions.invoke("generateModelDeliverable", { job_id: job.id });
+      const d = res.data || {};
+      setMpMsg(d.created ? "Deliverable created — see Deliverables" : "Deliverable already exists for this job");
+    } catch (e) { setMpMsg(`Failed: ${e.message || "unknown error"}`); }
+    finally { setMpGenDeliv(false); setTimeout(() => setMpMsg(""), 6000); }
   };
 
   if (loading) {
@@ -131,12 +156,23 @@ export default function JobDetail() {
               <iframe src={job.matterport_embed_url} title={job.title} className="w-full h-full" allowFullScreen allow="xr-spatial-tracking" />
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-mono">Model: {job.matterport_model_id}</span>
+              <span className="text-slate-500 font-mono">Model: {job.matterport_model_id}{job.matterport_synced_at ? ` · synced ${fmt(job.matterport_synced_at)}` : ""}</span>
               <div className="flex gap-3">
                 <a href={job.matterport_share_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><ExternalLink className="w-3.5 h-3.5" />Open in Matterport</a>
                 <button onClick={clearMatterport} className="text-rose-400 hover:text-rose-300">Unlink</button>
               </div>
             </div>
+            {isAdmin && (
+              <div className="mt-3 pt-3 border-t border-slate-800 flex items-center gap-2 flex-wrap">
+                <button onClick={refreshMatterport} disabled={mpRefreshing} className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 flex items-center gap-1.5 disabled:opacity-50">
+                  {mpRefreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Refresh Status
+                </button>
+                <button onClick={generateDeliverable} disabled={mpGenDeliv} className="text-xs px-3 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/25 flex items-center gap-1.5 disabled:opacity-50">
+                  {mpGenDeliv ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ScanLine className="w-3.5 h-3.5" />} Generate Deliverable
+                </button>
+                {mpMsg && <span className={`text-xs ${mpMsg.startsWith("Failed") ? "text-rose-400" : "text-emerald-400"}`}>{mpMsg}</span>}
+              </div>
+            )}
           </>
         ) : (
           <div className="flex gap-2">
