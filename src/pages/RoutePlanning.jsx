@@ -43,6 +43,8 @@ function crewStartPos(c) {
   return null;
 }
 
+const todayKey = new Date().toLocaleDateString("en-US", { weekday: "short" }).toLowerCase();
+
 function computeRoute(contractor, stops, startTime) {
   const start = startTime || (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })();
   let prev = contractor ? crewStartPos(contractor) : null;
@@ -171,8 +173,9 @@ export default function RoutePlanning() {
     const poolJobs = (assignments.pool || []).map(jobById).filter(Boolean);
     const prio = { urgent: 0, high: 1, medium: 2, low: 3 };
     poolJobs.sort((a, b) => (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2));
-    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status));
-    const pool = available.length ? available : contractors;
+    const dayOk = (c) => !c.available_days?.length || c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === todayKey);
+    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status) && dayOk(c));
+    const pool = available.length ? available : contractors.filter(dayOk);
     const next = { ...assignments, pool: [] };
     contractors.forEach((c) => { if (!next[c.id]) next[c.id] = []; });
     const updates = [];
@@ -277,8 +280,9 @@ export default function RoutePlanning() {
       const sb = b.sla_due_date ? new Date(b.sla_due_date).getTime() : Infinity;
       return sa - sb;
     });
-    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status));
-    const pool = available.length ? available : contractors;
+    const dayOk = (c) => !c.available_days?.length || c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === todayKey);
+    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status) && dayOk(c));
+    const pool = available.length ? available : contractors.filter(dayOk);
     const next = { pool: [] };
     contractors.forEach((c) => { next[c.id] = []; });
     const crewState = {};
@@ -405,8 +409,9 @@ export default function RoutePlanning() {
   };
 
   const suggestContractor = (job) => {
-    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status));
-    const pool = available.length ? available : contractors;
+    const dayOk = (c) => !c.available_days?.length || c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === todayKey);
+    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status) && dayOk(c));
+    const pool = available.length ? available : contractors.filter(dayOk);
     let best = null, bestMi = Infinity;
     pool.forEach((c) => {
       const mi = haversineMi(crewStartPos(c), { lat: job.latitude, lng: job.longitude });
@@ -577,6 +582,7 @@ export default function RoutePlanning() {
                 const stops = (assignments[c.id] || []).map(jobById).filter(Boolean);
                 const r = computeRoute(c, stops, timeToday(dayStart));
                 const isSel = selected === c.id;
+                const offToday = c.available_days?.length > 0 && !c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === todayKey);
                 return (
                   <div key={c.id} className={`rounded-xl border bg-slate-900/60 ${isSel ? "border-cyan-500/40" : "border-slate-800"}`}>
                     <div
@@ -594,6 +600,7 @@ export default function RoutePlanning() {
                       <div className="text-right text-xs">
                         <div className="text-slate-300">{stops.length} stops · {r.totalDrive.toFixed(1)} mi</div>
                         <div className="text-slate-500">Ends {fmtTime(r.endTime)}</div>
+                        {offToday && <div className="text-rose-400 text-[10px] font-medium">Off today</div>}
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); optimize(c.id); }}

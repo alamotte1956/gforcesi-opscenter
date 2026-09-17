@@ -194,7 +194,7 @@ export default function Contractors() {
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Onboarding Status</th>
-                <th className="px-4 py-3 font-medium">Skills</th>
+                <th className="px-4 py-3 font-medium">Skills / Days</th>
                 <th className="px-4 py-3 font-medium">Pay</th>
                 <th className="px-4 py-3 font-medium">QB ID</th>
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
@@ -240,7 +240,10 @@ export default function Contractors() {
                       {c.onboarding_status === "complete" ? "Onboarded" : c.onboarding_status === "in_progress" ? "In Progress" : "Invitation Pending"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-400 text-xs">{(c.skills || []).join(", ") || "—"}</td>
+                  <td className="px-4 py-3 text-slate-400 text-xs">
+                    <div>{(c.skills || []).join(", ") || "—"}</div>
+                    {c.available_days?.length > 0 && <div className="text-[10px] text-cyan-400/80 mt-0.5">Days: {c.available_days.join(", ")}</div>}
+                  </td>
                   <td className="px-4 py-3 text-slate-400 text-xs">
                     {c.pay_type === "hourly" ? `$${c.pay_rate}/hr` : c.pay_type === "salary" ? `$${c.pay_rate}/yr` : c.pay_type === "flat" ? `$${c.pay_rate} flat` : "—"}
                   </td>
@@ -362,6 +365,7 @@ const contractorFields = [
   { key: "shift_start", label: "Shift start", type: "time" },
   { key: "shift_end", label: "Shift end", type: "time" },
   { key: "max_daily_hours", label: "Max daily hours", type: "number" },
+  { key: "available_days", label: "Available days (mon, tue, wed, thu, fri, sat, sun)", type: "tags" },
   { key: "pay_type", label: "Pay type", type: "select", options: ["hourly", "flat", "salary"] },
   { key: "pay_rate", label: "Pay rate", type: "number" },
   { key: "quickbooks_id", label: "QuickBooks ID", type: "text" },

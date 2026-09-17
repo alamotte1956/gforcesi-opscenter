@@ -76,6 +76,12 @@
     "max_daily_hours": {
       "type": "number"
     },
+    "available_days": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "base_address": {
       "type": "string"
     },
