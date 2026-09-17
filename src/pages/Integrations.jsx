@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import {
   Plug, FileSpreadsheet, Calendar, Receipt, CheckCircle2, XCircle,
-  Loader2, ExternalLink, AlertCircle, RefreshCw, Link2, Unlink, Download,
+  Loader2, ExternalLink, AlertCircle, RefreshCw, Link2, Unlink, Download, Database,
 } from "lucide-react";
 import CredentialsHelp from "@/components/CredentialsHelp";
 import { useToast } from "@/components/ui/use-toast";
@@ -15,6 +15,8 @@ export default function Integrations() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(""); // "sheets-connect" | "sheets-disconnect" | ""
   const [qbBusy, setQbBusy] = useState("");
+  const [qbaseBusy, setQbaseBusy] = useState(false);
+  const [qbaseResult, setQbaseResult] = useState(null);
   const { toast } = useToast();
 
   const fetchStatus = async () => {
@@ -84,6 +86,18 @@ export default function Integrations() {
     } catch (e) {
       toast({ title: "Update failed", description: e.response?.data?.error || e.message, variant: "destructive" });
     } finally { setQbBusy(""); }
+  };
+
+  const pullQuickbase = async () => {
+    setQbaseBusy(true); setQbaseResult(null);
+    try {
+      const res = await base44.functions.invoke("pullFromQuickbase", { targets: ["client", "project", "contractor", "job"] });
+      const d = res.data || {};
+      if (d.error) { toast({ title: "Quickbase pull failed", description: d.error, variant: "destructive" }); }
+      else { setQbaseResult(d.results || {}); toast({ title: "Quickbase pull complete" }); }
+    } catch (e) {
+      toast({ title: "Quickbase pull failed", description: e.message, variant: "destructive" });
+    } finally { setQbaseBusy(false); }
   };
 
   if (loading) {
@@ -174,6 +188,30 @@ export default function Integrations() {
               <AlertCircle className="w-3.5 h-3.5" /> Not connected — connect it from the setup chat
             </span>
           )}
+        </IntegrationCard>
+
+        {/* Quickbase — pull from Quickbase tables */}
+        <IntegrationCard
+          icon={Database}
+          accent="text-indigo-400"
+          bg="bg-indigo-500/10"
+          title="Quickbase"
+          subtitle="Pull · import Clients, Projects, Contractors & Jobs from Quickbase tables"
+          connected={false}
+        >
+          <div className="flex flex-col items-end gap-2">
+            <button onClick={pullQuickbase} disabled={qbaseBusy} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-200 hover:border-indigo-500/40 hover:text-indigo-300 flex items-center gap-1.5 disabled:opacity-50">
+              {qbaseBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Pull from Quickbase
+            </button>
+            {qbaseResult && (
+              <div className="text-[10px] text-slate-400 text-right space-y-0.5">
+                {Object.entries(qbaseResult).map(([k, v]) => (
+                  <div key={k}>{k}: {v.error ? <span className="text-rose-400">{v.error}</span> : `${v.created || 0} new · ${v.updated || 0} updated${v.errors ? ` · ${v.errors} err` : ""}`}</div>
+                ))}
+              </div>
+            )}
+            <span className="text-[10px] text-amber-300/80 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Needs QUICKBASE_REALM, token & table IDs in Secrets</span>
+          </div>
         </IntegrationCard>
       </div>
 

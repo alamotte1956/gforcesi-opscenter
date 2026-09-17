@@ -36,6 +36,9 @@
     "quickbooks_customer_id": {
       "type": "string"
     },
+    "quickbase_id": {
+      "type": "string"
+    },
     "portal_email": {
       "type": "string"
     },

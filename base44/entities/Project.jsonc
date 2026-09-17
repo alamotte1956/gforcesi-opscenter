@@ -43,6 +43,9 @@
     "matterport_share_url": {
       "type": "string"
     },
+    "quickbase_id": {
+      "type": "string"
+    },
     "archived": {
       "type": "boolean",
       "default": false
