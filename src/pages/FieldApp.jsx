@@ -12,6 +12,7 @@ import { parseMatterportUrl } from "@/lib/matterport";
 import { useOfflineQueue } from "@/hooks/useOfflineQueue";
 import OfflineBanner from "@/components/OfflineBanner";
 import ManualLocation from "@/components/field/ManualLocation";
+import { useToast } from "@/components/ui/use-toast";
 import { logContractorEvent, captureGeolocation } from "@/lib/contractorStatus";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
@@ -61,6 +62,7 @@ export default function FieldApp() {
   const [uploadingJobId, setUploadingJobId] = useState(null);
   const [mpScanInput, setMpScanInput] = useState("");
   const { isOnline, queue, enqueue, flush } = useOfflineQueue();
+  const { toast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -179,6 +181,8 @@ export default function FieldApp() {
       patch.current_longitude = geo.longitude;
       patch.last_location_at = now;
       patch.location_sharing = true;
+    } else {
+      toast({ title: "Location not captured", description: "Couldn't get GPS — type your address or tap “Use my GPS” below to share where you are.", variant: "destructive" });
     }
     await base44.entities.Contractor.update(contractor.id, patch);
     await logContractorEvent({ ...contractor, current_status: s }, "status_change", {
@@ -203,6 +207,8 @@ export default function FieldApp() {
       patch.current_longitude = geo.longitude;
       patch.last_location_at = now;
       patch.location_sharing = true;
+    } else if (clockIn) {
+      toast({ title: "Location not captured", description: "Couldn't get GPS — type your address or tap “Use my GPS” below to share where you are.", variant: "destructive" });
     }
     await base44.entities.Contractor.update(contractor.id, patch);
     await logContractorEvent({ ...contractor, shift_status }, clockIn ? "shift_clock_in" : "shift_clock_out", {
@@ -231,11 +237,23 @@ export default function FieldApp() {
       complete: { current_status: "available", current_job_id: "", current_job_title: "", last_status_at: now },
     };
     if (map[status]) {
+      const captureLoc = ["en_route", "on_site"].includes(status);
+      const geo = captureLoc ? await captureGeolocation() : null;
+      if (geo) {
+        map[status].current_latitude = geo.latitude;
+        map[status].current_longitude = geo.longitude;
+        map[status].last_location_at = now;
+        map[status].location_sharing = true;
+      } else if (captureLoc) {
+        toast({ title: "Location not captured", description: "Couldn't get GPS — type your address or tap “Use my GPS” below to share where you are.", variant: "destructive" });
+      }
       await base44.entities.Contractor.update(contractor.id, map[status]);
       await logContractorEvent({ ...contractor, ...map[status] }, "status_change", {
         status: map[status].current_status,
         job_id: status === "complete" ? undefined : job.id,
         job_title: status === "complete" ? undefined : job.title,
+        latitude: geo?.latitude,
+        longitude: geo?.longitude,
         note: `Job advanced to ${status}`,
       });
     }
