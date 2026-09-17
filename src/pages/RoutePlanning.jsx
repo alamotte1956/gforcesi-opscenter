@@ -58,7 +58,9 @@ export default function RoutePlanning() {
   const [jobs, setJobs] = useState([]);
   const [contractors, setContractors] = useState([]);
   const [clients, setClients] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [assignments, setAssignments] = useState({ pool: [] });
+  const [reasons, setReasons] = useState({});
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [autoMode, setAutoMode] = useState(false);
@@ -67,8 +69,9 @@ export default function RoutePlanning() {
   const { toast } = useToast();
 
   const load = async () => {
-    const [j, c, cls] = await Promise.all([base44.entities.Job.list(), base44.entities.Contractor.list(), base44.entities.Client.list()]);
+    const [j, c, cls, prj] = await Promise.all([base44.entities.Job.list(), base44.entities.Contractor.list(), base44.entities.Client.list(), base44.entities.Project.list()]);
     setClients(cls);
+    setProjects(prj);
     const active = j.filter((job) => !["complete", "invoiced"].includes(job.status));
     const field = c.filter((con) => fieldRoles.includes(con.role));
     setJobs(active);
@@ -198,6 +201,8 @@ export default function RoutePlanning() {
     const startMin = toMin(dayStart);
     const endMin = toMin(dayEnd);
     const prio = { urgent: 0, high: 1, medium: 2, low: 3 };
+    // Urgent jobs penalize distance harder so they prefer the closest crew.
+    const prioWeight = { urgent: 0.6, high: 0.8, medium: 1, low: 1.3 };
     // Gather every current job (pool + already assigned) as candidates.
     const seen = new Set();
     const candidates = [];
@@ -222,8 +227,10 @@ export default function RoutePlanning() {
       crewState[c.id] = { pos: { lat: c.current_latitude, lng: c.current_longitude }, time: startMin };
     });
     const updates = [];
+    const newReasons = {};
     candidates.forEach((job) => {
-      let best = null, bestScore = Infinity, bestArrival = null;
+      let best = null, bestScore = Infinity, bestArrival = null, bestReasons = [];
+      const jobRegion = projects.find((p) => p.id === job.project_id)?.region;
       pool.forEach((c) => {
         const st = crewState[c.id];
         if (!st) return;
@@ -233,20 +240,50 @@ export default function RoutePlanning() {
         const serviceMin = job.estimated_duration_hours ? job.estimated_duration_hours * 60 : SERVICE_MIN;
         if (arrival + serviceMin > endMin + 30) return; // doesn't fit in the workday
         const client = clients.find((cl) => cl.id === job.client_id);
+        const rs = [`${(mi ?? 0).toFixed(1)} mi`];
         let penalty = 0;
+        // Client site hours
         if (client && client.opening_time && client.closing_time) {
           const open = toMin(client.opening_time), close = toMin(client.closing_time);
           if (arrival > close) penalty = 1000; // after hours — avoid
-          else if (arrival < open) penalty = (open - arrival) * 2; // waiting penalty
+          else if (arrival < open) { penalty = (open - arrival) * 2; rs.push(`wait until ${client.opening_time}`); }
+          else rs.push("within site hours");
         }
+        // Scheduled start alignment
+        if (job.scheduled_start) {
+          const schedMin = new Date(job.scheduled_start).getHours() * 60 + new Date(job.scheduled_start).getMinutes();
+          const diff = Math.abs(arrival - schedMin);
+          if (diff > 60) penalty += (diff - 60) * 0.5;
+          if (diff <= 30) rs.push("on schedule");
+        }
+        // SLA urgency
+        if (job.sla_due_date) {
+          const sla = new Date(job.sla_due_date);
+          if (sla.toDateString() === new Date().toDateString()) { penalty -= 15; rs.push("SLA today"); }
+          else if (sla < new Date(Date.now() + 2 * 86400000)) { penalty -= 8; rs.push("SLA soon"); }
+        }
+        // Region match
+        if (jobRegion && c.region && jobRegion.toLowerCase() === c.region.toLowerCase()) {
+          penalty -= 10; rs.push("region match");
+        }
+        // Equipment match
+        const reqEq = job.required_equipment || [];
+        const crewEq = c.assigned_equipment || [];
+        if (reqEq.length && crewEq.length) {
+          const matches = reqEq.filter((e) => crewEq.some((x) => x && x.toLowerCase().includes(e.toLowerCase())));
+          if (matches.length) { penalty -= matches.length * 4; rs.push(`${matches.length} equip match`); }
+        }
+        // Priority-weighted distance + workload balance
+        const pw = prioWeight[job.priority] ?? 1;
         const load = (next[c.id] || []).length;
-        const score = driveMin + penalty + load * 3;
-        if (score < bestScore) { bestScore = score; best = c; bestArrival = arrival; }
+        const score = driveMin * pw + penalty + load * 3;
+        if (score < bestScore) { bestScore = score; best = c; bestArrival = arrival; bestReasons = rs; }
       });
       if (best) {
         const st = crewState[best.id];
         const serviceMin = job.estimated_duration_hours ? job.estimated_duration_hours * 60 : SERVICE_MIN;
         next[best.id].push(job.id);
+        newReasons[job.id] = bestReasons;
         crewState[best.id].pos = { lat: job.latitude, lng: job.longitude };
         crewState[best.id].time = bestArrival + serviceMin;
         if (!(job.assigned_contractor_ids || []).includes(best.id)) {
@@ -282,7 +319,10 @@ export default function RoutePlanning() {
       next[cid] = ordered.map((j) => j.id);
     });
     setAssignments(next);
+    setReasons(newReasons);
     Promise.all(updates);
+    const assigned = candidates.length - (next.pool || []).length;
+    toast({ title: "Suggested plan generated", description: `${assigned} of ${candidates.length} jobs assigned across ${pool.length} available crew(s).` });
   };
 
   const toggleAuto = (on) => {
@@ -373,6 +413,13 @@ export default function RoutePlanning() {
             <Zap className="w-4 h-4" /> Optimize all
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5 mb-4 text-[10px] text-slate-500">
+        <span className="text-slate-600">Suggested plan weighs:</span>
+        {["Priority", "SLA due date", "Distance / drive time", "Crew availability", "Site hours", "Scheduled start", "Region match", "Equipment match", "Workload balance"].map((f) => (
+          <span key={f} className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">{f}</span>
+        ))}
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
@@ -478,6 +525,13 @@ export default function RoutePlanning() {
                                     <div className="min-w-0 flex-1">
                                       <div className="text-sm text-slate-200 truncate">{job.title}</div>
                                       <div className="text-xs text-slate-500 truncate">{job.site_address}</div>
+                                      {reasons[job.id]?.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {reasons[job.id].slice(0, 3).map((rs, k) => (
+                                            <span key={k} className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300/80 border border-cyan-500/20">{rs}</span>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="text-right text-[11px] shrink-0">
                                       <div className="text-cyan-300 flex items-center gap-1 justify-end"><Clock className="w-3 h-3" />{fmtTime(r.stops[i].arrival)}</div>
