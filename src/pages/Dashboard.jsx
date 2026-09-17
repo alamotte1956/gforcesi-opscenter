@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import OperationsMap from "@/components/operations/OperationsMap";
+import ContractorMonitorPanel from "@/components/operations/ContractorMonitorPanel";
 import { Filter, Radio, MapPin, Users, Activity, X, Navigation2, ShieldAlert, Rocket } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -94,6 +95,10 @@ export default function Dashboard() {
         <StatCard icon={MapPin} label="Scheduled" value={stats.scheduled} accent="text-blue-400" />
         <StatCard icon={Radio} label="Completed" value={stats.completed} accent="text-cyan-400" />
         <StatCard icon={ShieldAlert} label="SLA at Risk" value={stats.slaAtRisk} accent={stats.slaAtRisk > 0 ? "text-rose-400" : "text-slate-400"} />
+      </div>
+
+      <div className="px-4 pt-3">
+        <ContractorMonitorPanel contractors={employees} jobs={jobs} />
       </div>
 
       <div className="flex flex-1 flex-col lg:flex-row min-h-0">

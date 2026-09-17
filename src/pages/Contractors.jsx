@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail, Send } from "lucide-react";
+import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail, Send, History } from "lucide-react";
 import DeleteRecord from "@/components/DeleteRecord";
+import StatusTimeline from "@/components/contractors/StatusTimeline";
 import { useToast } from "@/components/ui/use-toast";
 import { ACCESS_LEVELS } from "@/lib/accessLevels";
 
@@ -33,6 +34,7 @@ export default function Contractors() {
   const [testEmail, setTestEmail] = useState("");
   const [testName, setTestName] = useState("");
   const [sending, setSending] = useState(false);
+  const [timelineFor, setTimelineFor] = useState(null);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
   const isFullAccess = isAdmin || me?.access_level === "full";
@@ -239,6 +241,9 @@ export default function Contractors() {
                   <td className="px-4 py-3 text-slate-500 text-xs font-mono">{c.quickbooks_id || "—"}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      <button onClick={() => setTimelineFor(c)} title="Status timeline" className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-cyan-300 hover:bg-slate-700">
+                        <History className="w-4 h-4" />
+                      </button>
                       {isAdmin && c.onboarding_status === "complete" && (
                         <button onClick={() => openGrant(c)} title="Grant app access" className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20">
                           <KeyRound className="w-4 h-4" />
@@ -335,6 +340,8 @@ export default function Contractors() {
           </div>
         </div>
       )}
+
+      {timelineFor && <StatusTimeline contractor={timelineFor} onClose={() => setTimelineFor(null)} />}
     </div>
   );
 }
