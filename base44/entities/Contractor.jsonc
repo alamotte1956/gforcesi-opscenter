@@ -83,6 +83,14 @@
     "current_longitude": {
       "type": "number"
     },
+    "last_status_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_location_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "current_job_id": {
       "type": "string"
     },

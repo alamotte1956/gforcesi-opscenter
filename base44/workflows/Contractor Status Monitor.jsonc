@@ -1,0 +1,45 @@
+{
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/10 * * * *",
+      "one_time_date": null,
+      "timezone": "America/Chicago",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "description": "Every 10 minutes, scans contractors for anomalies (off-duty mid-job, en-route stall, stale location), opens Issues for new alerts, and emails admins a digest.",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "contractor_status_monitor",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "scan": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "monitorContractorStatus",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Scan contractor status & alert admins",
+            "description": "Detects off-duty mid-job, en-route stalls, stale location; opens Issues + emails admins"
+          }
+        }
+      }
+    ]
+  },
+  "name": "Contractor Status Monitor"
+}

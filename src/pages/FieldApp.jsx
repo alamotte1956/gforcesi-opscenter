@@ -11,6 +11,7 @@ import GuideDownload from "@/components/GuideDownload";
 import { parseMatterportUrl } from "@/lib/matterport";
 import { useOfflineQueue } from "@/hooks/useOfflineQueue";
 import OfflineBanner from "@/components/OfflineBanner";
+import { logContractorEvent, captureGeolocation } from "@/lib/contractorStatus";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
 const myStatuses = [
@@ -165,9 +166,49 @@ export default function FieldApp() {
   const myExpenses = expenses.filter((e) => e.created_by_id === me?.id);
 
   const setMyStatus = async (s) => {
-    await base44.entities.Contractor.update(contractor.id, {
+    const geo = await captureGeolocation();
+    const now = new Date().toISOString();
+    const patch = {
       current_status: s,
       shift_status: s === "off_duty" ? "off_duty" : "on_duty",
+      last_status_at: now,
+    };
+    if (geo) {
+      patch.current_latitude = geo.latitude;
+      patch.current_longitude = geo.longitude;
+      patch.last_location_at = now;
+      patch.location_sharing = true;
+    }
+    await base44.entities.Contractor.update(contractor.id, patch);
+    await logContractorEvent({ ...contractor, current_status: s }, "status_change", {
+      status: s,
+      shift_status: patch.shift_status,
+      latitude: geo?.latitude,
+      longitude: geo?.longitude,
+    });
+    reload();
+  };
+
+  const clockShift = async (clockIn) => {
+    const shift_status = clockIn ? "on_duty" : "off_duty";
+    const geo = clockIn ? await captureGeolocation() : null;
+    const now = new Date().toISOString();
+    const patch = { shift_status, last_status_at: now };
+    if (clockIn && !["available", "en_route", "on_site"].includes(contractor.current_status)) {
+      patch.current_status = "available";
+    }
+    if (geo) {
+      patch.current_latitude = geo.latitude;
+      patch.current_longitude = geo.longitude;
+      patch.last_location_at = now;
+      patch.location_sharing = true;
+    }
+    await base44.entities.Contractor.update(contractor.id, patch);
+    await logContractorEvent({ ...contractor, shift_status }, clockIn ? "shift_clock_in" : "shift_clock_out", {
+      shift_status,
+      latitude: geo?.latitude,
+      longitude: geo?.longitude,
+      note: clockIn ? "Clocked in" : "Clocked out",
     });
     reload();
   };
@@ -180,14 +221,23 @@ export default function FieldApp() {
       return;
     }
     await base44.functions.invoke("updateJobStatus", { job_id: job.id, status, matterport });
+    const now = new Date().toISOString();
     const map = {
-      en_route: { current_status: "en_route" },
-      on_site: { current_status: "on_site" },
-      scanning: { current_status: "on_site" },
-      processing: { current_status: "on_site" },
-      complete: { current_status: "available", current_job_id: "", current_job_title: "" },
+      en_route: { current_status: "en_route", last_status_at: now },
+      on_site: { current_status: "on_site", last_status_at: now },
+      scanning: { current_status: "on_site", last_status_at: now },
+      processing: { current_status: "on_site", last_status_at: now },
+      complete: { current_status: "available", current_job_id: "", current_job_title: "", last_status_at: now },
     };
-    if (map[status]) await base44.entities.Contractor.update(contractor.id, map[status]);
+    if (map[status]) {
+      await base44.entities.Contractor.update(contractor.id, map[status]);
+      await logContractorEvent({ ...contractor, ...map[status] }, "status_change", {
+        status: map[status].current_status,
+        job_id: status === "complete" ? undefined : job.id,
+        job_title: status === "complete" ? undefined : job.title,
+        note: `Job advanced to ${status}`,
+      });
+    }
     reload();
     if (matterport) setMpScanInput("");
   };
@@ -364,6 +414,17 @@ export default function FieldApp() {
             </button>
           ))}
         </div>
+        <button
+          onClick={() => clockShift(contractor.shift_status !== "on_duty")}
+          className={`w-full mt-2.5 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${
+            contractor.shift_status === "on_duty"
+              ? "bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"
+              : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          {contractor.shift_status === "on_duty" ? "Clock Out" : "Clock In"}
+        </button>
       </div>
 
       {/* Stats */}
