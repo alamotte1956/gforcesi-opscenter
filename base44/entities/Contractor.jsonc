@@ -65,6 +65,9 @@
     "quickbooks_id": {
       "type": "string"
     },
+    "quickbase_id": {
+      "type": "string"
+    },
     "shift_status": {
       "type": "string",
       "enum": [
