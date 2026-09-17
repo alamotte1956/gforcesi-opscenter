@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical, Loader2, Home } from "lucide-react";
+import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical, Loader2, Home, Calendar, Users, Link2, AlertTriangle, Coffee } from "lucide-react";
 import RouteMap from "@/components/operations/RouteMap";
 import { geocodeAddress } from "@/lib/geocode";
 import { useToast } from "@/components/ui/use-toast";
@@ -43,9 +43,17 @@ function crewStartPos(c) {
   return null;
 }
 
-const todayKey = new Date().toLocaleDateString("en-US", { weekday: "short" }).toLowerCase();
+// Apply a midday break window to an arrival/service interval (minute math).
+function applyBreakMin(arrival, serviceMin, bw) {
+  if (!bw) return { arrival, serviceEnd: arrival + serviceMin };
+  let a = arrival;
+  if (a >= bw.start && a < bw.end) a = bw.end;
+  let serviceEnd = a + serviceMin;
+  if (a < bw.start && serviceEnd > bw.start) serviceEnd += (bw.end - bw.start);
+  return { arrival: a, serviceEnd };
+}
 
-function computeRoute(contractor, stops, startTime) {
+function computeRoute(contractor, stops, startTime, breakWindow, returnToBase) {
   const start = startTime || (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })();
   let prev = contractor ? crewStartPos(contractor) : null;
   let t = new Date(start);
@@ -55,13 +63,47 @@ function computeRoute(contractor, stops, startTime) {
     const mi = prev ? haversineMi(prev, p) : null;
     const driveMin = mi != null ? (mi / AVG_SPEED_MPH) * 60 : null;
     if (driveMin != null) totalDrive += driveMin;
-    const arrival = new Date(t.getTime() + (driveMin || 0) * 60000);
+    let arrival = new Date(t.getTime() + (driveMin || 0) * 60000);
     const serviceMin = job.estimated_duration_hours ? job.estimated_duration_hours * 60 : SERVICE_MIN;
-    t = new Date(arrival.getTime() + serviceMin * 60000);
+    let breakAdded = 0;
+    if (breakWindow) {
+      const aMin = arrival.getHours() * 60 + arrival.getMinutes();
+      if (aMin >= breakWindow.start && aMin < breakWindow.end) {
+        arrival = new Date(arrival); arrival.setHours(Math.floor(breakWindow.end / 60), breakWindow.end % 60, 0, 0);
+      } else if (aMin < breakWindow.start && aMin + serviceMin > breakWindow.start) {
+        breakAdded = breakWindow.end - breakWindow.start;
+      }
+    }
+    const serviceEnd = new Date(arrival.getTime() + (serviceMin + breakAdded) * 60000);
+    t = serviceEnd;
     prev = p;
-    return { job, mi, driveMin, arrival, serviceMin };
+    return { job, mi, driveMin, arrival, serviceMin, breakAdded };
   });
-  return { stops: out, totalDrive, endTime: t, start };
+  let returnLeg = null;
+  if (returnToBase && prev && contractor) {
+    const base = crewStartPos(contractor);
+    if (base) {
+      const mi = haversineMi(prev, base);
+      const driveMin = mi != null ? (mi / AVG_SPEED_MPH) * 60 : null;
+      if (driveMin != null) totalDrive += driveMin;
+      const arrival = new Date(t.getTime() + (driveMin || 0) * 60000);
+      returnLeg = { mi, driveMin, arrival };
+      t = arrival;
+    }
+  }
+  return { stops: out, totalDrive, endTime: t, returnLeg, start };
+}
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function dateMatches(job, dateStr) {
+  if (!job.scheduled_start) return true;
+  const d = new Date(job.scheduled_start);
+  const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return ds === dateStr;
 }
 
 export default function RoutePlanning() {
@@ -69,6 +111,8 @@ export default function RoutePlanning() {
   const [contractors, setContractors] = useState([]);
   const [clients, setClients] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [equipment, setEquipment] = useState([]);
   const [assignments, setAssignments] = useState({ pool: [] });
   const [reasons, setReasons] = useState({});
   const [selected, setSelected] = useState(null);
@@ -76,21 +120,32 @@ export default function RoutePlanning() {
   const [autoMode, setAutoMode] = useState(false);
   const [dayStart, setDayStart] = useState("08:00");
   const [dayEnd, setDayEnd] = useState("17:00");
+  const [planningDate, setPlanningDate] = useState(todayStr());
+  const [breakEnabled, setBreakEnabled] = useState(false);
+  const [breakStart, setBreakStart] = useState("12:00");
+  const [breakEnd, setBreakEnd] = useState("12:30");
+  const [returnToBase, setReturnToBase] = useState(true);
+  const [rollOver, setRollOver] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
   const [geocodingBases, setGeocodingBases] = useState(false);
   const { toast } = useToast();
 
+  const dayKey = new Date(planningDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" }).toLowerCase();
+  const breakWindow = breakEnabled ? { start: toMin(breakStart), end: toMin(breakEnd) } : null;
+
   const load = async () => {
-    const [j, c, cls, prj] = await Promise.all([base44.entities.Job.list(), base44.entities.Contractor.list(), base44.entities.Client.list(), base44.entities.Project.list()]);
-    setClients(cls);
-    setProjects(prj);
-    const active = j.filter((job) => !["complete", "invoiced"].includes(job.status));
+    const [j, c, cls, prj, st, eq] = await Promise.all([
+      base44.entities.Job.list(), base44.entities.Contractor.list(), base44.entities.Client.list(),
+      base44.entities.Project.list(), base44.entities.Site.list(), base44.entities.Equipment.list(),
+    ]);
+    setClients(cls); setProjects(prj); setSites(st); setEquipment(eq);
     const field = c.filter((con) => fieldRoles.includes(con.role));
-    setJobs(active);
     setContractors(field);
+    const dayJobs = j.filter((job) => !["complete", "invoiced"].includes(job.status) && !job.archived && dateMatches(job, planningDate));
+    setJobs(dayJobs);
     const a = { pool: [] };
     field.forEach((con) => (a[con.id] = []));
-    active.forEach((job) => {
+    dayJobs.forEach((job) => {
       const ids = job.assigned_contractor_ids || [];
       const assigned = ids.find((id) => field.find((f) => f.id === id));
       if (assigned) a[assigned].push(job.id);
@@ -100,7 +155,7 @@ export default function RoutePlanning() {
     if (field.length && !selected) setSelected(field[0].id);
     setLoading(false);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [planningDate]);
 
   const jobById = (id) => jobs.find((j) => j.id === id);
 
@@ -109,21 +164,13 @@ export default function RoutePlanning() {
 
   const geocodeAllSites = async () => {
     const missing = jobs.filter((j) => j.site_address && (j.latitude == null || j.longitude == null));
-    if (missing.length === 0) {
-      toast({ title: "All set", description: "Every job site already has coordinates." });
-      return;
-    }
+    if (missing.length === 0) { toast({ title: "All set", description: "Every job site already has coordinates." }); return; }
     setGeocoding(true);
     let done = 0, failed = 0;
     for (const job of missing) {
       const coords = await geocodeAddress(job.site_address);
-      if (coords) {
-        await base44.entities.Job.update(job.id, { latitude: coords.latitude, longitude: coords.longitude });
-        done++;
-      } else {
-        failed++;
-      }
-      await new Promise((r) => setTimeout(r, 1100)); // respect Nominatim ~1 req/sec
+      if (coords) { await base44.entities.Job.update(job.id, { latitude: coords.latitude, longitude: coords.longitude }); done++; } else { failed++; }
+      await new Promise((r) => setTimeout(r, 1100));
     }
     setGeocoding(false);
     await load();
@@ -132,20 +179,12 @@ export default function RoutePlanning() {
 
   const geocodeBases = async () => {
     const missing = contractors.filter((c) => c.base_address && (c.base_latitude == null || c.base_longitude == null));
-    if (missing.length === 0) {
-      toast({ title: "All set", description: "Every crew base already has coordinates." });
-      return;
-    }
+    if (missing.length === 0) { toast({ title: "All set", description: "Every crew base already has coordinates." }); return; }
     setGeocodingBases(true);
     let done = 0, failed = 0;
     for (const c of missing) {
       const coords = await geocodeAddress(c.base_address);
-      if (coords) {
-        await base44.entities.Contractor.update(c.id, { base_latitude: coords.latitude, base_longitude: coords.longitude });
-        done++;
-      } else {
-        failed++;
-      }
+      if (coords) { await base44.entities.Contractor.update(c.id, { base_latitude: coords.latitude, base_longitude: coords.longitude }); done++; } else { failed++; }
       await new Promise((r) => setTimeout(r, 1100));
     }
     setGeocodingBases(false);
@@ -167,37 +206,6 @@ export default function RoutePlanning() {
       const c = contractors.find((x) => x.id === destination.droppableId);
       if (c) base44.entities.Job.update(movedId, { assigned_contractor_ids: [c.id], assigned_contractor_names: [c.name] });
     }
-  };
-
-  const autoAssign = () => {
-    const poolJobs = (assignments.pool || []).map(jobById).filter(Boolean);
-    const prio = { urgent: 0, high: 1, medium: 2, low: 3 };
-    poolJobs.sort((a, b) => (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2));
-    const dayOk = (c) => !c.available_days?.length || c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === todayKey);
-    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status) && dayOk(c));
-    const pool = available.length ? available : contractors.filter(dayOk);
-    const next = { ...assignments, pool: [] };
-    contractors.forEach((c) => { if (!next[c.id]) next[c.id] = []; });
-    const updates = [];
-    poolJobs.forEach((job) => {
-      let best = null, bestScore = Infinity;
-      pool.forEach((c) => {
-        const load = (next[c.id] || []).length;
-        const mi = haversineMi(crewStartPos(c), { lat: job.latitude, lng: job.longitude });
-        const dist = mi != null ? mi : (load === 0 ? 0 : 50);
-        const score = dist + load * 5;
-        if (score < bestScore) { bestScore = score; best = c; }
-      });
-      if (!best && contractors.length) best = contractors[0];
-      if (best) {
-        next[best.id].push(job.id);
-        updates.push(base44.entities.Job.update(job.id, { assigned_contractor_ids: [best.id], assigned_contractor_names: [best.name] }));
-      } else {
-        next.pool.push(job.id);
-      }
-    });
-    setAssignments(next);
-    Promise.all(updates);
   };
 
   const nearestNeighborOrder = (start, list) => {
@@ -222,9 +230,9 @@ export default function RoutePlanning() {
     const list = (assignments[cid] || []).map(jobById).filter(Boolean);
     if (list.length < 2) return;
     const start = c ? crewStartPos(c) : null;
-    const before = computeRoute(c, list, timeToday(dayStart)).totalDrive;
+    const before = computeRoute(c, list, timeToday(dayStart), breakWindow, returnToBase).totalDrive;
     const ordered = nearestNeighborOrder(start, list);
-    const after = computeRoute(c, ordered, timeToday(dayStart)).totalDrive;
+    const after = computeRoute(c, ordered, timeToday(dayStart), breakWindow, returnToBase).totalDrive;
     setAssignments({ ...assignments, [cid]: ordered.map((j) => j.id) });
     if (before === 0 && after === 0) {
       toast({ title: "Can't optimize", description: "These jobs are missing coordinates — add lat/long to optimize routing.", variant: "destructive" });
@@ -242,9 +250,9 @@ export default function RoutePlanning() {
       const list = (assignments[c.id] || []).map(jobById).filter(Boolean);
       if (list.length < 2) return;
       const start = crewStartPos(c);
-      const before = computeRoute(c, list, timeToday(dayStart)).totalDrive;
+      const before = computeRoute(c, list, timeToday(dayStart), breakWindow, returnToBase).totalDrive;
       const ordered = nearestNeighborOrder(start, list);
-      const after = computeRoute(c, ordered, timeToday(dayStart)).totalDrive;
+      const after = computeRoute(c, ordered, timeToday(dayStart), breakWindow, returnToBase).totalDrive;
       next[c.id] = ordered.map((j) => j.id);
       if (before === 0 && after === 0) noCoordCount++;
       else if (after < before) { optimizedCount++; totalSaved += before - after; }
@@ -259,30 +267,34 @@ export default function RoutePlanning() {
     }
   };
 
-  const generateDailyPlan = () => {
+  const generateDailyPlan = async () => {
     const startMin = toMin(dayStart);
     const endMin = toMin(dayEnd);
     const prio = { urgent: 0, high: 1, medium: 2, low: 3 };
-    // Urgent jobs penalize distance harder so they prefer the closest crew.
     const prioWeight = { urgent: 0.6, high: 0.8, medium: 1, low: 1.3 };
-    // Gather every current job (pool + already assigned) as candidates.
+
     const seen = new Set();
     const candidates = [];
     [...(assignments.pool || []), ...contractors.flatMap((c) => assignments[c.id] || [])].forEach((id) => {
       const job = jobById(id);
       if (job && !seen.has(job.id)) { seen.add(job.id); candidates.push(job); }
     });
-    // Most important / soonest SLA first so they get claimed before the day fills.
+    // Priority / SLA order, with dependencies pulled before their dependents.
     candidates.sort((a, b) => {
       const pa = prio[a.priority] ?? 2, pb = prio[b.priority] ?? 2;
       if (pa !== pb) return pa - pb;
       const sa = a.sla_due_date ? new Date(a.sla_due_date).getTime() : Infinity;
       const sb = b.sla_due_date ? new Date(b.sla_due_date).getTime() : Infinity;
-      return sa - sb;
+      if (sa !== sb) return sa - sb;
+      if (a.depends_on_job_id === b.id) return 1;
+      if (b.depends_on_job_id === a.id) return -1;
+      return 0;
     });
-    const dayOk = (c) => !c.available_days?.length || c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === todayKey);
-    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status) && dayOk(c));
-    const pool = available.length ? available : contractors.filter(dayOk);
+
+    const dayOk = (c) => !c.available_days?.length || c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === dayKey);
+    const statusAvail = contractors.filter((c) => ["available", "en_route"].includes(c.current_status) && dayOk(c));
+    const pool = statusAvail.length ? statusAvail : contractors.filter(dayOk);
+
     const next = { pool: [] };
     contractors.forEach((c) => { next[c.id] = []; });
     const crewState = {};
@@ -291,114 +303,128 @@ export default function RoutePlanning() {
       const cEnd = c.shift_end ? toMin(c.shift_end) : endMin;
       crewState[c.id] = { pos: crewStartPos(c), time: cStart, shiftEnd: cEnd, workMin: 0, maxWork: c.max_daily_hours ? c.max_daily_hours * 60 : null };
     });
+
     const updates = [];
     const newReasons = {};
-    candidates.forEach((job) => {
-      let best = null, bestScore = Infinity, bestArrival = null, bestReasons = [], bestDrive = 0;
+    const assignedJobIds = new Set();
+    const candIds = new Set(candidates.map((j) => j.id));
+
+    const scoreCrew = (c, job) => {
+      const st = crewState[c.id];
+      if (!st) return null;
+      const mi = haversineMi(st.pos, { lat: job.latitude, lng: job.longitude });
+      const driveMin = mi != null ? (mi / AVG_SPEED_MPH) * 60 : 15;
+      const serviceMin = job.estimated_duration_hours ? job.estimated_duration_hours * 60 : SERVICE_MIN;
+      const { arrival, serviceEnd } = applyBreakMin(st.time + driveMin, serviceMin, breakWindow);
+      if (serviceEnd > st.shiftEnd + 30) return null;
+      if (st.maxWork != null && st.workMin + driveMin + serviceMin > st.maxWork) return null;
+      const client = clients.find((cl) => cl.id === job.client_id);
+      const site = sites.find((s) => s.id === job.site_id);
+      const rs = [`${(mi ?? 0).toFixed(1)} mi`];
+      let penalty = 0;
+      const winStart = job.scan_window_start || site?.opening_time || client?.opening_time;
+      const winEnd = job.scan_window_end || site?.closing_time || client?.closing_time;
+      if (winStart && winEnd) {
+        const open = toMin(winStart), close = toMin(winEnd);
+        if (arrival > close) penalty = 1000;
+        else if (arrival < open) { penalty = (open - arrival) * 2; rs.push(`wait until ${winStart}`); }
+        else rs.push("within window");
+      }
+      if (job.scheduled_start) {
+        const schedMin = new Date(job.scheduled_start).getHours() * 60 + new Date(job.scheduled_start).getMinutes();
+        const diff = Math.abs(arrival - schedMin);
+        if (diff > 60) penalty += (diff - 60) * 0.5;
+        if (diff <= 30) rs.push("on schedule");
+      }
+      if (job.sla_due_date) {
+        const sla = new Date(job.sla_due_date);
+        if (sla.toDateString() === new Date(planningDate + "T00:00:00").toDateString()) { penalty -= 15; rs.push("SLA today"); }
+        else if (sla < new Date(Date.now() + 2 * 86400000)) { penalty -= 8; rs.push("SLA soon"); }
+      }
       const jobRegion = projects.find((p) => p.id === job.project_id)?.region;
-      pool.forEach((c) => {
-        const st = crewState[c.id];
-        if (!st) return;
-        const mi = haversineMi(st.pos, { lat: job.latitude, lng: job.longitude });
-        const driveMin = mi != null ? (mi / AVG_SPEED_MPH) * 60 : 15;
-        const arrival = st.time + driveMin;
-        const serviceMin = job.estimated_duration_hours ? job.estimated_duration_hours * 60 : SERVICE_MIN;
-        if (arrival + serviceMin > st.shiftEnd + 30) return; // doesn't fit this crew's shift
-        if (st.maxWork != null && st.workMin + driveMin + serviceMin > st.maxWork) return; // over daily capacity
-        const client = clients.find((cl) => cl.id === job.client_id);
-        const rs = [`${(mi ?? 0).toFixed(1)} mi`];
-        let penalty = 0;
-        // Allowed time window: job scan window takes precedence, else client site hours
-        const winStart = job.scan_window_start || client?.opening_time;
-        const winEnd = job.scan_window_end || client?.closing_time;
-        if (winStart && winEnd) {
-          const open = toMin(winStart), close = toMin(winEnd);
-          if (arrival > close) penalty = 1000; // after window — avoid
-          else if (arrival < open) { penalty = (open - arrival) * 2; rs.push(`wait until ${winStart}`); }
-          else rs.push("within window");
+      if (jobRegion && c.region && jobRegion.toLowerCase() === c.region.toLowerCase()) { penalty -= 10; rs.push("region match"); }
+      const reqEq = job.required_equipment || [];
+      const crewEq = c.assigned_equipment || [];
+      if (reqEq.length && crewEq.length) {
+        const matches = reqEq.filter((e) => crewEq.some((x) => x && x.toLowerCase().includes(e.toLowerCase())));
+        if (matches.length) { penalty -= matches.length * 4; rs.push(`${matches.length} equip match`); }
+      }
+      reqEq.forEach((e) => {
+        const found = equipment.find((eq) => eq.name && eq.name.toLowerCase().includes(e.toLowerCase()));
+        if (found) {
+          if (found.status === "in_maintenance") { penalty += 50; rs.push(`${e} in maint`); }
+          else if (found.status === "checked_out") { penalty += 10; rs.push(`${e} checked out`); }
+          else if (found.status === "available") { penalty -= 2; }
         }
-        // Scheduled start alignment
-        if (job.scheduled_start) {
-          const schedMin = new Date(job.scheduled_start).getHours() * 60 + new Date(job.scheduled_start).getMinutes();
-          const diff = Math.abs(arrival - schedMin);
-          if (diff > 60) penalty += (diff - 60) * 0.5;
-          if (diff <= 30) rs.push("on schedule");
-        }
-        // SLA urgency
-        if (job.sla_due_date) {
-          const sla = new Date(job.sla_due_date);
-          if (sla.toDateString() === new Date().toDateString()) { penalty -= 15; rs.push("SLA today"); }
-          else if (sla < new Date(Date.now() + 2 * 86400000)) { penalty -= 8; rs.push("SLA soon"); }
-        }
-        // Region match
-        if (jobRegion && c.region && jobRegion.toLowerCase() === c.region.toLowerCase()) {
-          penalty -= 10; rs.push("region match");
-        }
-        // Equipment match
-        const reqEq = job.required_equipment || [];
-        const crewEq = c.assigned_equipment || [];
-        if (reqEq.length && crewEq.length) {
-          const matches = reqEq.filter((e) => crewEq.some((x) => x && x.toLowerCase().includes(e.toLowerCase())));
-          if (matches.length) { penalty -= matches.length * 4; rs.push(`${matches.length} equip match`); }
-        }
-        // Skills / certification match
-        const reqSkills = job.required_skills || [];
-        const crewSkills = [...(c.skills || []), ...(c.certifications || [])];
-        if (reqSkills.length) {
-          const matched = reqSkills.filter((s) => crewSkills.some((x) => x && x.toLowerCase().includes(s.toLowerCase())));
-          if (matched.length === reqSkills.length) { penalty -= 8; rs.push("skills match"); }
-          else if (matched.length) { penalty += (reqSkills.length - matched.length) * 5; rs.push(`${matched.length}/${reqSkills.length} skills`); }
-          else { penalty += reqSkills.length * 8; rs.push("missing skills"); }
-        }
-        // Priority-weighted distance + workload balance
-        const pw = prioWeight[job.priority] ?? 1;
-        const load = (next[c.id] || []).length;
-        const score = driveMin * pw + penalty + load * 3;
-        if (score < bestScore) { bestScore = score; best = c; bestArrival = arrival; bestReasons = rs; bestDrive = driveMin; }
       });
-      if (best) {
-        const st = crewState[best.id];
-        const serviceMin = job.estimated_duration_hours ? job.estimated_duration_hours * 60 : SERVICE_MIN;
-        next[best.id].push(job.id);
-        newReasons[job.id] = bestReasons;
-        crewState[best.id].pos = { lat: job.latitude, lng: job.longitude };
-        crewState[best.id].time = bestArrival + serviceMin;
-        crewState[best.id].workMin += bestDrive + serviceMin;
-        if (!(job.assigned_contractor_ids || []).includes(best.id)) {
-          updates.push(base44.entities.Job.update(job.id, { assigned_contractor_ids: [best.id], assigned_contractor_names: [best.name] }));
+      const reqSkills = job.required_skills || [];
+      const crewSkills = [...(c.skills || []), ...(c.certifications || [])];
+      if (reqSkills.length) {
+        const matched = reqSkills.filter((s) => crewSkills.some((x) => x && x.toLowerCase().includes(s.toLowerCase())));
+        if (matched.length === reqSkills.length) { penalty -= 8; rs.push("skills match"); }
+        else if (matched.length) { penalty += (reqSkills.length - matched.length) * 5; rs.push(`${matched.length}/${reqSkills.length} skills`); }
+        else { penalty += reqSkills.length * 8; rs.push("missing skills"); }
+      }
+      const pw = prioWeight[job.priority] ?? 1;
+      const load = (next[c.id] || []).length;
+      const score = driveMin * pw + penalty + load * 3;
+      return { c, score, driveMin, arrival, serviceEnd, serviceMin, reasons: rs };
+    };
+
+    for (const job of candidates) {
+      const n = Math.max(1, job.crew_size_required || 1);
+      if (job.depends_on_job_id && candIds.has(job.depends_on_job_id) && !assignedJobIds.has(job.depends_on_job_id)) {
+        next.pool.push(job.id);
+        newReasons[job.id] = ["waiting on dependency"];
+        continue;
+      }
+      const scored = pool.map((c) => scoreCrew(c, job)).filter(Boolean);
+      scored.sort((a, b) => a.score - b.score);
+      const chosen = scored.slice(0, n);
+      if (chosen.length === n) {
+        chosen.forEach((s) => {
+          next[s.c.id].push(job.id);
+          crewState[s.c.id].pos = { lat: job.latitude, lng: job.longitude };
+          crewState[s.c.id].time = s.serviceEnd;
+          crewState[s.c.id].workMin += s.driveMin + s.serviceMin;
+        });
+        newReasons[job.id] = chosen[0].reasons;
+        assignedJobIds.add(job.id);
+        const ids = chosen.map((s) => s.c.id);
+        const names = chosen.map((s) => s.c.name);
+        const cur = job.assigned_contractor_ids || [];
+        if (ids.some((id) => !cur.includes(id)) || cur.length !== ids.length) {
+          updates.push(base44.entities.Job.update(job.id, { assigned_contractor_ids: ids, assigned_contractor_names: names }));
         }
       } else {
-        // Doesn't fit any crew today — defer back to the pool.
         next.pool.push(job.id);
-        if (job.assigned_contractor_ids && job.assigned_contractor_ids.length) {
-          updates.push(base44.entities.Job.update(job.id, { assigned_contractor_ids: [], assigned_contractor_names: [] }));
+        if (rollOver) {
+          const nd = new Date(planningDate + "T00:00:00");
+          nd.setDate(nd.getDate() + 1);
+          nd.setHours(8, 0, 0, 0);
+          updates.push(base44.entities.Job.update(job.id, { scheduled_start: nd.toISOString(), assigned_contractor_ids: [], assigned_contractor_names: [] }));
+          newReasons[job.id] = [`deferred to ${nd.toLocaleDateString()}`];
+        } else {
+          newReasons[job.id] = ["deferred"];
+          if (job.assigned_contractor_ids?.length) updates.push(base44.entities.Job.update(job.id, { assigned_contractor_ids: [], assigned_contractor_names: [] }));
         }
       }
-    });
+    }
+
     // Sequence each crew's stops by nearest-neighbor from their start position.
     Object.keys(next).forEach((cid) => {
       if (cid === "pool") return;
       const c = contractors.find((x) => x.id === cid);
       const list = (next[cid] || []).map(jobById).filter(Boolean);
       if (list.length < 2) return;
-      let prev = crewStartPos(c);
-      const ordered = [];
-      const remaining = [...list];
-      while (remaining.length) {
-        let bi = 0, bd = Infinity;
-        remaining.forEach((j, i) => {
-          const d = haversineMi(prev, { lat: j.latitude, lng: j.longitude }) ?? Infinity;
-          if (d < bd) { bd = d; bi = i; }
-        });
-        const j = remaining.splice(bi, 1)[0];
-        ordered.push(j);
-        prev = { lat: j.latitude, lng: j.longitude };
-      }
+      const ordered = nearestNeighborOrder(crewStartPos(c), list);
       next[cid] = ordered.map((j) => j.id);
     });
+
     setAssignments(next);
     setReasons(newReasons);
-    Promise.all(updates);
+    await Promise.all(updates);
+    await load();
     const assigned = candidates.length - (next.pool || []).length;
     toast({ title: "Suggested plan generated", description: `${assigned} of ${candidates.length} jobs assigned across ${pool.length} available crew(s).` });
   };
@@ -409,9 +435,9 @@ export default function RoutePlanning() {
   };
 
   const suggestContractor = (job) => {
-    const dayOk = (c) => !c.available_days?.length || c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === todayKey);
-    const available = contractors.filter((c) => ["available", "en_route"].includes(c.current_status) && dayOk(c));
-    const pool = available.length ? available : contractors.filter(dayOk);
+    const dayOk = (c) => !c.available_days?.length || c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === dayKey);
+    const statusAvail = contractors.filter((c) => ["available", "en_route"].includes(c.current_status) && dayOk(c));
+    const pool = statusAvail.length ? statusAvail : contractors.filter(dayOk);
     let best = null, bestMi = Infinity;
     pool.forEach((c) => {
       const mi = haversineMi(crewStartPos(c), { lat: job.latitude, lng: job.longitude });
@@ -435,12 +461,14 @@ export default function RoutePlanning() {
 
   const selectedContractor = contractors.find((c) => c.id === selected);
   const selectedStops = (assignments[selected] || []).map(jobById).filter(Boolean);
-  const route = useMemo(() => computeRoute(selectedContractor, selectedStops, timeToday(dayStart)), [selectedContractor, selectedStops, dayStart]);
+  const route = useMemo(() => computeRoute(selectedContractor, selectedStops, timeToday(dayStart), breakWindow, returnToBase),
+    [selectedContractor, selectedStops, dayStart, breakEnabled, breakStart, breakEnd, returnToBase, planningDate]);
 
   const hoursWarn = (job, arrival) => {
     const client = clients.find((c) => c.id === job.client_id);
-    const winStart = job.scan_window_start || client?.opening_time;
-    const winEnd = job.scan_window_end || client?.closing_time;
+    const site = sites.find((s) => s.id === job.site_id);
+    const winStart = job.scan_window_start || site?.opening_time || client?.opening_time;
+    const winEnd = job.scan_window_end || site?.closing_time || client?.closing_time;
     if (!winStart || !winEnd) return null;
     const mins = arrival.getHours() * 60 + arrival.getMinutes();
     const [oh, om] = winStart.split(":").map(Number);
@@ -453,6 +481,14 @@ export default function RoutePlanning() {
     return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" /></div>;
   }
 
+  const JobBadges = ({ job }) => (
+    <>
+      {job.crew_size_required > 1 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300 border border-violet-500/20 flex items-center gap-0.5"><Users className="w-2.5 h-2.5" />{job.crew_size_required} crew</span>}
+      {job.depends_on_job_id && <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-300 border border-orange-500/20 flex items-center gap-0.5"><Link2 className="w-2.5 h-2.5" />dep</span>}
+      {reasons[job.id]?.some((r) => r.includes("deferred")) && <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20 flex items-center gap-0.5"><AlertTriangle className="w-2.5 h-2.5" />{reasons[job.id][0]}</span>}
+    </>
+  );
+
   return (
     <div className="p-4 lg:p-6 h-screen lg:h-full flex flex-col">
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
@@ -462,57 +498,63 @@ export default function RoutePlanning() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
+            <Calendar className="w-4 h-4 text-slate-500" />
+            <input type="date" value={planningDate} onChange={(e) => setPlanningDate(e.target.value)} className="bg-transparent text-sm text-slate-200 focus:outline-none" />
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
             <Clock className="w-4 h-4 text-slate-500" />
             <input type="time" value={dayStart} onChange={(e) => setDayStart(e.target.value)} className="bg-transparent text-sm text-slate-200 focus:outline-none w-[74px]" />
             <span className="text-slate-600 text-xs">to</span>
             <input type="time" value={dayEnd} onChange={(e) => setDayEnd(e.target.value)} className="bg-transparent text-sm text-slate-200 focus:outline-none w-[74px]" />
           </div>
-          <button
-            onClick={generateDailyPlan}
-            className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400"
-          >
+          <button onClick={generateDailyPlan} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
             <Wand2 className="w-4 h-4" /> Generate daily plan
           </button>
           <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5">
-            <button
-              onClick={() => toggleAuto(false)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition ${!autoMode ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
-            >
+            <button onClick={() => toggleAuto(false)} className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition ${!autoMode ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}>
               <RouteIcon className="w-4 h-4" /> Manual
             </button>
-            <button
-              onClick={() => toggleAuto(true)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition ${autoMode ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-slate-200"}`}
-            >
+            <button onClick={() => toggleAuto(true)} className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1.5 transition ${autoMode ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-slate-200"}`}>
               <Wand2 className="w-4 h-4" /> Automatic
             </button>
           </div>
-          <button
-            onClick={geocodeAllSites}
-            disabled={geocoding}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50"
-          >
+          <button onClick={geocodeAllSites} disabled={geocoding} className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50">
             {geocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />} Geocode sites{missingCoords > 0 ? ` (${missingCoords})` : ""}
           </button>
-          <button
-            onClick={geocodeBases}
-            disabled={geocodingBases}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50"
-          >
+          <button onClick={geocodeBases} disabled={geocodingBases} className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50">
             {geocodingBases ? <Loader2 className="w-4 h-4 animate-spin" /> : <Home className="w-4 h-4" />} Geocode bases{missingBases > 0 ? ` (${missingBases})` : ""}
           </button>
-          <button
-            onClick={optimizeAll}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700"
-          >
+          <button onClick={optimizeAll} className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700">
             <Zap className="w-4 h-4" /> Optimize all
           </button>
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3 mb-4 text-xs">
+        <label className="flex items-center gap-1.5 text-slate-300 cursor-pointer">
+          <input type="checkbox" checked={returnToBase} onChange={(e) => setReturnToBase(e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800" />
+          <Home className="w-3.5 h-3.5 text-slate-500" /> Return to base
+        </label>
+        <label className="flex items-center gap-1.5 text-slate-300 cursor-pointer">
+          <input type="checkbox" checked={breakEnabled} onChange={(e) => setBreakEnabled(e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800" />
+          <Coffee className="w-3.5 h-3.5 text-slate-500" /> Break
+          {breakEnabled && (
+            <>
+              <input type="time" value={breakStart} onChange={(e) => setBreakStart(e.target.value)} className="bg-slate-900 border border-slate-800 rounded px-1.5 py-1 text-xs text-slate-200 focus:outline-none w-[68px]" />
+              <span className="text-slate-600">–</span>
+              <input type="time" value={breakEnd} onChange={(e) => setBreakEnd(e.target.value)} className="bg-slate-900 border border-slate-800 rounded px-1.5 py-1 text-xs text-slate-200 focus:outline-none w-[68px]" />
+            </>
+          )}
+        </label>
+        <label className="flex items-center gap-1.5 text-slate-300 cursor-pointer">
+          <input type="checkbox" checked={rollOver} onChange={(e) => setRollOver(e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800" />
+          <AlertTriangle className="w-3.5 h-3.5 text-slate-500" /> Roll overflow to next day
+        </label>
+      </div>
+
       <div className="flex flex-wrap items-center gap-1.5 mb-4 text-[10px] text-slate-500">
         <span className="text-slate-600">Suggested plan weighs:</span>
-        {["Priority", "SLA due date", "Distance / drive time", "Crew availability", "Crew shift", "Daily capacity", "Site hours", "Scheduled start", "Region match", "Equipment match", "Skills match", "Workload balance"].map((f) => (
+        {["Priority", "SLA due date", "Distance / drive time", "Crew availability", "Crew shift", "Daily capacity", "Day-of-week", "Site hours", "Scheduled start", "Region match", "Equipment match", "Equipment availability", "Skills match", "Crew size", "Dependencies", "Break window", "Return to base", "Workload balance"].map((f) => (
           <span key={f} className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">{f}</span>
         ))}
       </div>
@@ -540,6 +582,14 @@ export default function RoutePlanning() {
                                 <div className="min-w-0">
                                   <div className="text-sm font-medium text-slate-200 leading-snug">{job.title}</div>
                                   <div className="text-xs text-slate-500 truncate">{job.site_address}</div>
+                                  <div className="flex flex-wrap gap-1 mt-1"><JobBadges job={job} /></div>
+                                  {reasons[job.id]?.length > 0 && !reasons[job.id][0].includes("deferred") && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {reasons[job.id].slice(0, 3).map((rs, k) => (
+                                        <span key={k} className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300/80 border border-cyan-500/20">{rs}</span>
+                                      ))}
+                                    </div>
+                                  )}
                                   {(() => {
                                     const s = suggestContractor(job);
                                     if (!s) return null;
@@ -550,12 +600,7 @@ export default function RoutePlanning() {
                                           <span className="truncate">{s.contractor.name}</span>
                                           <span className="text-slate-500 shrink-0">· {s.mi.toFixed(1)} mi{s.driveMin != null ? ` · ${Math.round(s.driveMin)}m` : ""}</span>
                                         </div>
-                                        <button
-                                          onClick={() => assignSuggested(job)}
-                                          className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/30 font-medium shrink-0"
-                                        >
-                                          Assign
-                                        </button>
+                                        <button onClick={() => assignSuggested(job)} className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/30 font-medium shrink-0">Assign</button>
                                       </div>
                                     );
                                   })()}
@@ -580,15 +625,12 @@ export default function RoutePlanning() {
             <div className="space-y-3">
               {contractors.map((c) => {
                 const stops = (assignments[c.id] || []).map(jobById).filter(Boolean);
-                const r = computeRoute(c, stops, timeToday(dayStart));
+                const r = computeRoute(c, stops, timeToday(dayStart), breakWindow, returnToBase);
                 const isSel = selected === c.id;
-                const offToday = c.available_days?.length > 0 && !c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === todayKey);
+                const offToday = c.available_days?.length > 0 && !c.available_days.some((d) => String(d).toLowerCase().slice(0, 3) === dayKey);
                 return (
                   <div key={c.id} className={`rounded-xl border bg-slate-900/60 ${isSel ? "border-cyan-500/40" : "border-slate-800"}`}>
-                    <div
-                      onClick={() => setSelected(c.id)}
-                      className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-800/40 rounded-t-xl"
-                    >
+                    <div onClick={() => setSelected(c.id)} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-800/40 rounded-t-xl">
                       <div className="relative">
                         <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold">{c.name?.charAt(0)}</div>
                         <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${c.current_status === "available" ? "bg-emerald-400" : ["en_route", "on_site"].includes(c.current_status) ? "bg-amber-400" : "bg-slate-500"}`} />
@@ -599,14 +641,10 @@ export default function RoutePlanning() {
                       </div>
                       <div className="text-right text-xs">
                         <div className="text-slate-300">{stops.length} stops · {r.totalDrive.toFixed(1)} mi</div>
-                        <div className="text-slate-500">Ends {fmtTime(r.endTime)}</div>
+                        <div className="text-slate-500">Ends {fmtTime(r.endTime)}{r.returnLeg ? " ↩" : ""}</div>
                         {offToday && <div className="text-rose-400 text-[10px] font-medium">Off today</div>}
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); optimize(c.id); }}
-                        disabled={stops.length < 2}
-                        className="text-xs px-2 py-1 rounded-md bg-slate-800 text-cyan-300 hover:bg-slate-700 flex items-center gap-1 disabled:opacity-40"
-                      >
+                      <button onClick={(e) => { e.stopPropagation(); optimize(c.id); }} disabled={stops.length < 2} className="text-xs px-2 py-1 rounded-md bg-slate-800 text-cyan-300 hover:bg-slate-700 flex items-center gap-1 disabled:opacity-40">
                         <Zap className="w-3 h-3" /> Optimize
                       </button>
                     </div>
@@ -622,17 +660,17 @@ export default function RoutePlanning() {
                                     <div className="min-w-0 flex-1">
                                       <div className="text-sm text-slate-200 truncate">{job.title}</div>
                                       <div className="text-xs text-slate-500 truncate">{job.site_address}</div>
-                                      {reasons[job.id]?.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                          {reasons[job.id].slice(0, 3).map((rs, k) => (
-                                            <span key={k} className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300/80 border border-cyan-500/20">{rs}</span>
-                                          ))}
-                                        </div>
-                                      )}
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        <JobBadges job={job} />
+                                        {reasons[job.id]?.slice(0, 3).map((rs, k) => (
+                                          <span key={k} className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300/80 border border-cyan-500/20">{rs}</span>
+                                        ))}
+                                      </div>
                                     </div>
                                     <div className="text-right text-[11px] shrink-0">
                                       <div className="text-cyan-300 flex items-center gap-1 justify-end"><Clock className="w-3 h-3" />{fmtTime(r.stops[i].arrival)}</div>
                                       {r.stops[i].mi != null && <div className="text-slate-500">{r.stops[i].mi.toFixed(1)} mi</div>}
+                                      {r.stops[i].breakAdded > 0 && <div className="text-amber-400 flex items-center gap-0.5 justify-end"><Coffee className="w-3 h-3" />break</div>}
                                     </div>
                                   </div>
                                 )}
@@ -678,10 +716,19 @@ export default function RoutePlanning() {
                       <div className="text-right shrink-0">
                         <div className="text-cyan-300">{fmtTime(s.arrival)}</div>
                         {s.mi != null && <div className="text-slate-500">{s.mi.toFixed(1)} mi</div>}
+                        {s.breakAdded > 0 && <div className="text-amber-400 text-[10px] flex items-center gap-0.5 justify-end"><Coffee className="w-3 h-3" />break</div>}
                         {(() => { const w = hoursWarn(s.job, s.arrival); return w ? <div className="text-amber-400 text-[10px] flex items-center gap-0.5 justify-end"><Clock className="w-3 h-3" />outside {w}</div> : null; })()}
                       </div>
                     </div>
                   ))}
+                  {route.returnLeg && (
+                    <div className="flex items-center gap-2 text-xs pt-1.5 border-t border-slate-800 mt-1.5">
+                      <Home className="w-3.5 h-3.5 text-slate-500" />
+                      <div className="flex-1 text-slate-400">Return to base</div>
+                      <div className="text-slate-400">{fmtTime(route.returnLeg.arrival)}</div>
+                      {route.returnLeg.mi != null && <div className="text-slate-500">{route.returnLeg.mi.toFixed(1)} mi</div>}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

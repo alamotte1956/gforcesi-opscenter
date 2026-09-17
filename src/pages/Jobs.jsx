@@ -35,32 +35,52 @@ export default function Jobs() {
   const [jobs, setJobs] = useState([]);
   const [clients, setClients] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [sites, setSites] = useState([]);
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [form, setForm] = useState({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", estimated_duration_hours: "", required_equipment: "", required_skills: "", scan_window_start: "", scan_window_end: "", notes: "" });
+  const [form, setForm] = useState({ title: "", project_id: "", site_address: "", latitude: "", longitude: "", site_id: "", crew_size_required: "", depends_on_job_id: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", estimated_duration_hours: "", required_equipment: "", required_skills: "", scan_window_start: "", scan_window_end: "", notes: "" });
   const [showArchived, setShowArchived] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
 
   const load = async () => {
-    const [data, cls, prj, user] = await Promise.all([base44.entities.Job.list("-scheduled_start"), base44.entities.Client.list(), base44.entities.Project.list(), base44.auth.me().catch(() => null)]);
+    const [data, cls, prj, siteList, user] = await Promise.all([base44.entities.Job.list("-scheduled_start"), base44.entities.Client.list(), base44.entities.Project.list(), base44.entities.Site.list(), base44.auth.me().catch(() => null)]);
     setJobs(data);
     setClients(cls);
     setProjects(prj);
+    setSites(siteList);
     setMe(user);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
+  const onSiteChange = (e) => {
+    const sid = e.target.value;
+    const site = sites.find((s) => s.id === sid);
+    if (site) {
+      setForm((f) => ({
+        ...f,
+        site_id: sid,
+        site_address: site.address || f.site_address,
+        latitude: site.latitude ?? "",
+        longitude: site.longitude ?? "",
+        scan_window_start: site.opening_time || f.scan_window_start,
+        scan_window_end: site.closing_time || f.scan_window_end,
+      }));
+    } else {
+      setForm((f) => ({ ...f, site_id: "" }));
+    }
+  };
+
   const createJob = async () => {
     if (!form.title || !form.project_id || !form.site_address) return;
     const project = projects.find((p) => p.id === form.project_id);
     const title = form.title;
-    const coords = await geocodeAddress(form.site_address);
+    const coords = (form.latitude !== "" && form.latitude != null) ? { latitude: Number(form.latitude), longitude: Number(form.longitude) } : await geocodeAddress(form.site_address);
     await base44.entities.Job.create({
       title,
       project_id: form.project_id,
@@ -81,11 +101,14 @@ export default function Jobs() {
       required_skills: form.required_skills ? form.required_skills.split(",").map((s) => s.trim()).filter(Boolean) : [],
       scan_window_start: form.scan_window_start || undefined,
       scan_window_end: form.scan_window_end || undefined,
+      site_id: form.site_id || undefined,
+      crew_size_required: form.crew_size_required ? Number(form.crew_size_required) : undefined,
+      depends_on_job_id: form.depends_on_job_id || undefined,
       billable_rate_type: form.billable_rate_type,
       billable_rate: form.billable_rate ? Number(form.billable_rate) : undefined,
       notes: form.notes || undefined,
     });
-    setForm({ title: "", project_id: "", site_address: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", estimated_duration_hours: "", required_equipment: "", required_skills: "", scan_window_start: "", scan_window_end: "", notes: "" });
+    setForm({ title: "", project_id: "", site_address: "", latitude: "", longitude: "", site_id: "", crew_size_required: "", depends_on_job_id: "", priority: "medium", scheduled_start: "", scheduled_end: "", sla_due_date: "", status: "scheduled", billable_rate_type: "hourly", billable_rate: "", estimated_duration_hours: "", required_equipment: "", required_skills: "", scan_window_start: "", scan_window_end: "", notes: "" });
     setShowForm(false);
     toast({ title: "Job created", description: coords ? `${title} — coordinates set for routing` : `${title} — address not geocoded; add coordinates for routing` });
     load();
@@ -274,6 +297,12 @@ export default function Jobs() {
             </select>
           </Field>
           <Field label="Site address"><input value={form.site_address} onChange={(e) => setForm({ ...form, site_address: e.target.value })} className={inputCls} placeholder="Site address" /></Field>
+          <Field label="Link to site record (fills address, coords & hours)">
+            <select value={form.site_id} onChange={onSiteChange} className={inputCls}>
+              <option value="">— None —</option>
+              {sites.map((s) => <option key={s.id} value={s.id}>{s.name}{s.address ? ` — ${s.address}` : ""}</option>)}
+            </select>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Priority">
               <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className={inputCls}>
@@ -296,6 +325,15 @@ export default function Jobs() {
             <Field label="Required equipment"><input value={form.required_equipment} onChange={(e) => setForm({ ...form, required_equipment: e.target.value })} className={inputCls} placeholder="LiDAR Scanner, Drone" /></Field>
             </div>
             <Field label="Required skills (comma-separated)"><input value={form.required_skills} onChange={(e) => setForm({ ...form, required_skills: e.target.value })} className={inputCls} placeholder="Drone Pilot License, LiDAR Cert" /></Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Crew size required"><input type="number" min="1" value={form.crew_size_required} onChange={(e) => setForm({ ...form, crew_size_required: e.target.value })} className={inputCls} placeholder="1" /></Field>
+              <Field label="Depends on job">
+                <select value={form.depends_on_job_id} onChange={(e) => setForm({ ...form, depends_on_job_id: e.target.value })} className={inputCls}>
+                  <option value="">— None —</option>
+                  {jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
+                </select>
+              </Field>
+            </div>
             <div className="grid grid-cols-2 gap-3">
             <Field label="Scan window start"><input type="time" value={form.scan_window_start} onChange={(e) => setForm({ ...form, scan_window_start: e.target.value })} className={inputCls} /></Field>
             <Field label="Scan window end"><input type="time" value={form.scan_window_end} onChange={(e) => setForm({ ...form, scan_window_end: e.target.value })} className={inputCls} /></Field>
@@ -332,6 +370,9 @@ const jobFields = [
   { key: "billable_rate", label: "Billable rate", type: "number" },
   { key: "required_equipment", label: "Equipment (comma-separated)", type: "tags" },
   { key: "required_skills", label: "Skills (comma-separated)", type: "tags" },
+  { key: "crew_size_required", label: "Crew size required", type: "number" },
+  { key: "depends_on_job_id", label: "Depends on job (id)", type: "text" },
+  { key: "site_id", label: "Site record id", type: "text" },
   { key: "deliverables", label: "Deliverables", type: "text" },
   { key: "notes", label: "Notes", type: "textarea" },
 ];

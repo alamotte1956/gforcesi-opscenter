@@ -17,6 +17,9 @@
     "client_name": {
       "type": "string"
     },
+    "site_id": {
+      "type": "string"
+    },
     "site_address": {
       "type": "string"
     },
@@ -37,6 +40,13 @@
       "items": {
         "type": "string"
       }
+    },
+    "crew_size_required": {
+      "type": "number",
+      "default": 1
+    },
+    "depends_on_job_id": {
+      "type": "string"
     },
     "estimated_duration_hours": {
       "type": "number"
