@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Check, X, ScanLine, FileText, Loader2, Eye, CheckCircle2, RotateCcw, Send } from "lucide-react";
+import { Plus, Check, X, ScanLine, FileText, Loader2, Eye, CheckCircle2, RotateCcw, Send, ClipboardCheck, ShieldCheck, ExternalLink, User } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
@@ -18,6 +18,14 @@ const qaStyles = {
   rescan: "text-amber-400 bg-amber-500/10 border-amber-500/20",
 };
 const typeLabels = { "3d_model": "3D Model", floorplan: "Floorplan", pointcloud: "Point Cloud", photos: "Photos", other: "Other" };
+const QA_CHECKLIST = [
+  "Full coverage — all rooms and areas scanned",
+  "No motion blur or people in frames",
+  "Scan alignment correct (no drift)",
+  "Lighting balanced, no overexposure",
+  "Markers/tags placed correctly",
+  "Dollhouse & floorplan generated cleanly",
+];
 const inputCls = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500";
 
 function blankForm() { return { job_id: "", deliverable_type: "3d_model", matterport_model_id: "", share_url: "", embed_url: "", download_url: "", notes: "" }; }
@@ -32,10 +40,14 @@ export default function Deliverables() {
   const [saving, setSaving] = useState(false);
   const [qaFor, setQaFor] = useState(null);
   const [qaNotes, setQaNotes] = useState("");
+  const [qaChecklist, setQaChecklist] = useState([]);
+  const [qaAcknowledge, setQaAcknowledge] = useState(false);
   const [busy, setBusy] = useState(null);
   const [viewing, setViewing] = useState(null);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
+  const jobMap = useMemo(() => Object.fromEntries(jobs.map((j) => [j.id, j])), [jobs]);
+  const qaQueue = deliverables.filter((d) => d.qa_status === "pending" && !["accepted", "rejected"].includes(d.status));
 
   const load = async () => {
     const [d, j, u] = await Promise.all([
@@ -75,9 +87,19 @@ export default function Deliverables() {
   const setQA = async (d, qa_status) => {
     setBusy(d.id);
     try {
-      await base44.entities.Deliverable.update(d.id, { qa_status, qa_notes: qaNotes || d.qa_notes || "", status: qa_status === "rescan" ? "rescan" : d.status });
-      toast({ title: `QA marked: ${qa_status}` });
-      setQaFor(null); setQaNotes("");
+      const patch = {
+        qa_status,
+        qa_notes: qaNotes || d.qa_notes || "",
+        status: qa_status === "rescan" ? "rescan" : qa_status === "passed" ? "ready" : d.status,
+      };
+      if (qa_status === "passed") {
+        patch.qa_reviewer = me?.full_name || me?.email || "";
+        patch.qa_signed_at = new Date().toISOString();
+        patch.qa_checklist = qaChecklist;
+      }
+      await base44.entities.Deliverable.update(d.id, patch);
+      toast({ title: qa_status === "passed" ? "QA signed off — ready to deliver" : `QA marked: ${qa_status}` });
+      setQaFor(null); setQaNotes(""); setQaChecklist([]); setQaAcknowledge(false);
       load();
     } catch (e) { toast({ title: "Update failed", description: e.message, variant: "destructive" }); }
     setBusy(null);
@@ -99,7 +121,7 @@ export default function Deliverables() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2"><ScanLine className="w-5 h-5 text-cyan-400" /> Deliverables & QA</h1>
-          <p className="text-sm text-slate-500">{deliverables.length} deliverables · scan → process → QA → deliver → client acceptance</p>
+          <p className="text-sm text-slate-500">{deliverables.length} deliverables · {qaQueue.length} waiting on QA · scan → process → QA → deliver → client acceptance</p>
         </div>
         {isAdmin && (
           <button onClick={() => setShowCreate(true)} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
@@ -117,6 +139,32 @@ export default function Deliverables() {
           {isAdmin && <div className="text-xs text-slate-500 mt-1">Create a deliverable from a completed scan, run QA, then deliver it to the client for acceptance.</div>}
         </div>
       ) : (
+        <>
+        {qaQueue.length > 0 && (
+          <div className="mb-5">
+            <h2 className="text-sm font-medium text-amber-300 mb-3 flex items-center gap-2"><ClipboardCheck className="w-4 h-4" /> Waiting on QA · {qaQueue.length}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {qaQueue.map((d) => {
+                const job = jobMap[d.job_id];
+                const who = (job?.assigned_contractor_names || []).join(", ") || "Unassigned";
+                return (
+                  <div key={d.id} className="bg-slate-900 border border-amber-500/20 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] px-2 py-0.5 rounded border bg-amber-500/10 text-amber-300 border-amber-500/30">QA Pending</span>
+                      <span className="text-[10px] text-slate-500">{typeLabels[d.deliverable_type] || d.deliverable_type}</span>
+                    </div>
+                    <div className="font-medium text-slate-200 text-sm truncate">{d.job_title || "—"}</div>
+                    <div className="text-xs text-slate-500 mt-1 truncate">{d.client_name}{d.site_address ? ` · ${d.site_address}` : ""}</div>
+                    <div className="text-xs text-slate-400 mt-2 flex items-center gap-1.5"><User className="w-3 h-3" /> {who}</div>
+                    <button onClick={() => { setQaFor(d); setQaNotes(d.qa_notes || ""); setQaChecklist(QA_CHECKLIST.map((item) => ({ item, passed: false }))); setQaAcknowledge(false); }} className="mt-3 w-full px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 text-xs font-medium hover:bg-cyan-400 flex items-center justify-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5" /> Open & Review
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
           <table className="w-full text-sm min-w-[980px]">
             <thead>
@@ -139,6 +187,7 @@ export default function Deliverables() {
                   <td className="px-4 py-3"><span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusStyles[d.status] || statusStyles.processing}`}>{d.status}</span></td>
                   <td className="px-4 py-3">
                     <span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${qaStyles[d.qa_status] || qaStyles.pending}`}>{d.qa_status}</span>
+                    {d.qa_reviewer && <div className="text-[10px] text-slate-500 mt-1">by {d.qa_reviewer}{d.qa_signed_at ? ` · ${new Date(d.qa_signed_at).toLocaleDateString()}` : ""}</div>}
                     {d.qa_notes && <div className="text-[10px] text-slate-500 mt-1 max-w-[180px] truncate">{d.qa_notes}</div>}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -149,8 +198,8 @@ export default function Deliverables() {
                       )}
                       {isAdmin && (
                         <>
-                          {d.qa_status === "pending" && (
-                            <button onClick={() => { setQaFor(d); setQaNotes(d.qa_notes || ""); }} title="Run QA" className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs hover:bg-slate-700 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> QA</button>
+                          {["pending", "failed", "rescan"].includes(d.qa_status) && (
+                            <button onClick={() => { setQaFor(d); setQaNotes(d.qa_notes || ""); setQaChecklist(QA_CHECKLIST.map((item) => ({ item, passed: false }))); setQaAcknowledge(false); }} title="Run QA" className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs hover:bg-slate-700 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> QA</button>
                           )}
                           {d.qa_status === "passed" && !["delivered", "accepted", "rejected"].includes(d.status) && (
                             <button onClick={() => deliver(d)} title="Deliver to client" className="px-2 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs flex items-center gap-1 hover:bg-cyan-500/25"><Send className="w-3 h-3" /> Deliver</button>
@@ -164,6 +213,7 @@ export default function Deliverables() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {showCreate && (
@@ -221,18 +271,51 @@ export default function Deliverables() {
 
       {qaFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setQaFor(null)} />
-          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl">
-            <h3 className="text-base font-semibold mb-1">QA Review — {qaFor.job_title}</h3>
-            <p className="text-xs text-slate-500 mb-3">Inspect the scan, then mark the result. "Rescan" sends the job back for rework.</p>
-            <textarea value={qaNotes} onChange={(e) => setQaNotes(e.target.value)} rows={3} placeholder="QA notes (coverage, blur, alignment...)" className={`${inputCls} resize-none mb-3`} />
-            <div className="grid grid-cols-3 gap-2">
-              <button onClick={() => setQA(qaFor, "passed")} disabled={busy === qaFor.id} className="px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/25 flex items-center justify-center gap-1.5"><Check className="w-4 h-4" /> Pass</button>
-              <button onClick={() => setQA(qaFor, "failed")} disabled={busy === qaFor.id} className="px-3 py-2 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 text-sm font-medium hover:bg-rose-500/25 flex items-center justify-center gap-1.5"><X className="w-4 h-4" /> Fail</button>
-              <button onClick={() => setQA(qaFor, "rescan")} disabled={busy === qaFor.id} className="px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 flex items-center justify-center gap-1.5"><RotateCcw className="w-4 h-4" /> Rescan</button>
+          <div className="absolute inset-0 bg-black/60" onClick={() => setQaFor(null)} />
+          <div className="relative w-full max-w-5xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+              <div>
+                <h3 className="text-base font-semibold flex items-center gap-2"><ClipboardCheck className="w-4 h-4 text-cyan-400" /> QA Review — {qaFor.job_title}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{qaFor.client_name}{qaFor.site_address ? ` · ${qaFor.site_address}` : ""}</p>
+              </div>
+              <button onClick={() => setQaFor(null)} className="text-slate-400 hover:text-slate-200"><X className="w-5 h-5" /></button>
             </div>
-            <div className="flex justify-end pt-3">
-              <button onClick={() => setQaFor(null)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
+            <div className="grid grid-cols-1 lg:grid-cols-2">
+              <div className="p-4 border-b lg:border-b-0 lg:border-r border-slate-800">
+                <div className="text-xs text-slate-500 mb-2 flex items-center gap-1.5"><ScanLine className="w-3.5 h-3.5" /> 3D Model</div>
+                {qaFor.embed_url ? (
+                  <div className="rounded-lg overflow-hidden border border-slate-800" style={{ paddingBottom: "56.25%", position: "relative" }}>
+                    <iframe src={qaFor.embed_url} className="absolute inset-0 w-full h-full" allowFullScreen allow="vr, xr, accelerometer; fullscreen; autoplay" />
+                  </div>
+                ) : qaFor.share_url ? (
+                  <a href={qaFor.share_url} target="_blank" rel="noreferrer" className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><ExternalLink className="w-4 h-4" /> Open model in Matterport</a>
+                ) : (
+                  <div className="text-sm text-slate-500 bg-slate-950 border border-slate-800 rounded-lg p-4 text-center">No model URL linked. Add an embed or share URL to review inline.</div>
+                )}
+                {qaFor.notes && <div className="mt-3 text-xs text-slate-400 whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-lg p-3">{qaFor.notes}</div>}
+              </div>
+              <div className="p-4">
+                <div className="text-xs text-slate-500 mb-2">QA Checklist — confirm each meets standard</div>
+                <div className="space-y-2 mb-3">
+                  {qaChecklist.map((c, i) => (
+                    <label key={i} className="flex items-start gap-2 text-sm text-slate-300 cursor-pointer">
+                      <input type="checkbox" checked={c.passed} onChange={(e) => setQaChecklist((prev) => prev.map((x, idx) => idx === i ? { ...x, passed: e.target.checked } : x))} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-800" />
+                      {c.item}
+                    </label>
+                  ))}
+                </div>
+                <textarea value={qaNotes} onChange={(e) => setQaNotes(e.target.value)} rows={3} placeholder="Flag problems (coverage gaps, blur, alignment...)" className={`${inputCls} resize-none mb-3`} />
+                <label className="flex items-start gap-2 text-sm text-slate-300 mb-3">
+                  <input type="checkbox" checked={qaAcknowledge} onChange={(e) => setQaAcknowledge(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-800" />
+                  I sign off that this deliverable meets our quality standard and is ready for the client.
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button onClick={() => setQA(qaFor, "passed")} disabled={busy === qaFor.id || !qaAcknowledge || !qaChecklist.every((c) => c.passed)} className="px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/25 flex items-center justify-center gap-1.5 disabled:opacity-40"><ShieldCheck className="w-4 h-4" /> Sign off</button>
+                  <button onClick={() => setQA(qaFor, "failed")} disabled={busy === qaFor.id} className="px-3 py-2 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 text-sm font-medium hover:bg-rose-500/25 flex items-center justify-center gap-1.5"><X className="w-4 h-4" /> Flag</button>
+                  <button onClick={() => setQA(qaFor, "rescan")} disabled={busy === qaFor.id} className="px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 flex items-center justify-center gap-1.5"><RotateCcw className="w-4 h-4" /> Rescan</button>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-2">Sign-off requires all checklist items + acknowledgment. "Flag" records problems; "Rescan" sends back for rework.</div>
+              </div>
             </div>
           </div>
         </div>

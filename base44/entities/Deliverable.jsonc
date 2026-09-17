@@ -71,6 +71,27 @@
     "qa_notes": {
       "type": "string"
     },
+    "qa_checklist": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "qa_reviewer": {
+      "type": "string"
+    },
+    "qa_signed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "delivered_at": {
       "type": "string",
       "format": "date-time"
