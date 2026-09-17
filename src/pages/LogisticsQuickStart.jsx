@@ -111,6 +111,52 @@ const tips = [
   "When something goes wrong on site, it lands in Issues — check it before end of day.",
 ];
 
+function printGuide() {
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const sections = workflows
+    .map((w) => {
+      const steps = w.steps.map((s, i) => `<li><span class="n">${i + 1}</span><span>${esc(s)}</span></li>`).join("");
+      return `<section><h2>${esc(w.title)}</h2><p class="sub">${esc(w.subtitle)}</p><ol>${steps}</ol></section>`;
+    })
+    .join("");
+  const tipList = tips.map((t) => `<li>${esc(t)}</li>`).join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Logistics Quick Start — GForceSI</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #0f172a; max-width: 760px; margin: 0 auto; padding: 32px; line-height: 1.5; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .lead { color: #475569; font-size: 13px; margin: 0 0 20px; }
+    .banner { background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 10px; padding: 12px 14px; margin-bottom: 20px; }
+    .banner h2 { margin: 0 0 2px; font-size: 14px; color: #0e7490; }
+    .banner p { margin: 0; font-size: 13px; color: #155e75; }
+    section { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; break-inside: avoid; }
+    section h2 { font-size: 15px; margin: 0 0 2px; }
+    .sub { color: #64748b; font-size: 12px; margin: 0 0 10px; }
+    ol { list-style: none; padding: 0; margin: 0; }
+    ol li { display: flex; gap: 8px; font-size: 13px; margin-bottom: 6px; }
+    .n { flex: 0 0 18px; height: 18px; border: 1px solid #cbd5e1; border-radius: 50%; text-align: center; font-size: 11px; font-weight: 600; color: #0e7490; line-height: 16px; }
+    .tips { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; break-inside: avoid; }
+    .tips h2 { font-size: 15px; margin: 0 0 8px; }
+    .tips ul { padding-left: 18px; margin: 0; }
+    .tips li { font-size: 13px; margin-bottom: 5px; }
+    .foot { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 20px; }
+    @media print { body { padding: 16px; } }
+  </style></head><body>
+  <h1>Logistics Quick Start</h1>
+  <p class="lead">Everything a dispatcher needs to run the day — in order. GForceSI Ops Control.</p>
+  <div class="banner"><h2>Welcome, Terry 👋</h2><p>This guide walks through the seven core workflows you'll use every day, in the order you'll use them.</p></div>
+  ${sections}
+  <div class="tips"><h2>Pro tips for your first week</h2><ul>${tipList}</ul></div>
+  <div class="foot">GForceSI Ops Control · Logistics Quick Start · ${new Date().getFullYear()}</div>
+  <script>window.onload=function(){setTimeout(function(){window.print();},300);};</script>
+  </body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) { alert("Please allow pop-ups to print the guide."); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
 export default function LogisticsQuickStart() {
   return (
     <div className="p-4 lg:p-6 max-w-5xl mx-auto">
@@ -122,7 +168,7 @@ export default function LogisticsQuickStart() {
           <p className="text-sm text-slate-500 mt-1">Everything a dispatcher needs to run the day — in order.</p>
         </div>
         <button
-          onClick={() => window.print()}
+          onClick={() => printGuide()}
           className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm flex items-center gap-1.5 hover:bg-slate-700"
         >
           <Printer className="w-4 h-4" /> Print / PDF
