@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, MapPin, Clock, Phone, Navigation2, Search, Archive } from "lucide-react";
 import FormModal from "@/components/FormModal";
+import BulkCsvUpload from "@/components/BulkCsvUpload";
 import CrudActions from "@/components/CrudActions";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -86,9 +87,47 @@ export default function Sites() {
           </div>
         </div>
         {isAdmin && (
-          <button onClick={() => { setForm(emptyForm()); setShowForm(true); }} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
-            <Plus className="w-4 h-4" /> Add Site
-          </button>
+          <div className="flex items-center gap-2">
+            <BulkCsvUpload
+              entityName="Site"
+              ctx={{ clients }}
+              onImported={load}
+              templateColumns={[
+                { key: "name", label: "name", example: "North Campus Building A", required: true },
+                { key: "address", label: "address", example: "123 Main St, Minneapolis, MN", required: true },
+                { key: "latitude", label: "latitude", example: "44.9778" },
+                { key: "longitude", label: "longitude", example: "-93.2650" },
+                { key: "client_name", label: "client_name", example: "Acme Corp" },
+                { key: "opening_time", label: "opening_time", example: "07:00" },
+                { key: "closing_time", label: "closing_time", example: "18:00" },
+                { key: "contact_name", label: "contact_name", example: "Jane Doe" },
+                { key: "contact_phone", label: "contact_phone", example: "555-0100" },
+                { key: "access_notes", label: "access_notes", example: "Gate code 1234" },
+                { key: "notes", label: "notes", example: "" },
+              ]}
+              transform={(r, ctx) => {
+                if (!r.name || !r.address) return null;
+                const client = (ctx.clients || []).find((c) => c.name.toLowerCase() === (r.client_name || "").toLowerCase());
+                return {
+                  name: r.name,
+                  address: r.address,
+                  latitude: r.latitude ? Number(r.latitude) : undefined,
+                  longitude: r.longitude ? Number(r.longitude) : undefined,
+                  client_id: client?.id || undefined,
+                  client_name: r.client_name || client?.name || undefined,
+                  opening_time: r.opening_time || undefined,
+                  closing_time: r.closing_time || undefined,
+                  contact_name: r.contact_name || undefined,
+                  contact_phone: r.contact_phone || undefined,
+                  access_notes: r.access_notes || undefined,
+                  notes: r.notes || undefined,
+                };
+              }}
+            />
+            <button onClick={() => { setForm(emptyForm()); setShowForm(true); }} className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm flex items-center gap-1.5 hover:bg-cyan-400">
+              <Plus className="w-4 h-4" /> Add Site
+            </button>
+          </div>
         )}
       </div>
 
