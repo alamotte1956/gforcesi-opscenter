@@ -30,10 +30,9 @@ export default function RouteMap({ contractor, stops }) {
   return (
     <MapContainer center={line[0]} zoom={11} className="h-full w-full min-h-[300px]" style={{ background: "#0f172a" }}>
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; OpenStreetMap contributors &copy; CARTO'
-        subdomains="abcd"
-        maxZoom={20}
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+        attribution='&copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'
+        maxZoom={16}
       />
       {start && (
         <Marker position={start} icon={startIcon}>
