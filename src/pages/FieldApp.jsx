@@ -11,6 +11,7 @@ import GuideDownload from "@/components/GuideDownload";
 import { parseMatterportUrl } from "@/lib/matterport";
 import { useOfflineQueue } from "@/hooks/useOfflineQueue";
 import OfflineBanner from "@/components/OfflineBanner";
+import ManualLocation from "@/components/field/ManualLocation";
 import { logContractorEvent, captureGeolocation } from "@/lib/contractorStatus";
 
 const fieldRoles = ["Field Technician", "Field Pilot"];
@@ -425,6 +426,7 @@ export default function FieldApp() {
           <Clock className="w-4 h-4" />
           {contractor.shift_status === "on_duty" ? "Clock Out" : "Clock In"}
         </button>
+        <ManualLocation contractor={contractor} onUpdated={reload} />
       </div>
 
       {/* Stats */}
