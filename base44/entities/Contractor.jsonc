@@ -167,6 +167,49 @@
       "type": "boolean",
       "default": false
     },
+    "business_entity_type": {
+      "type": "string",
+      "enum": [
+        "sole_proprietor",
+        "llc",
+        "s_corp",
+        "c_corp",
+        "partnership",
+        "trust_estate",
+        "other"
+      ]
+    },
+    "tin_type": {
+      "type": "string",
+      "enum": [
+        "ssn",
+        "ein"
+      ]
+    },
+    "w9_document_uri": {
+      "type": "string"
+    },
+    "coi_document_uri": {
+      "type": "string"
+    },
+    "coi_expiry": {
+      "type": "string",
+      "format": "date"
+    },
+    "mn_ic_exemption_document_uri": {
+      "type": "string"
+    },
+    "mn_ic_exemption_expiry": {
+      "type": "string",
+      "format": "date"
+    },
+    "workers_comp_document_uri": {
+      "type": "string"
+    },
+    "workers_comp_expiry": {
+      "type": "string",
+      "format": "date"
+    },
     "emergency_contact": {
       "type": "string"
     },
