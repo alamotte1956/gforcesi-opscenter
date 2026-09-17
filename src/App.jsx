@@ -54,6 +54,7 @@ import PerformanceReport from '@/pages/PerformanceReport';
 import Payouts from '@/pages/Payouts';
 import PayoutReview from '@/pages/PayoutReview';
 import RecurringSchedules from '@/pages/RecurringSchedules';
+import LogisticsQuickStart from '@/pages/LogisticsQuickStart';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -124,6 +125,7 @@ const AuthenticatedApp = () => {
           <Route path="/payouts" element={<Payouts />} />
           <Route path="/payout-review" element={<PayoutReview />} />
           <Route path="/recurring-schedules" element={<RecurringSchedules />} />
+          <Route path="/quick-start" element={<LogisticsQuickStart />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
