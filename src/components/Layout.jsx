@@ -26,9 +26,10 @@ function normalizeEmail(email) {
 
 const navGroups = [
   {
-    label: "Overview",
+    label: "Command Center",
     items: [
       { to: "/", label: "Live Map", icon: Map, end: true },
+      { to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard },
       { to: "/quick-start", label: "Quick Start", icon: Rocket },
     ],
   },
@@ -38,8 +39,8 @@ const navGroups = [
       { to: "/clients", label: "Clients", icon: Building2 },
       { to: "/projects", label: "Projects", icon: FolderKanban },
       { to: "/sites", label: "Sites", icon: MapPin },
-      { to: "/contractor-board", label: "Status Board", icon: Radio },
       { to: "/contractors", label: "Contractors", icon: Users },
+      { to: "/contractor-board", label: "Status Board", icon: Radio },
     ],
   },
   {
@@ -70,19 +71,24 @@ const navGroups = [
       { to: "/payout-review", label: "Payout Review", icon: ListChecks },
       { to: "/invoices", label: "Invoices", icon: FileText },
       { to: "/billing-review", label: "Billing Review", icon: Sparkles },
-      { to: "/project-status", label: "Project Status", icon: Activity },
     ],
   },
   {
-    label: "Insights & Admin",
+    label: "Insights & Reports",
     items: [
       { to: "/analytics", label: "Analytics", icon: BarChart3 },
+      { to: "/project-status", label: "Project Status", icon: Activity },
       { to: "/crew-performance", label: "Crew Performance", icon: Gauge },
       { to: "/performance-report", label: "Performance Report", icon: TrendingUp },
       { to: "/assignment-reports", label: "Assignment Reports", icon: FileBarChart },
-      { to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
       { to: "/compliance", label: "Compliance", icon: ShieldCheck },
       { to: "/users", label: "User Management", icon: UserCog },
+      { to: "/settings", label: "QB Settings", icon: Settings },
     ],
   },
   {
@@ -91,7 +97,6 @@ const navGroups = [
       { to: "/import", label: "Data Import", icon: FileSpreadsheet },
       { to: "/matterport", label: "Matterport", icon: ScanLine },
       { to: "/integrations", label: "Integrations", icon: Plug },
-      { to: "/settings", label: "QB Settings", icon: Settings },
     ],
   },
   {
