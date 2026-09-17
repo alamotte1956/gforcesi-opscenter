@@ -44,6 +44,15 @@ export default async function(req) {
       }
     }
 
+    try {
+      const accepted = decision === 'accept';
+      const subject = accepted ? `Job accepted — ${offer.job_title}` : `Job declined — ${offer.job_title}`;
+      const body = accepted
+        ? `Hello ${offer.contractor_name},\n\nThis confirms that you have accepted the job "${offer.job_title}"${offer.client_name ? ` for ${offer.client_name}` : ''}${offer.site_address ? ` at ${offer.site_address}` : ''}${offer.scheduled_start ? `\nScheduled: ${new Date(offer.scheduled_start).toLocaleString()}` : ''}.\n\nYou can view your job details in the Field App: https://gforcesi.base44.app/field\n\n— GForceSI Ops`
+        : `Hello ${offer.contractor_name},\n\nThis confirms that you have declined the job offer for "${offer.job_title}".\n\nIf this was a mistake, contact your dispatcher.\n\n— GForceSI Ops`;
+      await base44.asServiceRole.integrations.Core.SendEmail({ to: offer.contractor_email, from_name: 'GForceSI Ops', subject, body });
+    } catch (e) {}
+
     return Response.json({ ok: true, status: newStatus, offer_id: offerId });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
