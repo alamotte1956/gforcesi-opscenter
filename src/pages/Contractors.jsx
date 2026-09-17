@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail, Send, History, Archive, Loader2 } from "lucide-react";
+import { Plus, Phone, Radio, UserCheck, Clock, AlertCircle, KeyRound, Mail, Send, History, Archive, Loader2, Briefcase } from "lucide-react";
 import CrudActions from "@/components/CrudActions";
 import StatusTimeline from "@/components/contractors/StatusTimeline";
 import { useToast } from "@/components/ui/use-toast";
@@ -38,6 +38,12 @@ export default function Contractors() {
   const [sending, setSending] = useState(false);
   const [timelineFor, setTimelineFor] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [jobs, setJobs] = useState([]);
+  const [offers, setOffers] = useState([]);
+  const [offerFor, setOfferFor] = useState(null);
+  const [offerJobId, setOfferJobId] = useState("");
+  const [offerNotes, setOfferNotes] = useState("");
+  const [creating, setCreating] = useState(false);
   const { toast } = useToast();
   const isAdmin = me?.role === "admin";
   const isFullAccess = isAdmin || me?.access_level === "full";
@@ -46,10 +52,18 @@ export default function Contractors() {
   const accountReady = (c) => !!(c.email && users.some((u) => normalizeEmail(u.email) === normalizeEmail(c.email)));
 
   const load = async () => {
-    const [data, userList, user] = await Promise.all([base44.entities.Contractor.list(), base44.entities.User.list().catch(() => []), base44.auth.me().catch(() => null)]);
+    const [data, userList, user, jobList, offerList] = await Promise.all([
+      base44.entities.Contractor.list(),
+      base44.entities.User.list().catch(() => []),
+      base44.auth.me().catch(() => null),
+      base44.entities.Job.list().catch(() => []),
+      base44.entities.JobOffer.list().catch(() => []),
+    ]);
     setContractors(data);
     setUsers(userList);
     setMe(user);
+    setJobs(jobList);
+    setOffers(offerList);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -165,6 +179,49 @@ export default function Contractors() {
   };
 
   const onboarded = contractors.filter((c) => c.onboarding_status === "complete").length;
+
+  const availableJobsFor = (c) => {
+    if (!c) return [];
+    const activeOfferJobIds = new Set(offers.filter((o) => o.contractor_id === c.id && ["offered", "accepted"].includes(o.status)).map((o) => o.job_id));
+    return jobs.filter((j) => j.status === "scheduled" && !(j.assigned_contractor_ids || []).includes(c.id) && !activeOfferJobIds.has(j.id));
+  };
+
+  const submitOffer = async () => {
+    if (!offerFor || !offerJobId) { toast({ title: "Select a job to offer", variant: "destructive" }); return; }
+    const job = jobs.find((j) => j.id === offerJobId);
+    if (!job) return;
+    setCreating(true);
+    try {
+      await base44.entities.JobOffer.create({
+        job_id: job.id,
+        job_title: job.title,
+        project_name: job.project_name,
+        client_name: job.client_name,
+        site_address: job.site_address,
+        latitude: job.latitude,
+        longitude: job.longitude,
+        contractor_id: offerFor.id,
+        contractor_name: offerFor.name,
+        contractor_email: offerFor.email,
+        status: "offered",
+        offered_at: new Date().toISOString(),
+        scheduled_start: job.scheduled_start,
+        scan_window_start: job.scan_window_start,
+        scan_window_end: job.scan_window_end,
+        priority: job.priority,
+        estimated_duration_hours: job.estimated_duration_hours,
+        billable_rate_type: job.billable_rate_type,
+        billable_rate: job.billable_rate,
+        notes: offerNotes,
+      });
+      toast({ title: "Offer sent", description: `${offerFor.name} was offered "${job.title}".` });
+      setOfferFor(null); setOfferJobId(""); setOfferNotes("");
+      load();
+    } catch (e) {
+      toast({ title: "Failed to send offer", description: e.message, variant: "destructive" });
+    }
+    setCreating(false);
+  };
 
   return (
     <div className="p-4 lg:p-6">
@@ -289,6 +346,11 @@ export default function Contractors() {
                       <button onClick={() => setTimelineFor(c)} title="Status timeline" className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-cyan-300 hover:bg-slate-700">
                         <History className="w-4 h-4" />
                       </button>
+                      {isAdmin && (
+                        <button onClick={() => { setOfferFor(c); setOfferJobId(""); setOfferNotes(""); }} title="Offer a job" className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-cyan-300 hover:bg-slate-700">
+                          <Briefcase className="w-4 h-4" />
+                        </button>
+                      )}
                       {isAdmin && c.onboarding_status === "complete" && (
                         <button onClick={() => openGrant(c)} title="Grant app access" className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20">
                           <KeyRound className="w-4 h-4" />
@@ -387,6 +449,43 @@ export default function Contractors() {
       )}
 
       {timelineFor && <StatusTimeline contractor={timelineFor} onClose={() => setTimelineFor(null)} />}
+
+      {offerFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOfferFor(null)} />
+          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold flex items-center gap-2"><Briefcase className="w-4 h-4 text-cyan-400" /> Offer a job to {offerFor.name}</h2>
+              <button onClick={() => setOfferFor(null)} className="text-slate-400 hover:text-slate-200">✕</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Select a job</label>
+                {availableJobsFor(offerFor).length === 0 ? (
+                  <div className="text-sm text-slate-500 bg-slate-950 border border-slate-800 rounded-lg p-3">No scheduled jobs available to offer this contractor.</div>
+                ) : (
+                  <select value={offerJobId} onChange={(e) => setOfferJobId(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500">
+                    <option value="">— Choose a job —</option>
+                    {availableJobsFor(offerFor).map((j) => (
+                      <option key={j.id} value={j.id}>{j.title}{j.client_name ? ` · ${j.client_name}` : ""}{j.scheduled_start ? ` · ${new Date(j.scheduled_start).toLocaleDateString()}` : ""}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Notes (optional)</label>
+                <textarea value={offerNotes} onChange={(e) => setOfferNotes(e.target.value)} rows={2} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none" placeholder="Details for the contractor…" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <button onClick={() => setOfferFor(null)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
+              <button onClick={submitOffer} disabled={creating || !offerJobId} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400 disabled:opacity-50 flex items-center gap-1.5">
+                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send Offer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

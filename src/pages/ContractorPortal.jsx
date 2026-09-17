@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight, Radio, Navigation, ShieldCheck } from "lucide-react";
 import ManualLocation from "@/components/field/ManualLocation";
 import { logContractorEvent, captureGeolocation } from "@/lib/contractorStatus";
+import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
   scheduled: "text-blue-400 bg-blue-500/10 border-blue-500/20",
@@ -32,6 +33,9 @@ export default function ContractorPortal() {
   const [loading, setLoading] = useState(true);
 
   const [statusSaving, setStatusSaving] = useState(false);
+  const [offers, setOffers] = useState([]);
+  const [responding, setResponding] = useState(null);
+  const { toast } = useToast();
 
   const load = async () => {
     try {
@@ -42,13 +46,29 @@ export default function ContractorPortal() {
       const myContractor = cons[0] || null;
       setContractor(myContractor);
       if (myContractor) {
-        const allJobs = await base44.entities.Job.list();
+        const [allJobs, myOffers] = await Promise.all([
+          base44.entities.Job.list(),
+          base44.entities.JobOffer.filter({ contractor_id: myContractor.id }),
+        ]);
         setJobs(allJobs.filter((j) => (j.assigned_contractor_ids || []).includes(myContractor.id)));
+        setOffers(myOffers);
       }
     } catch {}
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+
+  const respondOffer = async (offer, decision) => {
+    setResponding(offer.id);
+    try {
+      await base44.functions.invoke("respondToJobOffer", { offer_id: offer.id, response: decision });
+      toast({ title: decision === "accept" ? "Offer accepted" : "Offer declined", description: offer.job_title });
+      await load();
+    } catch (e) {
+      toast({ title: "Could not respond", description: e.message, variant: "destructive" });
+    }
+    setResponding(null);
+  };
 
   const setStatus = async (status) => {
     if (!contractor) return;
@@ -116,6 +136,35 @@ export default function ContractorPortal() {
         </div>
       ) : contractor && (
         <>
+          {offers.filter((o) => o.status === "offered").length > 0 && (
+            <div className="bg-slate-900 border border-cyan-500/30 rounded-xl p-4 mb-6">
+              <h2 className="text-sm font-medium text-cyan-300 mb-3 flex items-center gap-2"><Briefcase className="w-4 h-4" /> Job Opportunities</h2>
+              <div className="space-y-2">
+                {offers.filter((o) => o.status === "offered").map((o) => (
+                  <div key={o.id} className="bg-slate-950 border border-slate-800 rounded-lg p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium text-slate-200">{o.job_title}</div>
+                        <div className="text-xs text-slate-500 mt-1 flex items-center gap-3 flex-wrap">
+                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{o.site_address || "—"}</span>
+                          {o.scheduled_start && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtTime(o.scheduled_start)}</span>}
+                          {o.scan_window_start && <span>Window: {o.scan_window_start}{o.scan_window_end ? `–${o.scan_window_end}` : ""}</span>}
+                        </div>
+                        <div className="text-xs text-slate-400 mt-1">
+                          {o.client_name} · {o.billable_rate_type === "hourly" ? `${fmtMoney(o.billable_rate)}/hr` : o.billable_rate_type === "flat" ? `${fmtMoney(o.billable_rate)} flat` : fmtMoney(o.billable_rate)}{o.estimated_duration_hours ? ` · ${o.estimated_duration_hours}h` : ""}
+                        </div>
+                        {o.notes && <div className="text-xs text-slate-500 mt-1">{o.notes}</div>}
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button onClick={() => respondOffer(o, "accept")} disabled={responding === o.id} className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-xs font-medium hover:bg-emerald-400 disabled:opacity-50">Accept</button>
+                        <button onClick={() => respondOffer(o, "decline")} disabled={responding === o.id} className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium hover:bg-slate-700 disabled:opacity-50">Decline</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium text-slate-300 flex items-center gap-2"><Radio className="w-4 h-4 text-cyan-400" /> My Status & Location</h2>
