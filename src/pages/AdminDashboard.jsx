@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import {
   ShieldCheck, Users, UserCog, Briefcase, FileText, Receipt, AlertTriangle,
-  Boxes, CheckCircle2, Clock, TrendingUp, Plug, ChevronRight, ScanLine,
+  Boxes, CheckCircle2, Clock, TrendingUp, Plug, ChevronRight, ScanLine, Rocket,
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -55,6 +55,7 @@ export default function AdminDashboard() {
     { to: "/compliance", label: "Compliance", icon: ShieldCheck, desc: `${stats.onboarded} fully onboarded` },
     { to: "/integrations", label: "Integrations", icon: Plug, desc: stats.syncErrors ? `${stats.syncErrors} sync errors` : "All synced" },
     { to: "/settings", label: "QB Settings", icon: FileText, desc: "QuickBooks config" },
+    { to: "/quick-start", label: "Quick Start Guide", icon: Rocket, desc: "Onboarding workflows" },
     { to: "/import", label: "Data Import", icon: ScanLine, desc: "Bulk import data" },
   ];
 
