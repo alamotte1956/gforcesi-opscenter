@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight, Radio, Navigation, ShieldCheck } from "lucide-react";
+import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight, Radio, Navigation, ShieldCheck, FileSignature } from "lucide-react";
 import ManualLocation from "@/components/field/ManualLocation";
 import { logContractorEvent, captureGeolocation } from "@/lib/contractorStatus";
 import { useToast } from "@/components/ui/use-toast";
@@ -35,6 +35,13 @@ export default function ContractorPortal() {
   const [statusSaving, setStatusSaving] = useState(false);
   const [offers, setOffers] = useState([]);
   const [responding, setResponding] = useState(null);
+  const [contracts, setContracts] = useState([]);
+  const [signingContract, setSigningContract] = useState(null);
+  const [sigName, setSigName] = useState("");
+  const [sigInsurance, setSigInsurance] = useState(false);
+  const [sigIrs, setSigIrs] = useState(false);
+  const [sigEsign, setSigEsign] = useState(false);
+  const [sigSaving, setSigSaving] = useState(false);
   const { toast } = useToast();
 
   const load = async () => {
@@ -46,12 +53,14 @@ export default function ContractorPortal() {
       const myContractor = cons[0] || null;
       setContractor(myContractor);
       if (myContractor) {
-        const [allJobs, myOffers] = await Promise.all([
+        const [allJobs, myOffers, myContracts] = await Promise.all([
           base44.entities.Job.list(),
           base44.entities.JobOffer.filter({ contractor_id: myContractor.id }),
+          base44.entities.JobContract.filter({ contractor_id: myContractor.id }),
         ]);
         setJobs(allJobs.filter((j) => (j.assigned_contractor_ids || []).includes(myContractor.id)));
         setOffers(myOffers);
+        setContracts(myContracts);
       }
     } catch {}
     setLoading(false);
@@ -68,6 +77,29 @@ export default function ContractorPortal() {
       toast({ title: "Could not respond", description: e.message, variant: "destructive" });
     }
     setResponding(null);
+  };
+
+  const signContract = async () => {
+    if (!signingContract) return;
+    if (!sigName.trim()) { toast({ title: "Type your full name to sign", variant: "destructive" }); return; }
+    if (!sigInsurance || !sigIrs || !sigEsign) { toast({ title: "Acknowledge all required terms", variant: "destructive" }); return; }
+    setSigSaving(true);
+    try {
+      await base44.entities.JobContract.update(signingContract.id, {
+        status: "signed",
+        signed_at: new Date().toISOString(),
+        signature_name: sigName.trim(),
+        esign_consent: true,
+        insurance_acknowledged: true,
+        irs_acknowledged: true,
+      });
+      toast({ title: "Contract signed", description: signingContract.job_title });
+      setSigningContract(null); setSigName(""); setSigInsurance(false); setSigIrs(false); setSigEsign(false);
+      await load();
+    } catch (e) {
+      toast({ title: "Sign failed", description: e.message, variant: "destructive" });
+    }
+    setSigSaving(false);
   };
 
   const setStatus = async (status) => {
@@ -165,6 +197,22 @@ export default function ContractorPortal() {
               </div>
             </div>
           )}
+          {contracts.filter((c) => c.status === "pending").length > 0 && (
+            <div className="bg-slate-900 border border-amber-500/30 rounded-xl p-4 mb-6">
+              <h2 className="text-sm font-medium text-amber-300 mb-3 flex items-center gap-2"><FileSignature className="w-4 h-4" /> Contracts to Sign</h2>
+              <div className="space-y-2">
+                {contracts.filter((c) => c.status === "pending").map((c) => (
+                  <div key={c.id} className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-200">{c.job_title}</div>
+                      <div className="text-xs text-slate-500">{c.client_name} · {c.site_address}</div>
+                    </div>
+                    <button onClick={() => setSigningContract(c)} className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-xs font-medium hover:bg-amber-400 shrink-0">Review & Sign</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium text-slate-300 flex items-center gap-2"><Radio className="w-4 h-4 text-cyan-400" /> My Status & Location</h2>
@@ -251,6 +299,39 @@ export default function ContractorPortal() {
             </div>
           )}
         </>
+      )}
+
+      {signingContract && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setSigningContract(null)} />
+          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <h2 className="text-base font-semibold mb-1">Job Contract — {signingContract.job_title}</h2>
+            <p className="text-xs text-slate-500 mb-3">Review the agreement, then sign electronically below.</p>
+            <pre className="text-xs text-slate-300 whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-lg p-3 mb-4 max-h-60 overflow-y-auto font-sans">{signingContract.terms}</pre>
+            <div className="space-y-3">
+              <label className="flex items-start gap-2 text-sm text-slate-300">
+                <input type="checkbox" checked={sigInsurance} onChange={(e) => setSigInsurance(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-800" />
+                I confirm I maintain required insurance (general liability & workers' comp) and will provide certificates on request.
+              </label>
+              <label className="flex items-start gap-2 text-sm text-slate-300">
+                <input type="checkbox" checked={sigIrs} onChange={(e) => setSigIrs(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-800" />
+                I acknowledge I am an independent contractor responsible for my own taxes (IRS), and no taxes will be withheld from my pay.
+              </label>
+              <label className="flex items-start gap-2 text-sm text-slate-300">
+                <input type="checkbox" checked={sigEsign} onChange={(e) => setSigEsign(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-800" />
+                I consent to sign this agreement electronically and agree it has the same legal effect as a handwritten signature.
+              </label>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Type your full legal name to sign</label>
+                <input value={sigName} onChange={(e) => setSigName(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500" placeholder="Full legal name" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <button onClick={() => setSigningContract(null)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
+              <button onClick={signContract} disabled={sigSaving} className="px-4 py-2 rounded-lg bg-amber-500 text-slate-950 font-medium text-sm hover:bg-amber-400 disabled:opacity-50">{sigSaving ? "Signing…" : "Sign Contract"}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
