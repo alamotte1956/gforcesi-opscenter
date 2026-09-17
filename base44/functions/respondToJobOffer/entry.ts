@@ -32,28 +32,26 @@ export default async function(req) {
     await base44.asServiceRole.entities.JobOffer.update(offerId, { status: newStatus, responded_at: now });
 
     const job = await base44.asServiceRole.entities.Job.get(offer.job_id).catch(() => null);
-    if (decision === 'accept') {
-      if (job) {
-        const ids = Array.isArray(job.assigned_contractor_ids) ? [...job.assigned_contractor_ids] : [];
-        const names = Array.isArray(job.assigned_contractor_names) ? [...job.assigned_contractor_names] : [];
-        if (!ids.includes(offer.contractor_id)) {
-          ids.push(offer.contractor_id);
-          names.push(offer.contractor_name);
-          await base44.asServiceRole.entities.Job.update(job.id, { assigned_contractor_ids: ids, assigned_contractor_names: names });
-        }
+    if (decision === 'accept' && job) {
+      const ids = Array.isArray(job.assigned_contractor_ids) ? [...job.assigned_contractor_ids] : [];
+      const names = Array.isArray(job.assigned_contractor_names) ? [...job.assigned_contractor_names] : [];
+      if (!ids.includes(offer.contractor_id)) {
+        ids.push(offer.contractor_id);
+        names.push(offer.contractor_name);
+        await base44.asServiceRole.entities.Job.update(job.id, { assigned_contractor_ids: ids, assigned_contractor_names: names });
       }
-      try {
-        const comp = offer.billable_rate_type === 'hourly' ? `$${offer.billable_rate}/hr` : offer.billable_rate_type === 'flat' ? `$${offer.billable_rate} flat` : offer.billable_rate_type === 'daily' ? `$${offer.billable_rate}/day` : `$${offer.billable_rate}`;
-        const terms = `INDEPENDENT CONTRACTOR AGREEMENT\n\nThis Agreement is entered into between GForceSI ("Company") and ${offer.contractor_name} ("Contractor") for the following work:\n\nJob: ${offer.job_title}${offer.client_name ? `\nClient: ${offer.client_name}` : ''}${offer.site_address ? `\nSite: ${offer.site_address}` : ''}${offer.scheduled_start ? `\nScheduled: ${new Date(offer.scheduled_start).toLocaleString()}` : ''}\nCompensation: ${comp}\n\n1. Independent Contractor Status. The Contractor is engaged as an independent contractor, not an employee. The Contractor is responsible for their own taxes, insurance, and compliance with all applicable laws.\n2. Insurance. The Contractor confirms they maintain general liability and workers' compensation insurance as required by the Company, and will provide certificates of insurance upon request.\n3. IRS / Tax. The Contractor is responsible for all federal, state, and local taxes on compensation received. A Form W-9 is on file with the Company. The Contractor is not entitled to employee benefits and understands no taxes will be withheld from payments.\n4. Scope of Work. The Contractor shall perform the field scanning and documentation services described in the job details in a professional and workmanlike manner, following all site safety requirements.\n5. Payment. The Contractor will be paid according to the compensation terms above upon completion and submission of required deliverables.\n6. Compliance. The Contractor agrees to comply with all applicable laws, regulations, and site requirements.\n\nBy signing below electronically, the Contractor acknowledges they have read, understood, and agree to the terms of this Agreement, including the independent contractor status, insurance, and IRS/tax provisions.`;
-        await base44.asServiceRole.entities.JobContract.create({
-          job_id: offer.job_id, job_title: offer.job_title, project_name: offer.project_name, client_name: offer.client_name, site_address: offer.site_address,
-          contractor_id: offer.contractor_id, contractor_name: offer.contractor_name, contractor_email: offer.contractor_email,
-          offer_id: offerId, status: 'pending', terms,
-          billable_rate_type: offer.billable_rate_type, billable_rate: offer.billable_rate,
-          scheduled_start: offer.scheduled_start,
-        });
-      } catch (e) {}
     }
+    try {
+      const comp = offer.billable_rate_type === 'hourly' ? `$${offer.billable_rate}/hr` : offer.billable_rate_type === 'flat' ? `$${offer.billable_rate} flat` : offer.billable_rate_type === 'daily' ? `$${offer.billable_rate}/day` : `$${offer.billable_rate}`;
+      const terms = `INDEPENDENT CONTRACTOR AGREEMENT\n\nThis Agreement is entered into between GForceSI ("Company") and ${offer.contractor_name} ("Contractor") for the following work:\n\nJob: ${offer.job_title}${offer.client_name ? `\nClient: ${offer.client_name}` : ''}${offer.site_address ? `\nSite: ${offer.site_address}` : ''}${offer.scheduled_start ? `\nScheduled: ${new Date(offer.scheduled_start).toLocaleString()}` : ''}\nCompensation: ${comp}\n\n1. Independent Contractor Status. The Contractor is engaged as an independent contractor, not an employee. The Contractor is responsible for their own taxes, insurance, and compliance with all applicable laws.\n2. Insurance. The Contractor confirms they maintain general liability and workers' compensation insurance as required by the Company, and will provide certificates of insurance upon request.\n3. IRS / Tax. The Contractor is responsible for all federal, state, and local taxes on compensation received. A Form W-9 is on file with the Company. The Contractor is not entitled to employee benefits and understands no taxes will be withheld from payments.\n4. Scope of Work. The Contractor shall perform the field scanning and documentation services described in the job details in a professional and workmanlike manner, following all site safety requirements.\n5. Payment. The Contractor will be paid according to the compensation terms above upon completion and submission of required deliverables.\n6. Compliance. The Contractor agrees to comply with all applicable laws, regulations, and site requirements.\n\nBy signing below electronically, the Contractor acknowledges they have read, understood, and agree to the terms of this Agreement, including the independent contractor status, insurance, and IRS/tax provisions.`;
+      await base44.asServiceRole.entities.JobContract.create({
+        job_id: offer.job_id, job_title: offer.job_title, project_name: offer.project_name, client_name: offer.client_name, site_address: offer.site_address,
+        contractor_id: offer.contractor_id, contractor_name: offer.contractor_name, contractor_email: offer.contractor_email,
+        offer_id: offerId, status: decision === 'accept' ? 'pending' : 'declined', terms,
+        billable_rate_type: offer.billable_rate_type, billable_rate: offer.billable_rate,
+        scheduled_start: offer.scheduled_start,
+      });
+    } catch (e) {}
 
     try {
       const accepted = decision === 'accept';
