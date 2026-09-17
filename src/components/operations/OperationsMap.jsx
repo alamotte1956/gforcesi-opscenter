@@ -78,9 +78,10 @@ export default function OperationsMap({ employees = [], jobs = [], selectedEmplo
       style={{ background: "#0b1424" }}
     >
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; OpenStreetMap contributors'
-        className="osm-dark-tiles"
+        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        attribution='&copy; OpenStreetMap contributors &copy; CARTO'
+        subdomains="abcd"
+        maxZoom={20}
       />
       <FitBounds employees={activeEmployees} jobs={geocodedJobs} />
 
