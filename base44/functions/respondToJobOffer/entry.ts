@@ -31,8 +31,8 @@ export default async function(req) {
     const newStatus = decision === 'accept' ? 'accepted' : 'declined';
     await base44.asServiceRole.entities.JobOffer.update(offerId, { status: newStatus, responded_at: now });
 
+    const job = await base44.asServiceRole.entities.Job.get(offer.job_id).catch(() => null);
     if (decision === 'accept') {
-      const job = await base44.asServiceRole.entities.Job.get(offer.job_id).catch(() => null);
       if (job) {
         const ids = Array.isArray(job.assigned_contractor_ids) ? [...job.assigned_contractor_ids] : [];
         const names = Array.isArray(job.assigned_contractor_names) ? [...job.assigned_contractor_names] : [];
@@ -57,9 +57,27 @@ export default async function(req) {
 
     try {
       const accepted = decision === 'accept';
-      const subject = accepted ? `Job accepted — ${offer.job_title}` : `Job declined — ${offer.job_title}`;
+      const subject = accepted ? `Job accepted — ${job?.title || offer.job_title}` : `Job declined — ${offer.job_title}`;
+      const comp = offer.billable_rate_type === 'hourly' ? `$${offer.billable_rate}/hr` : offer.billable_rate_type === 'flat' ? `$${offer.billable_rate} flat` : offer.billable_rate_type === 'daily' ? `$${offer.billable_rate}/day` : `$${offer.billable_rate}`;
+      const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
+      const list = (arr) => Array.isArray(arr) && arr.length ? arr.join(', ') : '—';
       const body = accepted
-        ? `Hello ${offer.contractor_name},\n\nThis confirms that you have accepted the job "${offer.job_title}"${offer.client_name ? ` for ${offer.client_name}` : ''}${offer.site_address ? ` at ${offer.site_address}` : ''}${offer.scheduled_start ? `\nScheduled: ${new Date(offer.scheduled_start).toLocaleString()}` : ''}.\n\nYou can view your job details in the Field App: https://gforcesi.base44.app/field\n\n— GForceSI Ops`
+        ? `Hello ${offer.contractor_name},\n\nThis confirms that you have accepted and agreed to the following job:\n\n` +
+          `Job: ${job?.title || offer.job_title}\n` +
+          `Client: ${job?.client_name || offer.client_name || '—'}\n` +
+          `Project: ${job?.project_name || offer.project_name || '—'}\n` +
+          `Site: ${job?.site_address || offer.site_address || '—'}\n` +
+          `Scheduled start: ${fmt(job?.scheduled_start || offer.scheduled_start)}\n` +
+          `Scheduled end: ${fmt(job?.scheduled_end)}\n` +
+          `Scan window: ${job?.scan_window_start || '—'} to ${job?.scan_window_end || '—'}\n` +
+          `Priority: ${job?.priority || '—'}\n` +
+          `Crew size required: ${job?.crew_size_required || 1}\n` +
+          `Required equipment: ${list(job?.required_equipment)}\n` +
+          `Required skills: ${list(job?.required_skills)}\n` +
+          `Compensation: ${comp}\n` +
+          `Deliverables: ${job?.deliverables || '—'}\n` +
+          `Notes: ${job?.notes || '—'}\n\n` +
+          `You can view your job details in the Field App: https://gforcesi.base44.app/field\n\n— GForceSI Ops`
         : `Hello ${offer.contractor_name},\n\nThis confirms that you have declined the job offer for "${offer.job_title}".\n\nIf this was a mistake, contact your dispatcher.\n\n— GForceSI Ops`;
       await base44.asServiceRole.integrations.Core.SendEmail({ to: offer.contractor_email, from_name: 'GForceSI Ops', subject, body });
     } catch (e) {}
