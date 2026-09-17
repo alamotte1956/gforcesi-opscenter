@@ -6,6 +6,7 @@ import CrudActions from "@/components/CrudActions";
 import StatusTimeline from "@/components/contractors/StatusTimeline";
 import { useToast } from "@/components/ui/use-toast";
 import { ACCESS_LEVELS } from "@/lib/accessLevels";
+import { contractorCompliance } from "@/lib/contractorCompliance";
 
 const statusDot = {
   available: "bg-emerald-400",
@@ -323,6 +324,7 @@ export default function Contractors() {
                       {c.onboarding_status === "complete" ? <UserCheck className="w-3 h-3" /> : c.onboarding_status === "in_progress" ? <Clock className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
                       {c.onboarding_status === "complete" ? "Onboarded" : c.onboarding_status === "in_progress" ? "In Progress" : "Invitation Pending"}
                     </span>
+                    {(() => { const comp = contractorCompliance(c); return comp.expiredDocs.length ? <div className="text-[10px] text-rose-400 mt-1">Docs expired</div> : comp.expiringSoon.length ? <div className="text-[10px] text-amber-400 mt-1">Docs expiring</div> : null; })()}
                   </td>
                   <td className="px-4 py-3">
                     {accountReady(c) ? (
@@ -346,11 +348,15 @@ export default function Contractors() {
                       <button onClick={() => setTimelineFor(c)} title="Status timeline" className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-cyan-300 hover:bg-slate-700">
                         <History className="w-4 h-4" />
                       </button>
-                      {isAdmin && (
-                        <button onClick={() => { setOfferFor(c); setOfferJobId(""); setOfferNotes(""); }} title="Offer a job" className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-cyan-300 hover:bg-slate-700">
-                          <Briefcase className="w-4 h-4" />
-                        </button>
-                      )}
+                      {isAdmin && (() => {
+                        const comp = contractorCompliance(c);
+                        const blocked = !comp.canReceiveOffers;
+                        return (
+                          <button onClick={() => { setOfferFor(c); setOfferJobId(""); setOfferNotes(""); }} title={blocked ? "Compliance issues — resolve before offering" : "Offer a job"} className={`p-1.5 rounded-lg ${blocked ? "bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" : "bg-slate-800 text-slate-300 hover:text-cyan-300 hover:bg-slate-700"}`}>
+                            <Briefcase className="w-4 h-4" />
+                          </button>
+                        );
+                      })()}
                       {isAdmin && c.onboarding_status === "complete" && (
                         <button onClick={() => openGrant(c)} title="Grant app access" className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20">
                           <KeyRound className="w-4 h-4" />
@@ -477,9 +483,22 @@ export default function Contractors() {
                 <textarea value={offerNotes} onChange={(e) => setOfferNotes(e.target.value)} rows={2} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none" placeholder="Details for the contractor…" />
               </div>
             </div>
+            {offerFor && (() => {
+              const comp = contractorCompliance(offerFor);
+              return !comp.canReceiveOffers ? (
+                <div className="mb-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs text-rose-200">
+                  <div className="font-medium mb-1 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" /> Cannot send offer — resolve compliance first</div>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    {!comp.allSigned && <li>Onboarding disclosures not fully signed</li>}
+                    {comp.docs.filter((d) => !d.uploaded).map((d) => <li key={d.key}>Missing document: {d.label}</li>)}
+                    {comp.expiredDocs.map((d) => <li key={d.key}>Expired: {d.label} ({d.exp.label})</li>)}
+                  </ul>
+                </div>
+              ) : null;
+            })()}
             <div className="flex justify-end gap-2 pt-4">
               <button onClick={() => setOfferFor(null)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
-              <button onClick={submitOffer} disabled={creating || !offerJobId} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400 disabled:opacity-50 flex items-center gap-1.5">
+              <button onClick={submitOffer} disabled={creating || !offerJobId || (offerFor ? !contractorCompliance(offerFor).canReceiveOffers : false)} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400 disabled:opacity-50 flex items-center gap-1.5">
                 {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send Offer
               </button>
             </div>

@@ -4,7 +4,9 @@ import { useToast } from "@/components/ui/use-toast";
 import {
   ShieldCheck, FileText, Clock, Database, PenLine, Eye,
   AlertTriangle, CheckCircle2, XCircle, Trash2, Info,
+  FileCheck2, CalendarClock,
 } from "lucide-react";
+import { contractorCompliance } from "@/lib/contractorCompliance";
 
 const complianceFields = [
   { key: "w9_on_file", label: "W-9 on file", ref: "IRS 1099-NEC reporting" },
@@ -15,10 +17,19 @@ const complianceFields = [
   { key: "esign_consent", label: "E-sign consent", ref: "ESIGN / Minn. Stat. § 325L" },
 ];
 
+const docColumns = [
+  { key: "w9", label: "W-9" },
+  { key: "coi", label: "GL COI" },
+  { key: "mn_ic", label: "MN IC Exemption" },
+  { key: "wc", label: "Workers' Comp" },
+];
+const expiryTone = (state) => state === "expired" ? "bg-rose-500/15 text-rose-300 border-rose-500/30" : state === "expiring" ? "bg-amber-500/15 text-amber-300 border-amber-500/30" : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
+
 export default function Compliance() {
   const [contractors, setContractors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [purgeId, setPurgeId] = useState("");
+  const [docBusy, setDocBusy] = useState(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -30,6 +41,19 @@ export default function Compliance() {
 
   const isCompliant = (c) => complianceFields.every((f) => c[f.key]);
   const compliantCount = contractors.filter(isCompliant).length;
+  const expiredCount = contractors.filter((c) => contractorCompliance(c).expiredDocs.length).length;
+  const expiringCount = contractors.filter((c) => contractorCompliance(c).expiringSoon.length).length;
+
+  const viewDoc = async (uri) => {
+    setDocBusy(uri);
+    try {
+      const { signed_url } = await base44.functions.invoke("getContractorDocumentUrl", { file_uri: uri });
+      window.open(signed_url, "_blank");
+    } catch (e) {
+      toast({ title: "Could not open document", description: e.message, variant: "destructive" });
+    }
+    setDocBusy(null);
+  };
 
   const purge = async () => {
     if (!purgeId) return;
@@ -58,9 +82,11 @@ export default function Compliance() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <SummaryCard icon={CheckCircle2} label="Fully Compliant" value={compliantCount} accent="text-emerald-400" />
         <SummaryCard icon={XCircle} label="Action Needed" value={contractors.length - compliantCount} accent="text-rose-400" />
+        <SummaryCard icon={CalendarClock} label="Docs Expired" value={expiredCount} accent="text-rose-400" />
+        <SummaryCard icon={AlertTriangle} label="Expiring ≤30d" value={expiringCount} accent="text-amber-400" />
       </div>
 
       {/* Contractor classification */}
@@ -104,6 +130,61 @@ export default function Compliance() {
             <p className="text-xs text-slate-500 mt-3 flex items-start gap-1.5">
               <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               Minnesota requires an Independent Contractor Exemption Certificate for certain construction-related services. Misclassifying employees as contractors carries penalties under both federal FLSA and Minnesota law.
+            </p>
+          </div>
+        )}
+      </Section>
+
+      {/* Document vault */}
+      <Section icon={FileCheck2} title="Document Vault & Expiration Tracking" refs="W-9 (IRS) · Certificate of Insurance · MN Independent Contractor Exemption Certificate (§176.015 / §181.723) · Workers' Compensation (§176)">
+        {loading ? <Spinner /> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[940px]">
+              <thead>
+                <tr className="text-left text-xs text-slate-500 border-b border-slate-800">
+                  <th className="px-3 py-2.5 font-medium">Contractor</th>
+                  {docColumns.map((d) => (
+                    <th key={d.key} className="px-3 py-2.5 font-medium text-center">{d.label}</th>
+                  ))}
+                  <th className="px-3 py-2.5 font-medium text-center">Eligible for Offers</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contractors.map((c) => {
+                  const comp = contractorCompliance(c);
+                  return (
+                    <tr key={c.id} className="border-b border-slate-800/60 hover:bg-slate-800/40">
+                      <td className="px-3 py-2.5">
+                        <div className="font-medium text-slate-200">{c.name}</div>
+                        <div className="text-xs text-slate-500">{c.role}</div>
+                      </td>
+                      {comp.docs.map((d) => (
+                        <td key={d.key} className="px-3 py-2.5 text-center">
+                          {d.uploaded ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <button onClick={() => viewDoc(c[d.uri])} disabled={docBusy === c[d.uri]} className="text-[11px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 flex items-center gap-1 disabled:opacity-50">
+                                <Eye className="w-3 h-3" /> View
+                              </button>
+                              {d.expiry && <span className={`text-[10px] px-1.5 py-0.5 rounded border ${expiryTone(d.exp.state)}`}>{d.exp.label}</span>}
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-rose-400/80">Not uploaded</span>
+                          )}
+                        </td>
+                      ))}
+                      <td className="px-3 py-2.5 text-center">
+                        <span className={`text-[10px] px-2 py-0.5 rounded border ${comp.canReceiveOffers ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" : "bg-rose-500/15 text-rose-300 border-rose-500/30"}`}>
+                          {comp.canReceiveOffers ? "Eligible" : "Blocked"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="text-xs text-slate-500 mt-3 flex items-start gap-1.5">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              Job offers are blocked for contractors with missing or expired required documents. Renew COI, MN IC Exemption, and Workers' Comp before their expiration dates to keep contractors eligible.
             </p>
           </div>
         )}

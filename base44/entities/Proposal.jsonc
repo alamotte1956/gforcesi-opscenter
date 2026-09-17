@@ -1,0 +1,99 @@
+{
+  "name": "Proposal",
+  "type": "object",
+  "properties": {
+    "proposal_number": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "site_address": {
+      "type": "string"
+    },
+    "scope_of_work": {
+      "type": "string"
+    },
+    "package_tier": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "premium",
+        "enterprise"
+      ],
+      "default": "standard"
+    },
+    "estimated_sqft": {
+      "type": "number"
+    },
+    "rate_per_sqft": {
+      "type": "number"
+    },
+    "estimated_total": {
+      "type": "number"
+    },
+    "actual_sqft": {
+      "type": "number"
+    },
+    "actual_total": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "accepted",
+        "rejected",
+        "expired"
+      ],
+      "default": "draft"
+    },
+    "issue_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "valid_until": {
+      "type": "string",
+      "format": "date"
+    },
+    "converted_project_id": {
+      "type": "string"
+    },
+    "converted_job_id": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "proposal_number",
+    "client_id",
+    "site_address",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

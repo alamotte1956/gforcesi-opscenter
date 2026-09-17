@@ -1,0 +1,114 @@
+{
+  "name": "Deliverable",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "site_address": {
+      "type": "string"
+    },
+    "deliverable_type": {
+      "type": "string",
+      "enum": [
+        "3d_model",
+        "floorplan",
+        "pointcloud",
+        "photos",
+        "other"
+      ],
+      "default": "3d_model"
+    },
+    "matterport_model_id": {
+      "type": "string"
+    },
+    "share_url": {
+      "type": "string"
+    },
+    "embed_url": {
+      "type": "string"
+    },
+    "download_url": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "processing",
+        "ready",
+        "delivered",
+        "accepted",
+        "rejected",
+        "rescan"
+      ],
+      "default": "processing"
+    },
+    "qa_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "passed",
+        "failed",
+        "rescan"
+      ],
+      "default": "pending"
+    },
+    "qa_notes": {
+      "type": "string"
+    },
+    "delivered_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "accepted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "accepted_by_name": {
+      "type": "string"
+    },
+    "rejected_reason": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "deliverable_type",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

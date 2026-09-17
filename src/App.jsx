@@ -53,6 +53,8 @@ import CrewPerformance from '@/pages/CrewPerformance';
 import PerformanceReport from '@/pages/PerformanceReport';
 import Payouts from '@/pages/Payouts';
 import PayoutReview from '@/pages/PayoutReview';
+import Deliverables from '@/pages/Deliverables';
+import Proposals from '@/pages/Proposals';
 import RecurringSchedules from '@/pages/RecurringSchedules';
 import LogisticsQuickStart from '@/pages/LogisticsQuickStart';
 import ContractorBoard from '@/pages/ContractorBoard';
@@ -124,6 +126,8 @@ const AuthenticatedApp = () => {
           <Route path="/crew-performance" element={<CrewPerformance />} />
           <Route path="/performance-report" element={<PerformanceReport />} />
           <Route path="/payouts" element={<Payouts />} />
+          <Route path="/proposals" element={<Proposals />} />
+          <Route path="/deliverables" element={<Deliverables />} />
           <Route path="/payout-review" element={<PayoutReview />} />
           <Route path="/recurring-schedules" element={<RecurringSchedules />} />
           <Route path="/quick-start" element={<LogisticsQuickStart />} />

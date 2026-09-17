@@ -8,6 +8,8 @@ import {
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
 
+const typeLabel = (t) => ({ "3d_model": "3D Model", floorplan: "Floorplan", pointcloud: "Point Cloud", photos: "Photos", other: "Other" })[t] || t || "";
+
 const stages = [
   { key: "scheduled", label: "Scheduled" },
   { key: "en_route", label: "En Route" },
@@ -40,18 +42,23 @@ export default function ClientPortal() {
   const [cMessages, setCMessages] = useState([]);
   const [cReply, setCReply] = useState("");
   const [cSending, setCSending] = useState(false);
+  const [deliverables, setDeliverables] = useState([]);
+  const [delivBusy, setDelivBusy] = useState(null);
+  const [rejectFor, setRejectFor] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     (async () => {
-      const [user, cls, allJobs, allProjects, allInv, allMsgs] = await Promise.all([
+      const [user, cls, allJobs, allProjects, allInv, allMsgs, allDeliv] = await Promise.all([
         base44.auth.me().catch(() => null),
         base44.entities.Client.list(),
         base44.entities.Job.list(),
         base44.entities.Project.list(),
         base44.entities.Invoice.list(),
         base44.entities.Message.list("created_date"),
+        base44.entities.Deliverable.list().catch(() => []),
       ]);
-      setMe(user); setClients(cls); setJobs(allJobs); setProjects(allProjects); setInvoices(allInv); setCMessages(allMsgs);
+      setMe(user); setClients(cls); setJobs(allJobs); setProjects(allProjects); setInvoices(allInv); setCMessages(allMsgs); setDeliverables(allDeliv);
       setLoading(false);
     })();
     const unsubJob = base44.entities.Job.subscribe((event) => {
@@ -79,6 +86,18 @@ export default function ClientPortal() {
   const clientJobs = activeClient ? jobs.filter((j) => j.client_id === activeClient.id) : [];
   const clientProjects = activeClient ? projects.filter((p) => p.client_id === activeClient.id) : [];
   const clientInvoices = activeClient ? invoices.filter((i) => i.client_id === activeClient.id) : [];
+  const clientDeliverables = activeClient ? deliverables.filter((d) => d.client_id === activeClient.id) : [];
+
+  const respondDeliverable = async (d, response, reason) => {
+    setDelivBusy(d.id);
+    try {
+      await base44.functions.invoke("respondToDeliverable", { deliverable_id: d.id, response, rejected_reason: reason || undefined });
+      const updated = await base44.entities.Deliverable.list().catch(() => []);
+      setDeliverables(updated);
+    } catch (e) {}
+    setDelivBusy(null);
+    setRejectFor(null); setRejectReason("");
+  };
 
   const stats = {
     active: clientJobs.filter((j) => !["complete", "invoiced"].includes(j.status)).length,
@@ -256,6 +275,60 @@ export default function ClientPortal() {
           </div>
         )}
       </section>
+
+      {clientDeliverables.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2"><ScanLine className="w-4 h-4 text-cyan-400" /> Digital Twins</h2>
+          <div className="space-y-4">
+            {clientDeliverables.map((d) => (
+              <div key={d.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <div className="font-medium">{d.job_title || d.deliverable_type}</div>
+                    <div className="text-xs text-slate-500 capitalize">{typeLabel(d.deliverable_type)}{d.site_address ? ` · ${d.site_address}` : ""}</div>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded border capitalize shrink-0 ${d.status === "accepted" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" : d.status === "rejected" ? "bg-rose-500/15 text-rose-300 border-rose-500/30" : "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"}`}>{d.status}</span>
+                </div>
+                {d.embed_url && d.status !== "rejected" && (
+                  <div className="rounded-lg overflow-hidden border border-slate-800 mb-3" style={{ paddingBottom: "56.25%", position: "relative" }}>
+                    <iframe src={d.embed_url} className="absolute inset-0 w-full h-full" allowFullScreen allow="vr, xr, accelerometer; fullscreen; autoplay" title={d.job_title} />
+                  </div>
+                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {d.share_url && <a href={d.share_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"><ScanLine className="w-3.5 h-3.5" /> Open in Matterport</a>}
+                  {d.download_url && <a href={d.download_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"><FileText className="w-3.5 h-3.5" /> Download deliverables</a>}
+                </div>
+                {d.status === "delivered" && (
+                  <div className="mt-3 pt-3 border-t border-slate-800 flex items-center gap-2">
+                    <button onClick={() => respondDeliverable(d, "accept")} disabled={delivBusy === d.id} className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-xs font-medium hover:bg-emerald-400 disabled:opacity-50">Accept</button>
+                    <button onClick={() => setRejectFor(d)} disabled={delivBusy === d.id} className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium hover:bg-slate-700 disabled:opacity-50">Request changes</button>
+                  </div>
+                )}
+                {d.status === "accepted" && d.accepted_at && (
+                  <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-emerald-300">Accepted {new Date(d.accepted_at).toLocaleDateString()}{d.accepted_by_name ? ` by ${d.accepted_by_name}` : ""}</div>
+                )}
+                {d.status === "rejected" && (
+                  <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-rose-300">Changes requested{d.rejected_reason ? `: ${d.rejected_reason}` : ""}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {rejectFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setRejectFor(null)} />
+          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl">
+            <h3 className="text-base font-semibold mb-2">Request changes</h3>
+            <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} placeholder="What needs to be reworked?" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none" />
+            <div className="flex justify-end gap-2 pt-3">
+              <button onClick={() => setRejectFor(null)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
+              <button onClick={() => respondDeliverable(rejectFor, "reject", rejectReason)} disabled={delivBusy === rejectFor?.id} className="px-4 py-2 rounded-lg bg-rose-500 text-slate-950 font-medium text-sm hover:bg-rose-400 disabled:opacity-50">Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!limited && clientInvoices.length > 0 && (
         <section className="mt-8">
