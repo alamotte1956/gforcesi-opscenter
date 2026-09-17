@@ -4,6 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Plus, Download, Wallet, Clock, CheckCircle2, X, RefreshCw } from "lucide-react";
 import DeleteRecord from "@/components/DeleteRecord";
 import PayoutAnalytics from "@/components/payouts/PayoutAnalytics";
+import BulkApprovePanel from "@/components/payouts/BulkApprovePanel";
 
 const statusStyles = {
   pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
@@ -235,6 +236,8 @@ export default function Payouts() {
           {years.map((y) => <option key={y} value={y}>{y === "all" ? "All years" : y}</option>)}
         </select>
       </div>
+
+      {isAdmin && <BulkApprovePanel payouts={filtered} onApproved={load} />}
 
       <PayoutAnalytics payouts={filtered} />
 
