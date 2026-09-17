@@ -67,6 +67,24 @@
       ],
       "default": "off_duty"
     },
+    "shift_start": {
+      "type": "string"
+    },
+    "shift_end": {
+      "type": "string"
+    },
+    "max_daily_hours": {
+      "type": "number"
+    },
+    "base_address": {
+      "type": "string"
+    },
+    "base_latitude": {
+      "type": "number"
+    },
+    "base_longitude": {
+      "type": "number"
+    },
     "current_status": {
       "type": "string",
       "enum": [

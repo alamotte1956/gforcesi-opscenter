@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical, Loader2 } from "lucide-react";
+import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical, Loader2, Home } from "lucide-react";
 import RouteMap from "@/components/operations/RouteMap";
 import { geocodeAddress } from "@/lib/geocode";
 import { useToast } from "@/components/ui/use-toast";
@@ -36,9 +36,16 @@ function timeToday(hhmm) {
   return d;
 }
 
+// A crew's planning start position: live GPS if available, else their depot/base.
+function crewStartPos(c) {
+  if (c && c.current_latitude != null && c.current_longitude != null) return { lat: c.current_latitude, lng: c.current_longitude };
+  if (c && c.base_latitude != null && c.base_longitude != null) return { lat: c.base_latitude, lng: c.base_longitude };
+  return null;
+}
+
 function computeRoute(contractor, stops, startTime) {
   const start = startTime || (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })();
-  let prev = contractor ? { lat: contractor.current_latitude, lng: contractor.current_longitude } : null;
+  let prev = contractor ? crewStartPos(contractor) : null;
   let t = new Date(start);
   let totalDrive = 0;
   const out = stops.map((job) => {
@@ -68,6 +75,7 @@ export default function RoutePlanning() {
   const [dayStart, setDayStart] = useState("08:00");
   const [dayEnd, setDayEnd] = useState("17:00");
   const [geocoding, setGeocoding] = useState(false);
+  const [geocodingBases, setGeocodingBases] = useState(false);
   const { toast } = useToast();
 
   const load = async () => {
@@ -95,6 +103,7 @@ export default function RoutePlanning() {
   const jobById = (id) => jobs.find((j) => j.id === id);
 
   const missingCoords = jobs.filter((j) => j.site_address && (j.latitude == null || j.longitude == null)).length;
+  const missingBases = contractors.filter((c) => c.base_address && (c.base_latitude == null || c.base_longitude == null)).length;
 
   const geocodeAllSites = async () => {
     const missing = jobs.filter((j) => j.site_address && (j.latitude == null || j.longitude == null));
@@ -117,6 +126,29 @@ export default function RoutePlanning() {
     setGeocoding(false);
     await load();
     toast({ title: "Geocoding complete", description: `${done} site(s) geocoded${failed ? `, ${failed} not found` : ""}.` });
+  };
+
+  const geocodeBases = async () => {
+    const missing = contractors.filter((c) => c.base_address && (c.base_latitude == null || c.base_longitude == null));
+    if (missing.length === 0) {
+      toast({ title: "All set", description: "Every crew base already has coordinates." });
+      return;
+    }
+    setGeocodingBases(true);
+    let done = 0, failed = 0;
+    for (const c of missing) {
+      const coords = await geocodeAddress(c.base_address);
+      if (coords) {
+        await base44.entities.Contractor.update(c.id, { base_latitude: coords.latitude, base_longitude: coords.longitude });
+        done++;
+      } else {
+        failed++;
+      }
+      await new Promise((r) => setTimeout(r, 1100));
+    }
+    setGeocodingBases(false);
+    await load();
+    toast({ title: "Bases geocoded", description: `${done} base(s) geocoded${failed ? `, ${failed} not found` : ""}.` });
   };
 
   const onDragEnd = (result) => {
@@ -148,7 +180,7 @@ export default function RoutePlanning() {
       let best = null, bestScore = Infinity;
       pool.forEach((c) => {
         const load = (next[c.id] || []).length;
-        const mi = haversineMi({ lat: c.current_latitude, lng: c.current_longitude }, { lat: job.latitude, lng: job.longitude });
+        const mi = haversineMi(crewStartPos(c), { lat: job.latitude, lng: job.longitude });
         const dist = mi != null ? mi : (load === 0 ? 0 : 50);
         const score = dist + load * 5;
         if (score < bestScore) { bestScore = score; best = c; }
@@ -186,7 +218,7 @@ export default function RoutePlanning() {
     const c = contractors.find((x) => x.id === cid);
     const list = (assignments[cid] || []).map(jobById).filter(Boolean);
     if (list.length < 2) return;
-    const start = c ? { lat: c.current_latitude, lng: c.current_longitude } : null;
+    const start = c ? crewStartPos(c) : null;
     const before = computeRoute(c, list, timeToday(dayStart)).totalDrive;
     const ordered = nearestNeighborOrder(start, list);
     const after = computeRoute(c, ordered, timeToday(dayStart)).totalDrive;
@@ -206,7 +238,7 @@ export default function RoutePlanning() {
     contractors.forEach((c) => {
       const list = (assignments[c.id] || []).map(jobById).filter(Boolean);
       if (list.length < 2) return;
-      const start = { lat: c.current_latitude, lng: c.current_longitude };
+      const start = crewStartPos(c);
       const before = computeRoute(c, list, timeToday(dayStart)).totalDrive;
       const ordered = nearestNeighborOrder(start, list);
       const after = computeRoute(c, ordered, timeToday(dayStart)).totalDrive;
@@ -251,12 +283,14 @@ export default function RoutePlanning() {
     contractors.forEach((c) => { next[c.id] = []; });
     const crewState = {};
     pool.forEach((c) => {
-      crewState[c.id] = { pos: { lat: c.current_latitude, lng: c.current_longitude }, time: startMin };
+      const cStart = c.shift_start ? toMin(c.shift_start) : startMin;
+      const cEnd = c.shift_end ? toMin(c.shift_end) : endMin;
+      crewState[c.id] = { pos: crewStartPos(c), time: cStart, shiftEnd: cEnd, workMin: 0, maxWork: c.max_daily_hours ? c.max_daily_hours * 60 : null };
     });
     const updates = [];
     const newReasons = {};
     candidates.forEach((job) => {
-      let best = null, bestScore = Infinity, bestArrival = null, bestReasons = [];
+      let best = null, bestScore = Infinity, bestArrival = null, bestReasons = [], bestDrive = 0;
       const jobRegion = projects.find((p) => p.id === job.project_id)?.region;
       pool.forEach((c) => {
         const st = crewState[c.id];
@@ -265,7 +299,8 @@ export default function RoutePlanning() {
         const driveMin = mi != null ? (mi / AVG_SPEED_MPH) * 60 : 15;
         const arrival = st.time + driveMin;
         const serviceMin = job.estimated_duration_hours ? job.estimated_duration_hours * 60 : SERVICE_MIN;
-        if (arrival + serviceMin > endMin + 30) return; // doesn't fit in the workday
+        if (arrival + serviceMin > st.shiftEnd + 30) return; // doesn't fit this crew's shift
+        if (st.maxWork != null && st.workMin + driveMin + serviceMin > st.maxWork) return; // over daily capacity
         const client = clients.find((cl) => cl.id === job.client_id);
         const rs = [`${(mi ?? 0).toFixed(1)} mi`];
         let penalty = 0;
@@ -302,11 +337,20 @@ export default function RoutePlanning() {
           const matches = reqEq.filter((e) => crewEq.some((x) => x && x.toLowerCase().includes(e.toLowerCase())));
           if (matches.length) { penalty -= matches.length * 4; rs.push(`${matches.length} equip match`); }
         }
+        // Skills / certification match
+        const reqSkills = job.required_skills || [];
+        const crewSkills = [...(c.skills || []), ...(c.certifications || [])];
+        if (reqSkills.length) {
+          const matched = reqSkills.filter((s) => crewSkills.some((x) => x && x.toLowerCase().includes(s.toLowerCase())));
+          if (matched.length === reqSkills.length) { penalty -= 8; rs.push("skills match"); }
+          else if (matched.length) { penalty += (reqSkills.length - matched.length) * 5; rs.push(`${matched.length}/${reqSkills.length} skills`); }
+          else { penalty += reqSkills.length * 8; rs.push("missing skills"); }
+        }
         // Priority-weighted distance + workload balance
         const pw = prioWeight[job.priority] ?? 1;
         const load = (next[c.id] || []).length;
         const score = driveMin * pw + penalty + load * 3;
-        if (score < bestScore) { bestScore = score; best = c; bestArrival = arrival; bestReasons = rs; }
+        if (score < bestScore) { bestScore = score; best = c; bestArrival = arrival; bestReasons = rs; bestDrive = driveMin; }
       });
       if (best) {
         const st = crewState[best.id];
@@ -315,6 +359,7 @@ export default function RoutePlanning() {
         newReasons[job.id] = bestReasons;
         crewState[best.id].pos = { lat: job.latitude, lng: job.longitude };
         crewState[best.id].time = bestArrival + serviceMin;
+        crewState[best.id].workMin += bestDrive + serviceMin;
         if (!(job.assigned_contractor_ids || []).includes(best.id)) {
           updates.push(base44.entities.Job.update(job.id, { assigned_contractor_ids: [best.id], assigned_contractor_names: [best.name] }));
         }
@@ -332,7 +377,7 @@ export default function RoutePlanning() {
       const c = contractors.find((x) => x.id === cid);
       const list = (next[cid] || []).map(jobById).filter(Boolean);
       if (list.length < 2) return;
-      let prev = { lat: c.current_latitude, lng: c.current_longitude };
+      let prev = crewStartPos(c);
       const ordered = [];
       const remaining = [...list];
       while (remaining.length) {
@@ -364,7 +409,7 @@ export default function RoutePlanning() {
     const pool = available.length ? available : contractors;
     let best = null, bestMi = Infinity;
     pool.forEach((c) => {
-      const mi = haversineMi({ lat: c.current_latitude, lng: c.current_longitude }, { lat: job.latitude, lng: job.longitude });
+      const mi = haversineMi(crewStartPos(c), { lat: job.latitude, lng: job.longitude });
       if (mi != null && mi < bestMi) { bestMi = mi; best = c; }
     });
     if (!best) return null;
@@ -445,6 +490,13 @@ export default function RoutePlanning() {
             {geocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />} Geocode sites{missingCoords > 0 ? ` (${missingCoords})` : ""}
           </button>
           <button
+            onClick={geocodeBases}
+            disabled={geocodingBases}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-50"
+          >
+            {geocodingBases ? <Loader2 className="w-4 h-4 animate-spin" /> : <Home className="w-4 h-4" />} Geocode bases{missingBases > 0 ? ` (${missingBases})` : ""}
+          </button>
+          <button
             onClick={optimizeAll}
             className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm flex items-center gap-1.5 hover:bg-slate-700"
           >
@@ -455,7 +507,7 @@ export default function RoutePlanning() {
 
       <div className="flex flex-wrap items-center gap-1.5 mb-4 text-[10px] text-slate-500">
         <span className="text-slate-600">Suggested plan weighs:</span>
-        {["Priority", "SLA due date", "Distance / drive time", "Crew availability", "Site hours", "Scheduled start", "Region match", "Equipment match", "Workload balance"].map((f) => (
+        {["Priority", "SLA due date", "Distance / drive time", "Crew availability", "Crew shift", "Daily capacity", "Site hours", "Scheduled start", "Region match", "Equipment match", "Skills match", "Workload balance"].map((f) => (
           <span key={f} className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">{f}</span>
         ))}
       </div>

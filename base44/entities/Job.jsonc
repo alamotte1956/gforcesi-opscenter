@@ -32,6 +32,12 @@
         "type": "string"
       }
     },
+    "required_skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "estimated_duration_hours": {
       "type": "number"
     },
