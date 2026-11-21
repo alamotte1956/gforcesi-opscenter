@@ -1,0 +1,39 @@
+{
+  "type": "object",
+  "name": "UserRole",
+  "properties": {
+    "user_email": {
+      "type": "string"
+    },
+    "role_id": {
+      "type": "string"
+    },
+    "role_name": {
+      "type": "string"
+    },
+    "assigned_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_email",
+    "role_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "type": "object",
+  "name": "Role",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "access_level": {
+      "type": "string",
+      "enum": [
+        "full",
+        "ops_manager",
+        "dispatcher",
+        "billing",
+        "viewer",
+        "field",
+        "client",
+        "agency_client"
+      ]
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "permissions": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

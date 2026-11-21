@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "name": "QuickBooksAccountMapping",
+  "properties": {
+    "expense_category": {
+      "type": "string"
+    },
+    "category_label": {
+      "type": "string"
+    },
+    "quickbooks_account_id": {
+      "type": "string"
+    },
+    "quickbooks_account_name": {
+      "type": "string"
+    },
+    "quickbooks_account_type": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "expense_category",
+    "quickbooks_account_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
