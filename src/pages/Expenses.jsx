@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Check, X, UploadCloud, Receipt, Filter, Loader2 } from "lucide-react";
+import { Plus, Check, X, UploadCloud, Receipt, Filter, Loader2, History, Navigation, Sparkles } from "lucide-react";
 import DeleteRecord from "@/components/DeleteRecord";
+import MileageCalculator from "@/components/expenses/MileageCalculator";
+import AuditTrail from "@/components/expenses/AuditTrail";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {
@@ -31,7 +33,14 @@ export default function Expenses() {
   const [filter, setFilter] = useState("pending");
   const [syncing, setSyncing] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ description: "", amount: "", category: "labor", vendor_name: "", date: new Date().toISOString().slice(0, 10), job_id: "", notes: "" });
+  const [showMileage, setShowMileage] = useState(false);
+  const [auditExpense, setAuditExpense] = useState(null);
+  const [categorizing, setCategorizing] = useState(false);
+  const [form, setForm] = useState({
+    description: "", amount: "", category: "labor", vendor_name: "",
+    date: new Date().toISOString().slice(0, 10), job_id: "", notes: "",
+    mileage_driven: 0, mileage_rate: 0.7, mileage_reimbursement: 0, start_location: "", end_location: "",
+  });
 
   const isAdmin = me?.role === "admin";
   const { toast } = useToast();
@@ -61,8 +70,39 @@ export default function Expenses() {
   }, [expenses]);
 
   const setStatus = async (id, status) => {
-    setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
-    await base44.entities.Expense.update(id, { status });
+    const existing = expenses.find((e) => e.id === id);
+    const nextHistory = [
+      ...(existing?.approval_history || []),
+      {
+        action: status,
+        timestamp: new Date().toISOString(),
+        actor: me?.full_name || me?.email || "Admin",
+        notes: `Status changed to ${status}`,
+      },
+    ];
+    setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, status, approval_history: nextHistory } : e)));
+    await base44.entities.Expense.update(id, { status, approval_history: nextHistory });
+  };
+
+  const runAiCategorize = async () => {
+    if (!form.description && !form.vendor_name) return;
+    setCategorizing(true);
+    try {
+      const res = await base44.functions.invoke("categorizeExpenseAdvanced", {
+        description: form.description,
+        vendor: form.vendor_name,
+        amount: Number(form.amount || 0),
+      });
+      const cat = res?.data?.category;
+      if (cat) {
+        setForm((f) => ({ ...f, category: cat }));
+        toast({ title: "AI Categorized", description: `Matched category: ${cat}` });
+      }
+    } catch (e) {
+      toast({ title: "AI categorization unavailable", description: e.message, variant: "destructive" });
+    } finally {
+      setCategorizing(false);
+    }
   };
 
   const syncApproved = async () => {
@@ -99,8 +139,19 @@ export default function Expenses() {
       project_name: job?.project_name,
       status: "pending",
       notes: form.notes,
+      mileage_driven: form.mileage_driven || undefined,
+      mileage_rate: form.mileage_driven ? form.mileage_rate : undefined,
+      mileage_reimbursement: form.mileage_driven ? form.mileage_reimbursement : undefined,
+      start_location: form.start_location || undefined,
+      end_location: form.end_location || undefined,
+      approval_history: [{ action: "created", timestamp: new Date().toISOString(), actor: me?.full_name || me?.email || "User", notes: "Expense created" }],
     });
-    setForm({ description: "", amount: "", category: "labor", vendor_name: "", date: new Date().toISOString().slice(0, 10), job_id: "", notes: "" });
+    setForm({
+      description: "", amount: "", category: "labor", vendor_name: "",
+      date: new Date().toISOString().slice(0, 10), job_id: "", notes: "",
+      mileage_driven: 0, mileage_rate: 0.7, mileage_reimbursement: 0, start_location: "", end_location: "",
+    });
+    setShowMileage(false);
     setShowForm(false);
     load();
   };
@@ -181,6 +232,7 @@ export default function Expenses() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      <button onClick={() => setAuditExpense(e)} title="Audit Trail" className="p-1.5 rounded-lg text-slate-400 hover:text-[#4A9EFF] hover:bg-slate-800"><History className="w-4 h-4" /></button>
                       {isAdmin && e.status === "pending" && (
                         <>
                           <button onClick={() => setStatus(e.id, "approved")} title="Approve" className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"><Check className="w-4 h-4" /></button>
@@ -219,10 +271,42 @@ export default function Expenses() {
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Category</label>
-                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputCls}>
-                    {["labor", "equipment", "materials", "travel", "software", "other"].map((c) => <option key={c} value={c} className="capitalize">{c}</option>)}
-                  </select>
+                  <div className="flex gap-1.5">
+                    <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputCls}>
+                      {["labor", "equipment", "materials", "travel", "software", "other"].map((c) => <option key={c} value={c} className="capitalize">{c}</option>)}
+                    </select>
+                    <button type="button" onClick={runAiCategorize} disabled={categorizing} title="Auto-categorize with AI" className="px-2.5 rounded-lg bg-[#126DFA]/15 border border-[#126DFA]/30 text-[#4A9EFF] hover:bg-[#126DFA]/25">
+                      {categorizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowMileage((v) => !v)}
+                  className="text-xs text-[#FF8A3D] hover:underline flex items-center gap-1.5 font-medium"
+                >
+                  <Navigation className="w-3.5 h-3.5" /> {showMileage ? "Hide IRS Mileage Calculator" : "Calculate IRS Mileage Reimbursement ($0.70/mi)"}
+                </button>
+                {showMileage && (
+                  <div className="mt-2">
+                    <MileageCalculator
+                      mileageDriven={form.mileage_driven}
+                      mileageRate={form.mileage_rate}
+                      startLocation={form.start_location}
+                      endLocation={form.end_location}
+                      onChange={(m) =>
+                        setForm((f) => ({
+                          ...f,
+                          ...m,
+                          category: m.mileage_driven > 0 ? "travel" : f.category,
+                          amount: m.mileage_reimbursement > 0 ? String(m.mileage_reimbursement) : f.amount,
+                        }))
+                      }
+                    />
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -250,6 +334,22 @@ export default function Expenses() {
               <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Cancel</button>
               <button onClick={createExpense} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm hover:bg-cyan-400">Add Expense</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {auditExpense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setAuditExpense(null)} />
+          <div className="relative w-full max-w-xl bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-white">Expense Audit Trail</h2>
+                <p className="text-xs text-slate-400">{auditExpense.description} · {fmtMoney(auditExpense.amount)}</p>
+              </div>
+              <button onClick={() => setAuditExpense(null)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <AuditTrail expense={auditExpense} />
           </div>
         </div>
       )}

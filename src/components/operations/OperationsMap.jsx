@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -71,8 +71,8 @@ export default function OperationsMap({ employees = [], jobs = [], selectedEmplo
 
   return (
     <MapContainer
-      center={[37.7749, -122.4194]}
-      zoom={11}
+      center={[39.8, -98.5]}
+      zoom={4}
       className="w-full h-full z-0"
       zoomControl={true}
       style={{ background: "#0b1424" }}
@@ -102,9 +102,11 @@ export default function OperationsMap({ employees = [], jobs = [], selectedEmplo
                   <span className="inline-block w-2 h-2 rounded-full" style={{ background: color }} />
                   <span className="capitalize">{siteStatus.replace("_", " ")}</span>
                 </div>
-                <div className="text-slate-500 mt-1">Priority: {job.priority}</div>
-                {job.assigned_employee_names?.length > 0 && (
-                  <div className="text-slate-500 mt-0.5">Team: {job.assigned_employee_names.join(", ")}</div>
+                <div className="text-slate-500 mt-1">Priority: {job.priority || "standard"}</div>
+                {(job.assigned_contractor_names || job.assigned_employee_names)?.length > 0 && (
+                  <div className="text-slate-500 mt-0.5">
+                    Team: {(job.assigned_contractor_names || job.assigned_employee_names).join(", ")}
+                  </div>
                 )}
               </div>
             </Popup>
@@ -129,7 +131,7 @@ export default function OperationsMap({ employees = [], jobs = [], selectedEmplo
                 <div className="text-slate-600">{emp.role}</div>
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <span className="inline-block w-2 h-2 rounded-full" style={{ background: color }} />
-                  <span className="capitalize">{emp.current_status.replace("_", " ")}</span>
+                  <span className="capitalize">{String(emp.current_status || "off_duty").replace(/_/g, " ")}</span>
                 </div>
                 {emp.current_job_title && (
                   <div className="text-slate-500 mt-1">Current: {emp.current_job_title}</div>

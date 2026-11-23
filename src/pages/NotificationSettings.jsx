@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Bell, Save, Check } from "lucide-react";
+import { Bell, Save } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const EVENT_OPTIONS = [

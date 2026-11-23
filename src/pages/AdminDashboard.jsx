@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import {
   ShieldCheck, Users, UserCog, Briefcase, FileText, Receipt, AlertTriangle,
-  Boxes, CheckCircle2, Clock, TrendingUp, Plug, ChevronRight, ScanLine, Rocket,
+  Boxes, CheckCircle2, Clock, Plug, ChevronRight, ScanLine, Rocket,
 } from "lucide-react";
 
 export default function AdminDashboard() {

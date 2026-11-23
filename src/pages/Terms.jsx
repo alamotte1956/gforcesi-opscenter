@@ -12,8 +12,8 @@ export default function Terms() {
         <p>By creating an account or otherwise accessing or using the GForceSI OpsCenter platform (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree, you may not access or use the Service. These Terms are effective under the Electronic Signatures in Global and National Commerce Act (ESIGN) and the Minnesota Uniform Electronic Transactions Act (UETA).</p>
       </Section>
 
-      <Section title="2. The Service">
-        <p>GForceSI provides a field-operations and digital-twin management platform that includes job scheduling, route planning, contractor and equipment management, daily reporting, issues and inspections, invoicing and expense tracking, QuickBooks integration, and client and field-crew portals. We may modify or discontinue features at any time with reasonable notice.</p>
+      <Section title="2. Nationwide 50-State Service & Enterprise SLAs">
+        <p>G-Force SI Inc. provides a nationwide 3D digital-twin capture and field-operations platform operating across <strong>all 50 U.S. states — the Contiguous US (CONUS), Hawaii (HI), and Alaska (AK)</strong>. Services include Matterport Pro3 &amp; E57 LiDAR branch rollouts, AI route and flight-bundled AK/HI mobilization, white-label advertising agency and enterprise client portals, 24–48 hour SLA deliverable review, offline field-crew PWA workflows, and QuickBooks Online billing integration.</p>
       </Section>
 
       <Section title="3. Accounts & Access">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import {
   Plug, FileSpreadsheet, Calendar, Receipt, CheckCircle2, XCircle,
-  Loader2, ExternalLink, AlertCircle, RefreshCw, Link2, Unlink, Download, Database,
+  Loader2, AlertCircle, RefreshCw, Link2, Unlink, Download, Database,
 } from "lucide-react";
 import CredentialsHelp from "@/components/CredentialsHelp";
 import { useToast } from "@/components/ui/use-toast";

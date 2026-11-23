@@ -56,8 +56,12 @@ export default function BulkCsvUpload({
   const { toast } = useToast();
 
   const downloadTemplate = () => {
-    const header = templateColumns.map((c) => c.label).join(",");
-    const example = templateColumns.map((c) => c.example || "").join(",");
+    const csvCell = (val) => {
+      const s = String(val ?? "");
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = templateColumns.map((c) => csvCell(c.label)).join(",");
+    const example = templateColumns.map((c) => csvCell(c.example || "")).join(",");
     const csv = `${header}\n${example}\n`;
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);

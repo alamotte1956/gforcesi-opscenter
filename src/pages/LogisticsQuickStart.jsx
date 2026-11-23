@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import {
   Map, KanbanSquare, Route as RouteIcon, Repeat, Users, MapPin,
-  ClipboardList, AlertTriangle, Printer, Rocket, CheckCircle2, ArrowRight
+  ClipboardList, Printer, Rocket, CheckCircle2, ArrowRight
 } from "lucide-react";
 
 const workflows = [

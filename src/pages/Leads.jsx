@@ -7,6 +7,8 @@ const statusStyles = {
   new: "text-slate-400 bg-slate-500/10 border-slate-500/20",
   qualified: "text-blue-400 bg-blue-500/10 border-blue-500/20",
   proposal_sent: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  proposal: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  negotiation: "text-orange-400 bg-orange-500/10 border-orange-500/20",
   won: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   lost: "text-rose-400 bg-rose-500/10 border-rose-500/20",
 };
@@ -86,14 +88,15 @@ export default function Leads() {
     } catch (e) { toast({ title: "Convert failed", description: e.message, variant: "destructive" }); setConverting(null); }
   };
 
-  const filtered = filter === "all" ? leads : leads.filter((l) => l.status === filter);
+  const normStatus = (l) => (l.status === "proposal" ? "proposal_sent" : l.status || l.stage || "new");
+  const filtered = filter === "all" ? leads : leads.filter((l) => normStatus(l) === filter);
 
   const analytics = useMemo(() => {
-    const open = leads.filter((l) => ["new", "qualified", "proposal_sent"].includes(l.status));
-    const won = leads.filter((l) => l.status === "won");
-    const lost = leads.filter((l) => l.status === "lost");
-    const pipelineValue = open.reduce((s, l) => s + (l.estimated_value || 0), 0);
-    const wonValue = won.reduce((s, l) => s + (l.estimated_value || 0), 0);
+    const open = leads.filter((l) => ["new", "qualified", "proposal_sent", "negotiation"].includes(normStatus(l)));
+    const won = leads.filter((l) => normStatus(l) === "won");
+    const lost = leads.filter((l) => normStatus(l) === "lost");
+    const pipelineValue = open.reduce((s, l) => s + (Number(l.estimated_value) || 0), 0);
+    const wonValue = won.reduce((s, l) => s + (Number(l.estimated_value) || 0), 0);
     const closed = won.length + lost.length;
     const winRate = closed ? Math.round((won.length / closed) * 100) : 0;
     return { openCount: open.length, pipelineValue, wonCount: won.length, wonValue, lostCount: lost.length, winRate };
@@ -124,7 +127,7 @@ export default function Leads() {
       </div>
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        {["all", "new", "qualified", "proposal_sent", "won", "lost"].map((s) => (
+        {["all", "new", "qualified", "proposal_sent", "negotiation", "won", "lost"].map((s) => (
           <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize ${filter === s ? "bg-cyan-500 text-slate-950" : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"}`}>{s.replace("_", " ")}</button>
         ))}
       </div>
@@ -143,36 +146,38 @@ export default function Leads() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((l) => (
+            {filtered.map((l) => {
+              const st = normStatus(l);
+              return (
               <tr key={l.id} className="border-b border-slate-800/60 hover:bg-slate-800/40">
                 <td className="px-4 py-3">
-                  <div className="font-medium text-slate-200">{l.name}</div>
+                  <div className="font-medium text-slate-200">{l.name || l.contact_name || "Enterprise Inquiry"}</div>
                   <div className="text-xs text-slate-500">{l.email}{l.phone ? ` · ${l.phone}` : ""}</div>
                 </td>
                 <td className="px-4 py-3 text-slate-400">{l.company || "—"}</td>
-                <td className="px-4 py-3 text-slate-400 capitalize">{l.source}</td>
+                <td className="px-4 py-3 text-slate-400 capitalize">{String(l.source || "website").replace(/_/g, " ")}</td>
                 <td className="px-4 py-3 text-right text-slate-200">{money(l.estimated_value)}</td>
                 <td className="px-4 py-3 text-slate-400 text-xs">{l.next_follow_up ? new Date(l.next_follow_up).toLocaleDateString() : "—"}</td>
-                <td className="px-4 py-3"><span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusStyles[l.status] || statusStyles.new}`}>{l.status.replace("_", " ")}</span></td>
+                <td className="px-4 py-3"><span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusStyles[st] || statusStyles.new}`}>{st.replace(/_/g, " ")}</span></td>
                 <td className="px-4 py-3 text-right">
                   {isAdmin && (
                     <div className="flex items-center justify-end gap-1.5">
-                      {["new", "qualified"].includes(l.status) && (
+                      {["new", "qualified"].includes(st) && (
                         <button onClick={() => setStatus(l, "proposal_sent")} className="px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs hover:bg-amber-500/25">Sent</button>
                       )}
-                      {l.status === "proposal_sent" && (
+                      {["proposal_sent", "negotiation"].includes(st) && (
                         <>
                           <button onClick={() => convertToClient(l)} disabled={converting === l.id} className="px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs hover:bg-emerald-500/25 disabled:opacity-50">{converting === l.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Won"}</button>
                           <button onClick={() => { setLostReasonFor(l); setLostReason(""); }} className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 text-xs hover:bg-slate-700">Lost</button>
                         </>
                       )}
-                      <button onClick={() => openEdit(l)} className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs hover:bg-slate-700">Edit</button>
+                      <button onClick={() => openEdit({ ...l, name: l.name || l.contact_name || "", status: st })} className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs hover:bg-slate-700">Edit</button>
                     </div>
                   )}
                 </td>
               </tr>
-            ))}
-            {filtered.length === 0 && <tr><td className="px-4 py-8 text-center text-slate-500 text-sm">No leads in this view.</td></tr>}
+            );})}
+            {filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500 text-sm">No leads in this view.</td></tr>}
           </tbody>
         </table>
       </div>

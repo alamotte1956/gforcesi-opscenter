@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  ShieldCheck, FileText, Clock, Database, PenLine, Eye,
+  ShieldCheck, FileText, Database, PenLine, Eye,
   AlertTriangle, CheckCircle2, XCircle, Trash2, Info,
   FileCheck2, CalendarClock,
 } from "lucide-react";
@@ -69,15 +69,15 @@ export default function Compliance() {
     <div className="p-4 lg:p-6 max-w-6xl">
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck className="w-5 h-5 text-cyan-400" />
-        <h1 className="text-xl font-semibold">Compliance Center</h1>
+        <h1 className="text-xl font-semibold">50-State Enterprise Compliance Center</h1>
       </div>
-      <p className="text-sm text-slate-500 mb-4">Federal & Minnesota legal requirements tracked across the platform</p>
+      <p className="text-sm text-slate-500 mb-4">Federal &amp; all 50 U.S. states (Contiguous US, Alaska &amp; Hawaii) contractor W-9, COI, WC &amp; NDA governance</p>
 
       {/* Disclaimer */}
       <div className="flex gap-3 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl mb-6">
         <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
         <p className="text-sm text-amber-200/90">
-          <span className="font-medium">Not legal advice.</span> This dashboard tracks whether compliance-related documents and controls are in place. It does not certify legal compliance. Consult a Minnesota-licensed attorney for a formal review of your obligations under federal and Minnesota law.
+          <span className="font-medium">Not legal advice.</span> This dashboard tracks whether 50-state contractor compliance documents (IRS Form W-9, Certificate of Insurance, Workers&apos; Compensation, and e-signed NDA/MSA) are active across the Contiguous US, Alaska (AK), and Hawaii (HI). Consult qualified legal counsel for jurisdiction-specific review.
         </p>
       </div>
 

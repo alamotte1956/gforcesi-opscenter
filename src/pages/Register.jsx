@@ -131,15 +131,23 @@ export default function Register() {
       title="Create your account"
       subtitle="Sign up to get started"
       footer={
-        <>
-          Already have an account?{" "}
-          <Link
-            to={"/login" + (safeReturnTo() !== "/" ? "?returnTo=" + encodeURIComponent(safeReturnTo()) : "")}
-            className="text-primary font-medium hover:underline"
-          >
-            Log in
-          </Link>
-        </>
+        <div className="space-y-1.5">
+          <div>
+            Already have an account?{" "}
+            <Link
+              to={"/login" + (safeReturnTo() !== "/" ? "?returnTo=" + encodeURIComponent(safeReturnTo()) : "")}
+              className="text-primary font-medium hover:underline"
+            >
+              Log in
+            </Link>
+          </div>
+          <div>
+            Forgot your password?{" "}
+            <Link to="/forgot-password" className="text-primary font-medium hover:underline">
+              Reset Password
+            </Link>
+          </div>
+        </div>
       }
     >
       <Button

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { Send, Mail, MessageSquare, Search, Clock, Trash2 } from "lucide-react";
+import { Send, Mail, MessageSquare, Search, Trash2 } from "lucide-react";
 
 export default function Messages() {
   const [me, setMe] = useState(null);

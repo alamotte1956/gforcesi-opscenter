@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
-import { Target, Clock, CheckCircle2, AlertTriangle, TrendingUp } from "lucide-react";
+import { Target, Clock, CheckCircle2, TrendingUp } from "lucide-react";
 
 const STAGES = ["scheduled", "en_route", "on_site", "scanning", "processing", "complete", "invoiced"];
 const fmtHrs = (h) => {

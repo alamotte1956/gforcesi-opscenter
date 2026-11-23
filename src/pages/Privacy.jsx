@@ -8,8 +8,8 @@ export default function Privacy() {
       subtitle="How GForceSI collects, uses, and protects personal and operational data."
       lastUpdated="August 24, 2026"
     >
-      <Section title="1. Overview">
-        <p>GForceSI ("we," "us," "our") operates the GForceSI OpsCenter platform (the "Service"), a field-operations and digital-twin management system used by our employees, contractors, and clients. This Privacy Policy describes how we collect, use, disclose, and safeguard information in connection with the Service. We are committed to complying with all applicable federal laws and the laws of the State of Minnesota.</p>
+      <Section title="1. Overview & 50-State Scope">
+        <p>G-Force SI Inc. ("G-Force SI," "we," "us," "our") operates the G-Force SI Enterprise Digital Twin Platform and OpsCenter (<code>gforcesi.com</code> / <code>gforcesi.twinscanstudio.com</code>, the "Service"), serving national advertising agencies, enterprise banking and retail brands, and field capture crews across <strong>all 50 U.S. states — including the Contiguous United States (CONUS), Hawaii (HI), and Alaska (AK)</strong>. This Privacy Policy describes how we collect, use, isolate, and safeguard personal and multi-tenant operational data under applicable federal and 50-state privacy laws (including CCPA/CPRA and Minnesota Statutes Chapter 325E).</p>
       </Section>
 
       <Section title="2. Information We Collect">

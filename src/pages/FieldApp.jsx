@@ -3,14 +3,17 @@ import { base44 } from "@/api/base44Client";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Satellite, LogOut, ArrowLeft, Navigation, Clock, MapPin,
-  CheckCircle2, Truck, Camera, Flag, User, Briefcase,
-  MessageSquare, Send, Mail, ClipboardList, Receipt, Loader2, X,
+  CheckCircle2, Truck, Camera, Flag, Briefcase,
+  MessageSquare, Send, Mail, ClipboardList, Receipt, Loader2, X, KeyRound,
 } from "lucide-react";
 import AiAdvisor from "@/components/AiAdvisor";
 import GuideDownload from "@/components/GuideDownload";
 import { parseMatterportUrl } from "@/lib/matterport";
 import { useOfflineQueue } from "@/hooks/useOfflineQueue";
 import OfflineBanner from "@/components/OfflineBanner";
+import { useOffline } from "@/components/offline/OfflineManager";
+import SyncStatusIndicator from "@/components/offline/SyncStatusIndicator";
+import MileageCalculator from "@/components/expenses/MileageCalculator";
 import ManualLocation from "@/components/field/ManualLocation";
 import { useToast } from "@/components/ui/use-toast";
 import { logContractorEvent, captureGeolocation } from "@/lib/contractorStatus";
@@ -60,10 +63,18 @@ export default function FieldApp() {
   const [expSaving, setExpSaving] = useState(false);
   const [expSaved, setExpSaved] = useState(false);
   const [expReceipt, setExpReceipt] = useState(null);
+  const [showFieldMileage, setShowFieldMileage] = useState(false);
   const [uploadingJobId, setUploadingJobId] = useState(null);
   const [mpScanInput, setMpScanInput] = useState("");
   const { isOnline, queue, enqueue, flush } = useOfflineQueue();
+  const offlineCtx = useOffline();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (contractor?.id && offlineCtx?.preCacheFieldData) {
+      offlineCtx.preCacheFieldData(contractor.id).catch(() => {});
+    }
+  }, [contractor?.id]);
 
   useEffect(() => {
     (async () => {
@@ -324,14 +335,8 @@ export default function FieldApp() {
     if (!expForm.description || !expForm.amount) return;
     setExpSaving(true);
     let receipt_url;
-    if (expReceipt) {
-      try {
-        const up = await base44.integrations.Core.UploadFile({ file: expReceipt });
-        receipt_url = up.file_url;
-      } catch (e) {}
-    }
     const job = myJobs.find((j) => j.id === expForm.job_id);
-    await base44.entities.Expense.create({
+    const payload = {
       description: expForm.description,
       amount: Number(expForm.amount),
       date: expForm.date,
@@ -341,13 +346,33 @@ export default function FieldApp() {
       job_title: job?.title,
       project_id: job?.project_id,
       project_name: job?.project_name,
+      contractor_id: contractor.id,
+      contractor_name: contractor.name,
       filed_by_name: contractor.name,
       status: "pending",
       notes: expForm.notes,
-      receipt_url,
-    });
-    setExpenses(await base44.entities.Expense.list("-date"));
+      mileage_driven: expForm.mileage_driven || undefined,
+      mileage_rate: expForm.mileage_driven ? expForm.mileage_rate : undefined,
+      mileage_reimbursement: expForm.mileage_driven ? expForm.mileage_reimbursement : undefined,
+      start_location: expForm.start_location || undefined,
+      end_location: expForm.end_location || undefined,
+    };
+
+    if (!isOnline && offlineCtx?.createOffline) {
+      await offlineCtx.createOffline("Expense", payload);
+      toast({ title: "Saved offline in IndexedDB", description: "Will auto-sync when cell/Wi-Fi signal returns." });
+    } else {
+      if (expReceipt) {
+        try {
+          const up = await base44.integrations.Core.UploadFile({ file: expReceipt });
+          receipt_url = up.file_url;
+        } catch (e) {}
+      }
+      await base44.entities.Expense.create({ ...payload, receipt_url });
+      setExpenses(await base44.entities.Expense.list("-date"));
+    }
     setExpForm({ description: "", amount: "", category: "labor", vendor_name: "", date: new Date().toISOString().slice(0, 10), job_id: "", notes: "" });
+    setShowFieldMileage(false);
     setExpReceipt(null);
     setExpSaving(false);
     setExpSaved(true);
@@ -411,6 +436,16 @@ export default function FieldApp() {
 
   return (
     <Shell me={me} onLogout={logout} contractor={contractor} summary={{ contractor: contractor.name, status: contractor.current_status, assignedJobs: myJobs.length, completedJobs, jobStatuses: myJobs.reduce((m, j) => { m[j.status] = (m[j.status] || 0) + 1; return m; }, {}) }}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <SyncStatusIndicator />
+        <button
+          type="button"
+          onClick={() => offlineCtx?.preCacheFieldData?.(contractor.id).then(() => toast({ title: "Offline cache updated", description: "Jobs & checklists cached for bank vaults / remote AK & HI sites." }))}
+          className="text-[11px] px-2.5 py-1 rounded-lg bg-[#0D1C33] border border-[#1E3A5F] text-[#4A9EFF] hover:border-[#F97316]"
+        >
+          Cache for Offline Vaults
+        </button>
+      </div>
       <OfflineBanner isOnline={isOnline} queueCount={queue.length} onSync={() => flush(runQueue).then(() => reload())} />
 
       {/* Status card */}
@@ -518,7 +553,34 @@ export default function FieldApp() {
                 </label>
               )}
             </div>
-            <button onClick={submitExpense} disabled={expSaving || !expForm.description || !expForm.amount} className="w-full py-2.5 rounded-lg bg-cyan-500 text-slate-950 font-medium text-sm disabled:opacity-50">{expSaving ? "Submitting…" : "Submit Expense"}</button>
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowFieldMileage((v) => !v)}
+                className="text-xs text-[#FF8A3D] hover:underline font-medium"
+              >
+                {showFieldMileage ? "Hide Mileage Calculator" : "+ Log IRS Mileage ($0.70/mi)"}
+              </button>
+              {showFieldMileage && (
+                <div className="mt-2">
+                  <MileageCalculator
+                    mileageDriven={expForm.mileage_driven || 0}
+                    mileageRate={expForm.mileage_rate || 0.7}
+                    startLocation={expForm.start_location || ""}
+                    endLocation={expForm.end_location || ""}
+                    onChange={(m) =>
+                      setExpForm((f) => ({
+                        ...f,
+                        ...m,
+                        category: m.mileage_driven > 0 ? "travel" : f.category,
+                        amount: m.mileage_reimbursement > 0 ? String(m.mileage_reimbursement) : f.amount,
+                      }))
+                    }
+                  />
+                </div>
+              )}
+            </div>
+            <button onClick={submitExpense} disabled={expSaving || !expForm.description || !expForm.amount} className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white font-semibold text-sm disabled:opacity-50">{expSaving ? "Submitting…" : "Submit Expense"}</button>
           </div>
           <div className="text-xs font-medium text-slate-400 mb-2 mt-4">Your Submitted Expenses</div>
           {myExpenses.length === 0 ? (
@@ -693,6 +755,9 @@ function Shell({ me, onLogout, contractor, children, summary }) {
           {contractor && <div className="ml-1 text-xs text-slate-400 truncate hidden sm:block">· {contractor.name}</div>}
           <div className="ml-auto flex items-center gap-3">
             <GuideDownload label="Guide" className="text-xs text-slate-400 hover:text-cyan-300" />
+            <Link to="/forgot-password" title="Reset Password" className="text-xs text-slate-400 hover:text-amber-300 flex items-center gap-1">
+              <KeyRound className="w-3.5 h-3.5" /> Reset
+            </Link>
             {me?.role === "admin" && (
               <Link to="/" className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
                 <ArrowLeft className="w-3.5 h-3.5" /> Ops

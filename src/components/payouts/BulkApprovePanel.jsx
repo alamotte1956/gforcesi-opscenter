@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Users, CalendarDays, CheckCheck, Loader2, AlertTriangle } from "lucide-react";
-import { startOfWeek, format, isSameWeek } from "date-fns";
+import { startOfWeek, format } from "date-fns";
 
 const HIGH_HOURS = 60;
 

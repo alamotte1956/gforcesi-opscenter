@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { UserCog, Mail, Crown, Plus, ShieldAlert } from "lucide-react";
+import { UserCog, Mail, Plus, ShieldAlert } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { ACCESS_LEVELS } from "@/lib/accessLevels";
+import RolePermissionMatrix from "@/components/permissions/RolePermissionMatrix";
+import { defaultPermissionsForLevel } from "@/components/permissions/PermissionChecker";
 
 const levelStyles = {
   full: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
+  ops_manager: "bg-[#F97316]/15 text-[#FF8A3D] border-[#F97316]/35",
   dispatcher: "bg-blue-500/15 text-blue-300 border-blue-500/30",
   billing: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   viewer: "bg-slate-700 text-slate-300 border-slate-600",
   field: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  agency_client: "bg-[#126DFA]/20 text-[#4A9EFF] border-[#126DFA]/40",
   client: "bg-purple-500/15 text-purple-300 border-purple-500/30",
 };
 
@@ -23,6 +27,7 @@ export default function UserManagement() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: "", access_level: "viewer" });
   const [inviting, setInviting] = useState(false);
+  const [matrixLevel, setMatrixLevel] = useState("ops_manager");
   const { toast } = useToast();
 
   const load = async () => {
@@ -142,6 +147,28 @@ export default function UserManagement() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-6 rounded-xl bg-slate-900 border border-slate-800 p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-white">Granular RBAC Permission Matrix</h2>
+            <p className="text-xs text-slate-400">Inspect module-level permissions enforced across Admin, Ops Manager, Dispatcher, Billing, Field, and Agency/Client roles.</p>
+          </div>
+          <select
+            value={matrixLevel}
+            onChange={(e) => setMatrixLevel(e.target.value)}
+            className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200"
+          >
+            {Object.entries(ACCESS_LEVELS).map(([k, v]) => (
+              <option key={k} value={k}>{v.label}</option>
+            ))}
+          </select>
+        </div>
+        <RolePermissionMatrix
+          permissions={defaultPermissionsForLevel(matrixLevel)}
+          readOnly
+        />
       </div>
 
       <Dialog open={inviteOpen} onOpenChange={(v) => !v && setInviteOpen(false)}>

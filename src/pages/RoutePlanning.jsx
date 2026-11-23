@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical, Loader2, Home, Calendar, Users, Link2, AlertTriangle, Coffee, DollarSign } from "lucide-react";
+import { Route as RouteIcon, Zap, MapPin, Clock, Navigation, Wand2, GripVertical, Loader2, Home, Calendar, Users, Link2, AlertTriangle, Coffee, DollarSign, Sparkles, Plane, Layers } from "lucide-react";
 import RouteMap from "@/components/operations/RouteMap";
+import AIRouteOptimizer from "@/components/routes/AIRouteOptimizer";
+import WeekPlannerPanel from "@/components/scheduler/WeekPlannerPanel";
+import TripForm from "@/components/travel/TripForm";
 import { geocodeAddress } from "@/lib/geocode";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -128,6 +131,9 @@ export default function RoutePlanning() {
   const [rollOver, setRollOver] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
   const [geocodingBases, setGeocodingBases] = useState(false);
+  const [plannerTab, setPlannerTab] = useState("daily");
+  const [regionFilter, setRegionFilter] = useState("ALL");
+  const [tripModalInitial, setTripModalInitial] = useState(null);
   const { toast } = useToast();
 
   const dayKey = new Date(planningDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" }).toLowerCase();
@@ -511,11 +517,106 @@ export default function RoutePlanning() {
   );
 
   return (
-    <div className="p-4 lg:p-6 h-screen lg:h-full flex flex-col">
-      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+    <div className="p-4 lg:p-6 min-h-screen flex flex-col">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2"><RouteIcon className="w-5 h-5 text-cyan-400" /> Route Planning</h1>
-          <p className="text-sm text-slate-500">{autoMode ? "Suggested plan generated — drag any job to override" : "Manual mode — drag jobs to crews · click Automatic to generate a suggested plan"}</p>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <RouteIcon className="w-5 h-5 text-[#F97316]" /> Route Planning &amp; Cost-Efficient Trip Dispatch
+          </h1>
+          <p className="text-sm text-slate-400">
+            Maximize scans per trip across CONUS, Alaska &amp; Hawaii with AI multi-stop clustering, week planning &amp; bundled travel costing.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center rounded-lg bg-[#0D1C33] border border-slate-800 p-0.5 text-xs">
+            {[
+              { id: "daily", label: "Daily Dispatch", icon: RouteIcon },
+              { id: "ai", label: "AI Cost Optimizer", icon: Sparkles },
+              { id: "week", label: "Multi-Day Week Planner", icon: Layers },
+            ].map((t) => {
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setPlannerTab(t.id)}
+                  className={`px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 transition ${
+                    plannerTab === t.id
+                      ? "bg-[#126DFA] text-white shadow"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" /> {t.label}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => setTripModalInitial({ origin_city: "", destination_city: regionFilter === "AK" ? "Anchorage, AK" : regionFilter === "HI" ? "Honolulu, HI" : "", depart_date: planningDate, return_date: planningDate, crew_count: 1 })}
+            className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#FB923C] hover:to-[#F97316] text-white font-semibold text-xs flex items-center gap-1.5 shadow-lg shadow-[#F97316]/20"
+          >
+            <Plane className="w-3.5 h-3.5" /> Bundle Flight / Trip
+          </button>
+        </div>
+      </div>
+
+      {plannerTab === "ai" && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-slate-400 font-medium">Region Zone:</span>
+            {["ALL", "CONUS", "AK", "HI"].map((z) => (
+              <button
+                key={z}
+                onClick={() => setRegionFilter(z)}
+                className={`px-3 py-1 rounded-lg border font-semibold ${
+                  regionFilter === z ? "bg-[#F97316] border-[#F97316] text-white" : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                }`}
+              >
+                {z === "ALL" ? "All 50 States" : z}
+              </button>
+            ))}
+          </div>
+          <AIRouteOptimizer
+            projectId={projects[0]?.id}
+            startDate={planningDate}
+            endDate={planningDate}
+            regionZone={regionFilter}
+            personnel={contractors}
+            sites={sites}
+            onApplySchedule={async () => {
+              toast({ title: "AI Route Schedule Applied", description: "Jobs and technician assignments updated for minimum travel cost." });
+              await load();
+            }}
+            onCreateTripBundle={(bundle) => {
+              setTripModalInitial({
+                origin_city: bundle?.origin || "",
+                destination_city: bundle?.destination || (regionFilter === "AK" ? "Anchorage, AK" : regionFilter === "HI" ? "Honolulu, HI" : ""),
+                depart_date: planningDate,
+                return_date: planningDate,
+                crew_count: bundle?.crewCount || 1,
+                notes: bundle?.summary || "AI-clustered multi-site scanning trip",
+              });
+            }}
+          />
+        </div>
+      )}
+
+      {plannerTab === "week" && (
+        <WeekPlannerPanel
+          projects={projects}
+          sites={sites}
+          contractors={contractors}
+          onApplied={async () => {
+            toast({ title: "Weekly Scan Plan Saved", description: "Multi-day routes written to your job schedule." });
+            await load();
+          }}
+        />
+      )}
+
+      {plannerTab === "daily" && (
+        <>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div className="text-xs text-slate-400">
+          {autoMode ? "Suggested plan generated — drag any job to override" : "Manual mode — drag jobs to crews · click Automatic to generate a suggested plan"}
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
@@ -756,6 +857,21 @@ export default function RoutePlanning() {
           </div>
         </div>
       </DragDropContext>
+        </>
+      )}
+
+      {tripModalInitial && (
+        <TripForm
+          initial={tripModalInitial}
+          jobs={jobs}
+          onClose={() => setTripModalInitial(null)}
+          onSaved={async () => {
+            setTripModalInitial(null);
+            toast({ title: "Trip Bundle Saved", description: "Flight & travel costs saved and linked for multi-site efficiency." });
+            await load();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,16 @@
+{
+  "name": "G-Force SI Enterprise 3D Digital Twin Platform",
+  "short_name": "G-Force SI",
+  "description": "All 50 U.S. States (Contiguous US, Hawaii & Alaska) enterprise 3D Digital Twin capture, agency portal, and offline field technician PWA",
+  "start_url": "/field",
+  "display": "standalone",
+  "background_color": "#0A1628",
+  "theme_color": "#126DFA",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

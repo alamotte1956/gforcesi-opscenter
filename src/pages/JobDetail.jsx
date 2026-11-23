@@ -208,7 +208,7 @@ export default function JobDetail() {
             {photos.map((p, i) => (
               <button key={i} onClick={() => setLightbox(i)} className="text-left group">
                 <div className="aspect-video rounded-lg overflow-hidden bg-slate-800 border border-slate-800 group-hover:border-cyan-500/50 transition-colors">
-                  <Image src={p.url} className="w-full h-full" fittingType="fill" />
+                  <Image src={p.url} alt={`${job.title || "Site"} field photo ${i + 1}`} className="w-full h-full" fittingType="fill" />
                 </div>
                 <div className="mt-1.5 flex items-center justify-between text-xs">
                   <span className="text-slate-300 truncate">{p.uploaded_by_name || "Field crew"}</span>
@@ -222,7 +222,7 @@ export default function JobDetail() {
             {photos.map((p, i) => (
               <a key={i} href={p.url} target="_blank" rel="noreferrer" className="block group">
                 <div className="aspect-square rounded-lg overflow-hidden bg-slate-800 border border-slate-800 group-hover:border-cyan-500/40 transition-colors">
-                  <Image src={p.url} className="w-full h-full" fittingType="fill" />
+                  <Image src={p.url} alt={`${job.title || "Site"} field photo ${i + 1}`} className="w-full h-full" fittingType="fill" />
                 </div>
                 <div className="text-[10px] text-slate-500 mt-1 truncate">
                   {p.uploaded_by_name || "Field"}{p.uploaded_at ? ` · ${fmt(p.uploaded_at)}` : ""}
@@ -246,7 +246,7 @@ export default function JobDetail() {
             {lightbox > 0 && (
               <button onClick={() => setLightbox(lightbox - 1)} className="absolute left-4 text-slate-300 hover:text-white p-2 rounded-full bg-slate-800/60"><ChevronLeft className="w-6 h-6" /></button>
             )}
-            <Image src={photos[lightbox].url} className="max-w-full max-h-full rounded-lg" fittingType="fit" />
+            <Image src={photos[lightbox].url} alt={`${job.title || "Site"} enlarged photo ${lightbox + 1}`} className="max-w-full max-h-full rounded-lg" fittingType="fit" />
             {lightbox < photos.length - 1 && (
               <button onClick={() => setLightbox(lightbox + 1)} className="absolute right-4 text-slate-300 hover:text-white p-2 rounded-full bg-slate-800/60"><ChevronRight className="w-6 h-6" /></button>
             )}

@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight, Radio, Navigation, ShieldCheck, FileSignature, Archive } from "lucide-react";
+import { DollarSign, Briefcase, Clock, TrendingUp, CheckCircle2, Calendar, MapPin, ChevronRight, Radio, Navigation, ShieldCheck, FileSignature, Archive, ExternalLink } from "lucide-react";
 import ManualLocation from "@/components/field/ManualLocation";
+import SyncStatusIndicator from "@/components/offline/SyncStatusIndicator";
 import { logContractorEvent, captureGeolocation } from "@/lib/contractorStatus";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -142,13 +143,29 @@ export default function ContractorPortal() {
 
   return (
     <div className="p-4 lg:p-6 max-w-4xl">
-      <div className="flex items-center gap-4 mb-6">
-        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-xl font-bold text-slate-950">
-          {contractor?.name?.charAt(0) || me?.full_name?.charAt(0) || "?"}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#F97316] to-[#126DFA] flex items-center justify-center text-xl font-bold text-white shadow-lg">
+            {contractor?.name?.charAt(0) || me?.full_name?.charAt(0) || "?"}
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold">{contractor?.name || me?.full_name || "Contractor Portal"}</h1>
+            <p className="text-sm text-slate-400">{contractor?.role || "Field Contractor"}</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-semibold">{contractor?.name || me?.full_name || "Contractor Portal"}</h1>
-          <p className="text-sm text-slate-500">{contractor?.role || "Field Contractor"}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <SyncStatusIndicator />
+          <a
+            href="https://gforcepay.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#FB923C] hover:to-[#F97316] text-white text-xs font-semibold inline-flex items-center gap-1.5"
+          >
+            <DollarSign className="w-3.5 h-3.5" /> GForcePay Onboarding &amp; Payouts <ExternalLink className="w-3 h-3" />
+          </a>
+          <Link to="/field" className="px-3 py-1.5 rounded-lg bg-[#126DFA] hover:bg-[#4A9EFF] text-white text-xs font-semibold">
+            Open Field PWA →
+          </Link>
         </div>
       </div>
 

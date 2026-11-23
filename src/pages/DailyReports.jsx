@@ -27,7 +27,10 @@ export default function DailyReports() {
     setExportingId(r.id);
     try {
       const res = await base44.functions.invoke("exportDailyReport", { report_id: r.id });
-      const blob = new Blob([res.data], { type: "application/pdf" });
+      const b64 = res?.data?.pdfBase64 || res?.pdfBase64;
+      const blob = b64
+        ? new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type: "application/pdf" })
+        : new Blob([typeof res.data === "string" ? res.data : JSON.stringify(res.data)], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

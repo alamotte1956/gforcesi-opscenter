@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { PieChart, AlertTriangle, Clock, TrendingUp, DollarSign, Wallet, Receipt, Loader2 } from "lucide-react";
+import { PieChart, AlertTriangle, Clock, TrendingUp, DollarSign, Wallet, Receipt } from "lucide-react";
 
 const money = (v) => v != null ? `$${Number(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "—";
 const pct = (n, d) => d ? `${((n / d) * 100).toFixed(0)}%` : "—";

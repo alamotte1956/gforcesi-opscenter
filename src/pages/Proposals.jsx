@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Send, Check, X, Calculator, Loader2, MapPin, DollarSign, TrendingUp, Receipt, ArrowRight, FileText } from "lucide-react";
+import { Plus, Send, Check, X, Calculator, Loader2, MapPin, DollarSign, TrendingUp, Receipt } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusStyles = {

@@ -1,0 +1,18 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gfBlue" x1="6" y1="6" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4A9EFF" />
+      <stop offset="100%" stop-color="#126DFA" />
+    </linearGradient>
+    <linearGradient id="gfOrange" x1="16" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8A3D" />
+      <stop offset="100%" stop-color="#F97316" />
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="14" fill="#0A1628" stroke="url(#gfBlue)" stroke-width="2.5" />
+  <polygon points="32,12 50,22 32,32 14,22" fill="url(#gfBlue)" fill-opacity="0.32" stroke="#4A9EFF" stroke-width="2" stroke-linejoin="round" />
+  <polygon points="14,22 32,32 32,52 14,42" fill="#126DFA" fill-opacity="0.5" stroke="#4A9EFF" stroke-width="1.8" stroke-linejoin="round" />
+  <polygon points="50,22 32,32 32,52 50,42" fill="url(#gfOrange)" fill-opacity="0.9" stroke="#FF8A3D" stroke-width="1.8" stroke-linejoin="round" />
+  <circle cx="32" cy="32" r="4" fill="#FFFFFF" />
+  <circle cx="32" cy="32" r="7.5" stroke="#F97316" stroke-width="1.5" stroke-dasharray="2.5 2.5" />
+</svg>
